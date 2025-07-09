@@ -10,7 +10,7 @@ from server.models.user_model import User
 from src.utils.logging_config import logger
 
 
-base = APIRouter()
+base = APIRouter(tags=["base"])
 
 def load_info_config():
     """加载信息配置文件"""

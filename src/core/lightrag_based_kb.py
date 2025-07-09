@@ -335,7 +335,8 @@ class LightRagBasedKB:
                 # 根据内容类型处理内容
                 if content_type == "file":
                     markdown_content = await self._process_file_to_markdown(item, params=params)
-                    logger.info(f"Markdown content: {markdown_content[:100].replace('\n', ' ')}...")
+                    newline = '\n'
+                    logger.info(f"Markdown content: {markdown_content[:100].replace(newline, ' ')}...")
                 else:  # URL
                     markdown_content = await self._process_url_to_markdown(item, params=params)
 

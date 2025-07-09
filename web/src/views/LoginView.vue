@@ -1,6 +1,6 @@
 <template>
   <!-- TODO 登录页面样式优化；（1）风格和整个系统统一； -->
-  <div class="login-view" :style="{ backgroundImage: `url(${loginBg})` }" :class="{ 'has-alert': serverStatus === 'error' }">
+  <div class="login-view" :class="{ 'has-alert': serverStatus === 'error' }">
     <!-- 服务状态提示 -->
     <div v-if="serverStatus === 'error'" class="server-status-alert">
       <div class="alert-content">
@@ -15,135 +15,143 @@
       </div>
     </div>
 
-    <div class="login-container">
-      <div class="login-logo">
-        <!-- <img src="@/assets/logo.svg" alt="Logo" v-if="false" /> -->
-        <h1>知识问答管理系统</h1>
-      </div>
+    <!-- 左侧艺术图片区域 -->
+    <div class="login-art-section" :style="{ backgroundImage: `url(${loginBg})` }">
+      <div class="art-overlay"></div>
+    </div>
 
-      <!-- 初始化管理员表单 -->
-      <div v-if="isFirstRun" class="login-form">
-        <h2>系统初始化</h2>
-        <p class="init-desc">系统首次运行，请创建超级管理员账户：</p>
+    <!-- 右侧登录表单区域 -->
+    <div class="login-form-section">
+      <div class="login-container">
+        <div class="login-logo">
+          <img :src="configStore.siteLogo" :alt="configStore.siteName" class="logo-img" />
+          <h1>{{ configStore.siteName }}</h1>
+        </div>
 
-        <a-form
-          :model="adminForm"
-          @finish="handleInitialize"
-          layout="vertical"
-        >
-          <a-form-item
-            label="用户名"
-            name="username"
-            :rules="[{ required: true, message: '请输入用户名' }]"
+        <!-- 初始化管理员表单 -->
+        <div v-if="isFirstRun" class="login-form">
+          <h2>系统初始化</h2>
+          <p class="init-desc">系统首次运行，请创建超级管理员账户：</p>
+
+          <a-form
+            :model="adminForm"
+            @finish="handleInitialize"
+            layout="vertical"
           >
-            <a-input v-model:value="adminForm.username" prefix-icon="user" />
-          </a-form-item>
+            <a-form-item
+              label="用户名"
+              name="username"
+              :rules="[{ required: true, message: '请输入用户名' }]"
+            >
+              <a-input v-model:value="adminForm.username" prefix-icon="user" />
+            </a-form-item>
 
-          <a-form-item
-            label="密码"
-            name="password"
-            :rules="[{ required: true, message: '请输入密码' }]"
+            <a-form-item
+              label="密码"
+              name="password"
+              :rules="[{ required: true, message: '请输入密码' }]"
+            >
+              <a-input-password v-model:value="adminForm.password" prefix-icon="lock" />
+            </a-form-item>
+
+            <a-form-item
+              label="确认密码"
+              name="confirmPassword"
+              :rules="[
+                { required: true, message: '请确认密码' },
+                { validator: validateConfirmPassword }
+              ]"
+            >
+              <a-input-password v-model:value="adminForm.confirmPassword" prefix-icon="lock" />
+            </a-form-item>
+
+            <a-form-item>
+              <a-button type="primary" html-type="submit" :loading="loading" block>创建管理员账户</a-button>
+            </a-form-item>
+          </a-form>
+        </div>
+
+        <!-- 登录表单 -->
+        <div v-else class="login-form">
+          <h2>用户登录</h2>
+
+          <a-form
+            :model="loginForm"
+            @finish="handleLogin"
+            layout="vertical"
           >
-            <a-input-password v-model:value="adminForm.password" prefix-icon="lock" />
-          </a-form-item>
+            <a-form-item
+              label="用户名"
+              name="username"
+              :rules="[{ required: true, message: '请输入用户名' }]"
+            >
+              <a-input v-model:value="loginForm.username">
+                <template #prefix>
+                  <user-outlined />
+                </template>
+              </a-input>
+            </a-form-item>
 
-          <a-form-item
-            label="确认密码"
-            name="confirmPassword"
-            :rules="[
-              { required: true, message: '请确认密码' },
-              { validator: validateConfirmPassword }
-            ]"
-          >
-            <a-input-password v-model:value="adminForm.confirmPassword" prefix-icon="lock" />
-          </a-form-item>
+            <a-form-item
+              label="密码"
+              name="password"
+              :rules="[{ required: true, message: '请输入密码' }]"
+            >
+              <a-input-password v-model:value="loginForm.password">
+                <template #prefix>
+                  <lock-outlined />
+                </template>
+              </a-input-password>
+            </a-form-item>
 
-          <a-form-item>
-            <a-button type="primary" html-type="submit" :loading="loading" block>创建管理员账户</a-button>
-          </a-form-item>
-        </a-form>
-      </div>
+            <a-form-item>
+              <div class="login-options">
+                <a-checkbox v-model:checked="rememberMe" @click="showDevMessage">记住我</a-checkbox>
+                <a class="forgot-password" @click="showDevMessage">忘记密码?</a>
+              </div>
+            </a-form-item>
 
-      <!-- 登录表单 -->
-      <div v-else class="login-form">
-        <h2>用户登录</h2>
+            <a-form-item>
+              <a-button type="primary" html-type="submit" :loading="loading" block>登录</a-button>
+            </a-form-item>
 
-        <a-form
-          :model="loginForm"
-          @finish="handleLogin"
-          layout="vertical"
-        >
-          <a-form-item
-            label="用户名"
-            name="username"
-            :rules="[{ required: true, message: '请输入用户名' }]"
-          >
-            <a-input v-model:value="loginForm.username">
-              <template #prefix>
-                <user-outlined />
-              </template>
-            </a-input>
-          </a-form-item>
-
-          <a-form-item
-            label="密码"
-            name="password"
-            :rules="[{ required: true, message: '请输入密码' }]"
-          >
-            <a-input-password v-model:value="loginForm.password">
-              <template #prefix>
-                <lock-outlined />
-              </template>
-            </a-input-password>
-          </a-form-item>
-
-          <a-form-item>
-            <div class="login-options">
-              <a-checkbox v-model:checked="rememberMe" @click="showDevMessage">记住我</a-checkbox>
-              <a class="forgot-password" @click="showDevMessage">忘记密码?</a>
+            <!-- 第三方登录选项 -->
+            <div class="third-party-login">
+              <div class="divider">
+                <span>其他登录方式</span>
+              </div>
+              <div class="login-icons">
+                <a-tooltip title="微信登录">
+                  <a-button shape="circle" class="login-icon" @click="showDevMessage">
+                    <template #icon><wechat-outlined /></template>
+                  </a-button>
+                </a-tooltip>
+                <a-tooltip title="企业微信登录">
+                  <a-button shape="circle" class="login-icon" @click="showDevMessage">
+                    <template #icon><qrcode-outlined /></template>
+                  </a-button>
+                </a-tooltip>
+                <a-tooltip title="飞书登录">
+                  <a-button shape="circle" class="login-icon" @click="showDevMessage">
+                    <template #icon><thunderbolt-outlined /></template>
+                  </a-button>
+                </a-tooltip>
+              </div>
             </div>
-          </a-form-item>
+          </a-form>
+        </div>
 
-          <a-form-item>
-            <a-button type="primary" html-type="submit" :loading="loading" block>登录</a-button>
-          </a-form-item>
+        <!-- 错误提示 -->
+        <div v-if="errorMessage" class="error-message">
+          {{ errorMessage }}
+        </div>
 
-          <!-- 第三方登录选项 -->
-          <div class="third-party-login">
-            <div class="divider">
-              <span>其他登录方式</span>
-            </div>
-            <div class="login-icons">
-              <a-tooltip title="微信登录">
-                <a-button shape="circle" class="login-icon" @click="showDevMessage">
-                  <template #icon><wechat-outlined /></template>
-                </a-button>
-              </a-tooltip>
-              <a-tooltip title="企业微信登录">
-                <a-button shape="circle" class="login-icon" @click="showDevMessage">
-                  <template #icon><qrcode-outlined /></template>
-                </a-button>
-              </a-tooltip>
-              <a-tooltip title="飞书登录">
-                <a-button shape="circle" class="login-icon" @click="showDevMessage">
-                  <template #icon><thunderbolt-outlined /></template>
-                </a-button>
-              </a-tooltip>
-            </div>
-          </div>
-        </a-form>
-      </div>
-
-      <!-- 错误提示 -->
-      <div v-if="errorMessage" class="error-message">
-        {{ errorMessage }}
-      </div>
-
-      <!-- 页脚 -->
-      <div class="login-footer">
-        <a @click="showDevMessage">联系我们</a>
-        <a @click="showDevMessage">使用帮助</a>
-        <a @click="showDevMessage">隐私政策</a>
+        <!-- 页脚 -->
+        <div class="login-footer">
+          <a @click="showDevMessage">联系我们</a>
+          <a @click="showDevMessage">使用帮助</a>
+          <a @click="showDevMessage">隐私政策</a>
+        </div>
       </div>
     </div>
   </div>
@@ -153,14 +161,16 @@
 import { ref, reactive, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { useUserStore } from '@/stores/user';
+import { useConfigStore } from '@/stores/config';
 import { message } from 'ant-design-vue';
 import { chatApi } from '@/apis/auth_api';
 import { authApi, healthApi } from '@/apis/public_api';
 import { UserOutlined, LockOutlined, WechatOutlined, QrcodeOutlined, ThunderboltOutlined, ExclamationCircleOutlined } from '@ant-design/icons-vue';
-import loginBg from '@/assets/pics/login_bg.jpg';
+import loginBg from '@/assets/pics/login_bg.png';
 
 const router = useRouter();
 const userStore = useUserStore();
+const configStore = useConfigStore();
 
 // 状态
 const isFirstRun = ref(false);
@@ -221,7 +231,7 @@ const handleLogin = async () => {
     if (redirectPath === '/') {
       // 如果是管理员，直接跳转到/chat页面
       if (userStore.isAdmin) {
-        router.push('/agent');
+        router.push('/chat');
         return;
       }
 
@@ -341,56 +351,62 @@ onMounted(async () => {
   height: 100vh;
   width: 100%;
   display: flex;
-  justify-content: center;
-  align-items: center;
-  background-size: cover;
-  background-position: center;
   position: relative;
-  padding-top: 0;
 
   &.has-alert {
     padding-top: 60px;
   }
+}
 
-  &::before {
-    content: '';
+.login-art-section {
+  flex: 1;
+  background-size: cover;
+  background-position: center;
+  position: relative;
+  overflow: hidden;
+
+  .art-overlay {
     position: absolute;
     top: 0;
     left: 0;
     right: 0;
     bottom: 0;
-    background: rgba(0, 0, 0, 0.1);
-    z-index: 0;
+    background: linear-gradient(to right, rgba(0, 0, 0, 0.1), rgba(0, 0, 0, 0.3));
   }
 }
 
-.login-container {
-  width: 420px;
+.login-form-section {
+  width: 500px;
+  background-color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   padding: 40px;
-  background-color: rgba(255, 255, 255, 0.9);
-  border-radius: 12px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
-  position: relative;
-  z-index: 1;
-  backdrop-filter: blur(8px);
-  border: 2px solid white;
+  box-shadow: -4px 0 24px rgba(0, 0, 0, 0.1);
+}
+
+.login-container {
+  width: 100%;
+  max-width: 420px;
 }
 
 .login-logo {
   text-align: center;
-  margin-bottom: 30px;
+  margin-bottom: 40px;
 
-  img {
+  .logo-img {
     height: 70px;
+    width: 70px;
+    object-fit: cover;
+    border-radius: 8px;
     margin-bottom: 16px;
   }
 
   h1 {
     font-size: 28px;
     font-weight: 600;
-    color: var(--main-color);
+    color: var(--ant-primary-color);
     margin: 0;
-    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
   }
 }
 
@@ -568,6 +584,21 @@ onMounted(async () => {
         background-color: rgba(255, 255, 255, 0.1);
       }
     }
+  }
+}
+
+@media (max-width: 768px) {
+  .login-view {
+    flex-direction: column;
+  }
+
+  .login-art-section {
+    height: 200px;
+  }
+
+  .login-form-section {
+    width: 100%;
+    padding: 20px;
   }
 }
 </style>

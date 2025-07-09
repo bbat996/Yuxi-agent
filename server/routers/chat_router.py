@@ -21,7 +21,7 @@ from server.utils.auth_middleware import get_required_user, get_db
 from server.models.user_model import User
 from server.models.thread_model import Thread
 
-chat = APIRouter(prefix="/chat")
+chat = APIRouter(prefix="/chat", tags=["chat"])
 
 @chat.get("/default_agent")
 async def get_default_agent(current_user: User = Depends(get_required_user)):

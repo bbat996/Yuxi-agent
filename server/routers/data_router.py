@@ -8,7 +8,7 @@ from src import executor, config, knowledge_base, graph_base
 from server.utils.auth_middleware import get_admin_user
 from server.models.user_model import User
 
-data = APIRouter(prefix="/data")
+data = APIRouter(prefix="/data", tags=["data"])
 
 
 @data.get("/")
