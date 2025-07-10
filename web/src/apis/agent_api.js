@@ -18,7 +18,13 @@ import { apiRequest, apiGet, apiPost, apiPut, apiDelete } from './base'
  * @returns {Promise} API响应
  */
 export const getAgents = (params = {}) => {
-  return apiGet('/agents', params)
+  // Filter out undefined and null values
+  const filteredParams = Object.fromEntries(
+    Object.entries(params).filter(([_, value]) => value !== undefined && value !== null)
+  )
+  const queryString = new URLSearchParams(filteredParams).toString()
+  const url = queryString ? `/api/agents?${queryString}` : '/api/agents'
+  return apiGet(url, {}, true)
 }
 
 /**
@@ -27,7 +33,7 @@ export const getAgents = (params = {}) => {
  * @returns {Promise} API响应
  */
 export const getAgent = (agentId) => {
-  return apiGet(`/agents/${agentId}`)
+  return apiGet(`/api/agents/${agentId}`, {}, true)
 }
 
 /**
@@ -44,7 +50,7 @@ export const getAgent = (agentId) => {
  * @returns {Promise} API响应
  */
 export const createAgent = (agentData) => {
-  return apiPost('/agents', agentData)
+  return apiPost('/api/agents', agentData, {}, true)
 }
 
 /**
@@ -54,7 +60,7 @@ export const createAgent = (agentData) => {
  * @returns {Promise} API响应
  */
 export const updateAgent = (agentId, agentData) => {
-  return apiPut(`/agents/${agentId}`, agentData)
+  return apiPut(`/api/agents/${agentId}`, agentData, {}, true)
 }
 
 /**
@@ -63,7 +69,7 @@ export const updateAgent = (agentId, agentData) => {
  * @returns {Promise} API响应
  */
 export const deleteAgent = (agentId) => {
-  return apiDelete(`/agents/${agentId}`)
+  return apiDelete(`/api/agents/${agentId}`, {}, true)
 }
 
 /**
@@ -74,7 +80,7 @@ export const deleteAgent = (agentId) => {
  * @returns {Promise} API响应
  */
 export const duplicateAgent = (agentId, options = {}) => {
-  return apiPost(`/agents/${agentId}/duplicate`, options)
+  return apiPost(`/api/agents/${agentId}/duplicate`, options, {}, true)
 }
 
 /**
@@ -83,7 +89,7 @@ export const duplicateAgent = (agentId, options = {}) => {
  * @returns {Promise} API响应
  */
 export const getAgentInstance = (agentId) => {
-  return apiGet(`/agents/${agentId}/instance`)
+  return apiGet(`/api/agents/${agentId}/instance`, {}, true)
 }
 
 /**
@@ -93,7 +99,7 @@ export const getAgentInstance = (agentId) => {
  * @returns {Promise} API响应
  */
 export const createAgentInstance = (agentId, config = {}) => {
-  return apiPost(`/agents/${agentId}/instance`, config)
+  return apiPost(`/api/agents/${agentId}/instance`, config, {}, true)
 }
 
 /**
@@ -103,7 +109,7 @@ export const createAgentInstance = (agentId, config = {}) => {
  * @returns {Promise} API响应
  */
 export const updateAgentInstance = (agentId, config) => {
-  return apiPut(`/agents/${agentId}/instance`, config)
+  return apiPut(`/api/agents/${agentId}/instance`, config, {}, true)
 }
 
 /**
@@ -112,7 +118,7 @@ export const updateAgentInstance = (agentId, config) => {
  * @returns {Promise} API响应
  */
 export const deleteAgentInstance = (agentId) => {
-  return apiDelete(`/agents/${agentId}/instance`)
+  return apiDelete(`/api/agents/${agentId}/instance`, {}, true)
 }
 
 /**
@@ -122,10 +128,10 @@ export const deleteAgentInstance = (agentId) => {
  * @returns {Promise} API响应
  */
 export const testAgent = (agentData, testMessage) => {
-  return apiPost('/agents/test', {
+  return apiPost('/api/agents/test', {
     agent_config: agentData,
     test_message: testMessage
-  })
+  }, {}, true)
 }
 
 /**
@@ -137,7 +143,11 @@ export const testAgent = (agentData, testMessage) => {
  * @returns {Promise} API响应
  */
 export const getAgentStats = (agentId, params = {}) => {
-  return apiGet(`/agents/${agentId}/stats`, params)
+  const queryString = new URLSearchParams(params).toString()
+  const url = queryString
+    ? `/api/agents/${agentId}/stats?${queryString}`
+    : `/api/agents/${agentId}/stats`
+  return apiGet(url, {}, true)
 }
 
 /**
@@ -146,7 +156,7 @@ export const getAgentStats = (agentId, params = {}) => {
  * @returns {Promise} API响应
  */
 export const exportAgent = (agentId) => {
-  return apiGet(`/agents/${agentId}/export`)
+  return apiGet(`/api/agents/${agentId}/export`, {}, true)
 }
 
 /**
@@ -155,7 +165,7 @@ export const exportAgent = (agentId) => {
  * @returns {Promise} API响应
  */
 export const importAgent = (agentConfig) => {
-  return apiPost('/agents/import', agentConfig)
+  return apiPost('/api/agents/import', agentConfig, {}, true)
 }
 
 /**
@@ -167,7 +177,7 @@ export const importAgent = (agentConfig) => {
  * @returns {Promise} API响应
  */
 export const shareAgent = (agentId, shareConfig) => {
-  return apiPost(`/agents/${agentId}/share`, shareConfig)
+  return apiPost(`/api/agents/${agentId}/share`, shareConfig, {}, true)
 }
 
 /**
@@ -176,7 +186,7 @@ export const shareAgent = (agentId, shareConfig) => {
  * @returns {Promise} API响应
  */
 export const unshareAgent = (agentId) => {
-  return apiDelete(`/agents/${agentId}/share`)
+  return apiDelete(`/api/agents/${agentId}/share`, {}, true)
 }
 
 // 智能体API对象，包含所有智能体相关的API方法
@@ -197,4 +207,4 @@ export const agentAPI = {
   importAgent,
   shareAgent,
   unshareAgent
-} 
+}

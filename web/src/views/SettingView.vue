@@ -1,8 +1,6 @@
 <template>
-  <!-- TODO 优化样式，表格优化，添加一个 utils 的函数，用来把时间戳转换为东 8 区的时间，并格式化显示出来 -->
   <div class="">
     <HeaderComponent title="设置" class="setting-header">
-
       <template #actions>
         <a-button :type="isNeedRestart ? 'primary' : 'default'" @click="sendRestart" :icon="h(ReloadOutlined)">
           {{ isNeedRestart ? '需要刷新' : '重新加载' }}
@@ -13,6 +11,8 @@
       <div class="sider" v-if="state.windowWidth > 520">
         <a-button type="text" v-if="userStore.isSuperAdmin" :class="{ activesec: state.section === 'base'}" @click="state.section='base'" :icon="h(SettingOutlined)"> 基本设置 </a-button>
         <a-button type="text" v-if="userStore.isSuperAdmin" :class="{ activesec: state.section === 'model'}" @click="state.section='model'" :icon="h(CodeOutlined)"> 模型配置 </a-button>
+        <a-button type="text" :class="{ activesec: state.section === 'templates'}" @click="state.section='templates'" :icon="h(FileTextOutlined)"> 提示词模板 </a-button>
+        <a-button type="text" :class="{ activesec: state.section === 'mcp-skills'}" @click="state.section='mcp-skills'" :icon="h(ToolOutlined)"> MCP技能 </a-button>
         <a-button type="text" :class="{ activesec: state.section === 'user'}" @click="state.section='user'" :icon="h(UserOutlined)" v-if="userStore.isAdmin"> 用户管理 </a-button>
       </div>
       <div class="setting" v-if="(state.windowWidth <= 520 || state.section === 'base') && userStore.isSuperAdmin">
@@ -57,7 +57,18 @@
         <p>请在 <code>src/.env</code> 文件中配置对应的 APIKEY，并重新启动服务</p>
         <ModelProvidersComponent />
       </div>
-      <!-- TODO 用户管理优化，添加姓名（默认使用用户名配置项） -->
+      
+      <!-- 提示词模板管理 -->
+      <div class="setting" v-if="state.windowWidth <= 520 || state.section === 'templates'">
+        <PromptTemplateManagement />
+      </div>
+      
+      <!-- MCP技能管理 -->
+      <div class="setting" v-if="state.windowWidth <= 520 || state.section === 'mcp-skills'">
+        <MCPSkillManagement />
+      </div>
+      
+      <!-- 用户管理 -->
       <div class="setting" v-if="state.section === 'user' && userStore.isAdmin">
          <UserManagementComponent />
       </div>
@@ -67,20 +78,22 @@
 
 <script setup>
 import { message } from 'ant-design-vue';
-import { computed, reactive, ref, h, watch, onMounted, onUnmounted } from 'vue'
+import { computed, reactive, ref, h, onMounted, onUnmounted } from 'vue'
 import { useConfigStore } from '@/stores/config';
 import { useUserStore } from '@/stores/user'
 import {
   ReloadOutlined,
   SettingOutlined,
   CodeOutlined,
-  FolderOutlined,
-  UserOutlined
+  UserOutlined,
+  FileTextOutlined,
+  ToolOutlined
 } from '@ant-design/icons-vue';
 import HeaderComponent from '@/components/HeaderComponent.vue';
-import TableConfigComponent from '@/components/TableConfigComponent.vue';
 import ModelProvidersComponent from '@/components/ModelProvidersComponent.vue';
 import UserManagementComponent from '@/components/UserManagementComponent.vue';
+import PromptTemplateManagement from '@/components/PromptTemplateManagement.vue';
+import MCPSkillManagement from '@/components/MCPSkillManagement.vue';
 import { notification, Button } from 'ant-design-vue';
 import { systemConfigApi } from '@/apis/admin_api'
 import ModelSelectorComponent from '@/components/ModelSelectorComponent.vue';
@@ -100,7 +113,6 @@ const handleModelLocalPathsUpdate = (config) => {
 }
 
 const preHandleChange = (key, e) => {
-
   if (key == 'enable_reranker'
     || key == 'embed_model'
     || key == 'reranker'
@@ -147,7 +159,7 @@ const handleChatModelSelect = ({ provider, name }) => {
 onMounted(() => {
   updateWindowWidth()
   window.addEventListener('resize', updateWindowWidth)
-  state.section = userStore.isSuperAdmin ? 'base' : 'user'
+  state.section = userStore.isSuperAdmin ? 'base' : (userStore.isAdmin ? 'user' : 'templates')
 })
 
 onUnmounted(() => {
@@ -207,7 +219,6 @@ const sendRestart = () => {
   gap: 8px;
   padding-top: 20px;
 
-
   & > * {
     width: 100%;
     height: auto;
@@ -250,7 +261,6 @@ const sendRestart = () => {
     display: flex;
     flex-direction: column;
     gap: 16px;
-    // box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
     border: 1px solid var(--gray-300);
   }
 
@@ -283,14 +293,4 @@ const sendRestart = () => {
     flex-direction: column;
   }
 }
-</style>
-
-<style lang="less">
-// 添加全局样式以确保滚动功能在dropdown内正常工作
-.ant-dropdown-menu {
-  &.scrollable-menu {
-    max-height: 300px;
-    overflow-y: auto;
-  }
-}
-</style>
+</style> 

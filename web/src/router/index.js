@@ -29,11 +29,18 @@ const router = createRouter({
       path: '/agent',
       name: 'AgentMain',
       component: AppLayout,
+      alias: '/agents',
       children: [
         {
           path: '',
           name: 'AgentComp',
           component: () => import('../views/AgentView.vue'),
+          meta: { keepAlive: true, requiresAuth: true, requiresAdmin: true }
+        },
+        {
+          path: 'management',
+          name: 'AgentManagement',
+          component: () => import('../views/AgentManagementView.vue'),
           meta: { keepAlive: true, requiresAuth: true, requiresAdmin: true }
         }
       ]

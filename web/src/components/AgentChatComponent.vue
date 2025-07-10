@@ -15,19 +15,28 @@
         'floating-sidebar': isSmallContainer,
         'sidebar-open': state.isSidebarOpen,
         'no-transition': state.isInitialRender,
-        'collapsed': isSmallContainer && !state.isSidebarOpen
+        collapsed: isSmallContainer && !state.isSidebarOpen
       }"
     />
-    <div class="sidebar-backdrop" v-if="state.isSidebarOpen && isSmallContainer" @click="toggleSidebar"></div>
+    <div
+      class="sidebar-backdrop"
+      v-if="state.isSidebarOpen && isSmallContainer"
+      @click="toggleSidebar"
+    ></div>
     <div class="chat">
       <div class="chat-header">
         <div class="header__left">
           <slot name="header-left" class="nav-btn"></slot>
           <div class="toggle-sidebar nav-btn" v-if="!state.isSidebarOpen" @click="toggleSidebar">
-            <PanelLeftOpen size="20" color="var(--gray-800)"/>
+            <PanelLeftOpen size="20" color="var(--gray-800)" />
           </div>
-          <div class="newchat nav-btn" @click="createNewChat" :disabled="state.isProcessingRequest || state.creatingNewChat">
-            <MessageSquarePlus size="20" color="var(--gray-800)"/> <span class="text" :class="{'hide-text': isMediumContainer}">新对话</span>
+          <div
+            class="newchat nav-btn"
+            @click="createNewChat"
+            :disabled="state.isProcessingRequest || state.creatingNewChat"
+          >
+            <MessageSquarePlus size="20" color="var(--gray-800)" />
+            <span class="text" :class="{ 'hide-text': isMediumContainer }">新对话</span>
           </div>
         </div>
         <div class="header__center">
@@ -39,7 +48,7 @@
         <div class="header__right">
           <!-- 分享按钮 -->
           <div class="nav-btn" @click="shareChat" v-if="currentChatId && currentAgent">
-            <ShareAltOutlined style="font-size: 18px;"/>
+            <ShareAltOutlined style="font-size: 18px" />
           </div>
           <!-- <div class="nav-btn test-history" @click="getAgentHistory" v-if="currentChatId && currentAgent">
             <ThunderboltOutlined />
@@ -54,6 +63,16 @@
       </div>
 
       <div v-else-if="convs.length === 0 && !onGoingConv.messages.length" class="chat-examples">
+        <!-- 智能体信息面板 -->
+        <AgentInfoPanel
+          :agent="currentAgent"
+          :config="props.config"
+          :mcp-logs="mcpLogs"
+          :stats="chatStats"
+          :default-collapsed="false"
+          @panel-toggle="handleInfoPanelToggle"
+        />
+
         <h1>{{ currentAgent ? currentAgent.name : '请选择一个智能体开始对话' }}</h1>
         <p>{{ currentAgent ? currentAgent.description : '不同的智能体有不同的专长和能力' }}</p>
       </div>
@@ -92,7 +111,10 @@
         </div>
 
         <!-- 生成中的加载状态 -->
-        <div class="generating-status" v-if="state.isProcessingRequest && !state.waitingServerResponse">
+        <div
+          class="generating-status"
+          v-if="state.isProcessingRequest && !state.waitingServerResponse"
+        >
           <div class="generating-indicator">
             <div class="loading-dots">
               <div></div>
@@ -131,6 +153,7 @@ import MessageInputComponent from '@/components/MessageInputComponent.vue'
 import AgentMessageComponent from '@/components/AgentMessageComponent.vue'
 import ChatSidebarComponent from '@/components/ChatSidebarComponent.vue'
 import RefsComponent from '@/components/RefsComponent.vue'
+import AgentInfoPanel from '@/components/AgentInfoPanel.vue'
 import { chatApi, threadApi } from '@/apis/auth_api'
 import { PanelLeftOpen, MessageSquarePlus } from 'lucide-vue-next';
 
@@ -175,6 +198,16 @@ const shouldAutoScroll = ref(true);  // 是否应该自动滚动
 const isUserScrolling = ref(false);  // 用户是否正在滚动
 let scrollTimer = null;
 
+// MCP调用日志和统计
+const mcpLogs = ref([]);
+const chatStats = reactive({
+  messageCount: 0,
+  tokenCount: 0,
+  toolCalls: 0,
+  duration: 0,
+  startTime: null
+});
+
 // 监听容器大小变化和滚动事件
 onMounted(() => {
   // 初始计算容器宽度
@@ -215,7 +248,59 @@ onUnmounted(() => {
   if (chatContainer) {
     chatContainer.removeEventListener('scroll', handleScroll);
   }
+});
 
+// ==================== 智能体信息面板相关方法 ====================
+
+// 处理信息面板切换
+const handleInfoPanelToggle = (collapsed) => {
+  console.log('智能体信息面板切换:', collapsed);
+};
+
+// 添加MCP调用日志
+const addMcpLog = (skillName, input, output, error, status = 'success') => {
+  mcpLogs.value.push({
+    skillName,
+    input,
+    output,
+    error,
+    status,
+    timestamp: Date.now(),
+    duration: 0
+  });
+  
+  // 更新工具调用统计
+  chatStats.toolCalls++;
+};
+
+// 更新聊天统计
+const updateChatStats = (messageData) => {
+  if (!chatStats.startTime) {
+    chatStats.startTime = Date.now();
+  }
+  
+  chatStats.messageCount++;
+  
+  if (messageData.token_usage) {
+    chatStats.tokenCount += messageData.token_usage.total_tokens || 0;
+  }
+  
+  // 更新对话时长
+  chatStats.duration = Math.floor((Date.now() - chatStats.startTime) / 1000);
+};
+
+// 重置聊天统计
+const resetChatStats = () => {
+  chatStats.messageCount = 0;
+  chatStats.tokenCount = 0;
+  chatStats.toolCalls = 0;
+  chatStats.duration = 0;
+  chatStats.startTime = null;
+  mcpLogs.value = [];
+};
+
+// 组件卸载时清理定时器
+onUnmounted(() => {
   if (scrollTimer) {
     clearTimeout(scrollTimer);
   }
@@ -1383,7 +1468,9 @@ const mergeMessageChunk = (chunks) => {
     padding: 1rem;
     border-bottom: 1px solid var(--main-light-3);
 
-    .header__left, .header__right, .header__center {
+    .header__left,
+    .header__right,
+    .header__center {
       display: flex;
       align-items: center;
     }
@@ -1467,7 +1554,6 @@ const mergeMessageChunk = (chunks) => {
   padding: 1rem 2rem;
   display: flex;
   flex-direction: column;
-
 
   .tool-calls-container {
     width: 100%;
@@ -1605,7 +1691,6 @@ const mergeMessageChunk = (chunks) => {
   }
 }
 
-
 .toggle-sidebar {
   cursor: pointer;
 
@@ -1639,7 +1724,9 @@ const mergeMessageChunk = (chunks) => {
 }
 
 @keyframes pulse {
-  0%, 80%, 100% {
+  0%,
+  80%,
+  100% {
     transform: scale(0.8);
     opacity: 0.3;
   }
