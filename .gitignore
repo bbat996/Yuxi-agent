@@ -32,7 +32,7 @@ cache
 *.secret*
 
 *.pdf
-src/data
+server/src/data
 */package-lock.json
 web/package-lock.json
 saves

@@ -45,7 +45,7 @@ git clone -b stable https://github.com/xerrors/Yuxi-Know.git
 
 ### 环境配置
 
-在启动前，您需要提供 API 服务商的 API_KEY，并放置在 `src/.env` 文件中（此文件项目中没有，需要自行参考 [src/.env.template](src/.env.template) 创建）。更多可配置项，可参考下方**对话模型**部分。
+在启动前，您需要提供 API 服务商的 API_KEY，并放置在 `src/.env` 文件中（此文件项目中没有，需要自行参考 [src/.env.template](server/src/.env.template) 创建）。更多可配置项，可参考下方**对话模型**部分。
 
 默认使用硅基流动的服务，因此**必须**配置：
 
@@ -114,7 +114,7 @@ docker logs <容器名称> -f # 例如：docker logs api-dev
 
 #### 添加新模型供应商
 
-如需添加供应商模型，了解 OpenAI 调用方法后，在 [src/static/models.yaml](src/static/models.yaml) 中添加对应配置：
+如需添加供应商模型，了解 OpenAI 调用方法后，在 [src/static/models.yaml](server/src/static/models.yaml) 中添加对应配置：
 
 ```yaml
 ark:
@@ -132,7 +132,7 @@ ark:
 
 ### 如何配置本地大语言模型？
 
-支持添加以 OpenAI 兼容模式运行的本地模型，可在 Web 设置中直接添加（适用于 vllm 和 Ollama 等）。 参考 [scripts/vllm/run.sh](scripts/vllm/run.sh) 中的配置，运行该脚本即可部署本地模型，或者使用 Ollama 部署模型。
+支持添加以 OpenAI 兼容模式运行的本地模型，可在 Web 设置中直接添加（适用于 vllm 和 Ollama 等）。 参考 [scripts/vllm/run.sh](server/scripts/vllm/run.sh) 中的配置，运行该脚本即可部署本地模型，或者使用 Ollama 部署模型。
 
 > [!NOTE]
 > 使用 docker 运行此项目时，ollama 或 vllm 需监听 `0.0.0.0`
@@ -161,7 +161,7 @@ ark:
 
 > 提醒：在 0.2.0 版本之后，将不再支持本地向量模型和本地重排序模型，届时除了 OCR 之外（CPU-ONLY），项目本身启动后不会运行任何 AI 模型。其余的 Embedding、Reranker 模型将需要使用单独的部署脚本，与项目本身的服务解耦。
 
-~~强烈建议测试阶段先使用硅基流动部署的 bge-m3（免费且无需修改）。其他模型配置参考 [src/static/models.yaml](src/static/models.yaml)~~
+~~强烈建议测试阶段先使用硅基流动部署的 bge-m3（免费且无需修改）。其他模型配置参考 [src/static/models.yaml](server/src/static/models.yaml)~~
 ~~选择 `local` 前缀的模型会自动下载。如遇下载问题，请参考 [HF-Mirror](https://hf-mirror.com/) 配置。~~
 
 ## 📚 知识库功能

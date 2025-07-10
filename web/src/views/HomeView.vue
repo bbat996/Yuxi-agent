@@ -1,47 +1,52 @@
 <template>
   <div class="home-container">
-    <div class="hero-section">
-      <div class="glass-header">
-        <div class="logo">
-          <img :src="infoStore.organization.logo" :alt="infoStore.organization.name" class="logo-img" />
-          <span style="font-size: 1.3rem; font-weight: bold;">{{ infoStore.organization.name }}</span>
-        </div>
-        <div class="github-link">
-          <a href="https://github.com/xerrors/Yuxi-Know" target="_blank">
-            <svg height="24" width="24" viewBox="0 0 16 16" version="1.1">
-              <path fill-rule="evenodd" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"></path>
-            </svg>
-            <span class="stars-count">{{ isLoadingStars ? '加载中...' : githubStars }} ⭐</span>
-          </a>
-        </div>
+    <header class="glass-header">
+      <div class="logo">
+        <img :src="configStore.siteLogo" :alt="configStore.siteName" class="logo-img" />
+        <span>{{ configStore.siteName }}</span>
       </div>
+    </header>
 
+    <section class="hero-section">
       <div class="hero-content">
-        <h1 class="title">{{ infoStore.branding.title }}</h1>
-        <div class="description">
-          <p class="subtitle">{{ infoStore.branding.subtitle }}</p>
-          <p class="features">
-            <span v-for="feature in infoStore.features" :key="feature">{{ feature }}</span>
-          </p>
+        <h1 class="title">{{ configStore.siteName }}</h1>
+        <p class="subtitle">{{ configStore.siteDescription }}</p>
+        
+        <div class="cta-container">
+          <button class="start-button" @click="goToChat">开始体验</button>
         </div>
-        <button class="start-button" @click="goToChat">开始对话</button>
       </div>
-    </div>
+    </section>
 
-    <div class="preview-section">
-      <div class="preview-container">
-        <img src="/home.png" alt="系统预览" />
-        <div class="preview-overlay">
-          <div class="overlay-content">
-            <h3>强大的问答能力</h3>
-            <p>{{ infoStore.branding.description }}</p>
-          </div>
+    <section class="features-section">
+      <div class="section-header">
+        <h2>核心功能</h2>
+        <div class="divider"></div>
+      </div>
+      
+      <div class="features-grid">
+        <div class="feature-card">
+          <div class="feature-icon">📚</div>
+          <h3>灵活知识库</h3>
+          <p>轻松导入和管理各类知识资源，支持多种格式文档，实现智能检索与更新</p>
+        </div>
+        
+        <div class="feature-card">
+          <div class="feature-icon">🕸️</div>
+          <h3>知识图谱集成</h3>
+          <p>构建结构化知识网络，捕捉概念间关系，提供更深入的上下文理解与推理能力</p>
+        </div>
+        
+        <div class="feature-card">
+          <div class="feature-icon">🤖</div>
+          <h3>多模型支持</h3>
+          <p>兼容多种大语言模型，灵活切换不同AI能力，满足多样化场景需求</p>
         </div>
       </div>
-    </div>
+    </section>
 
     <footer>
-      <p>{{ infoStore.footer.copyright }}</p>
+      <p>© {{ configStore.siteName }} 2025 [WIP] v0.12.138</p>
     </footer>
   </div>
 </template>
@@ -50,14 +55,12 @@
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
-import { useInfoStore } from '@/stores/info'
+import { useConfigStore } from '@/stores/config'
 import { chatApi } from '@/apis/auth_api'
 
 const router = useRouter()
 const userStore = useUserStore()
-const infoStore = useInfoStore()
-const githubStars = ref(0)
-const isLoadingStars = ref(false)
+const configStore = useConfigStore()
 
 const goToChat = async () => {
   // 检查用户是否登录
@@ -89,35 +92,14 @@ const goToChat = async () => {
         router.push(`/agent/${agentData.agents[0].name}`);
       } else {
         // 没有可用智能体，回退到chat页面
-        router.push("/chat");
-}
+        router.push("/agent");
+      }
     }
   } catch (error) {
     console.error('跳转到智能体页面失败:', error);
-    router.push("/chat");
+    router.push("/agent");
   }
 };
-
-// 获取GitHub stars数量
-const fetchGithubStars = async () => {
-  try {
-    isLoadingStars.value = true
-    const response = await fetch('https://api.github.com/repos/xerrors/Yuxi-Know')
-    const data = await response.json()
-    githubStars.value = data.stargazers_count
-  } catch (error) {
-    console.error('获取GitHub stars失败:', error)
-  } finally {
-    isLoadingStars.value = false
-  }
-}
-
-onMounted(async () => {
-  // 加载信息配置
-  await infoStore.loadInfoConfig()
-  // 获取GitHub stars
-  fetchGithubStars()
-})
 </script>
 
 <style lang="less" scoped>
@@ -125,22 +107,16 @@ onMounted(async () => {
   min-height: 100vh;
   display: flex;
   flex-direction: column;
-  color: #333;
-  background: linear-gradient(135deg, #f5f7fa, #e2e8f0, #f0f4f8, #eef2f7);
-  background-size: 400% 400%;
-  animation: gradientBackground 15s ease infinite;
+  color: #e0e0e0;
+  background-color: #121212;
+  background-image: 
+    radial-gradient(circle at 25% 25%, rgba(40, 40, 40, 0.2) 0%, transparent 50%),
+    radial-gradient(circle at 75% 75%, rgba(40, 40, 40, 0.2) 0%, transparent 50%);
 }
 
-@keyframes gradientBackground {
-  0% {
-    background-position: 0% 50%;
-  }
-  50% {
-    background-position: 100% 50%;
-  }
-  100% {
-    background-position: 0% 50%;
-  }
+/* 添加RGB变量，用于透明度调整 */
+:root {
+  --main-color-rgb: 24, 144, 255; /* #1890ff 对应的RGB值 */
 }
 
 .glass-header {
@@ -149,9 +125,9 @@ onMounted(async () => {
   align-items: center;
   width: 100%;
   padding: 1.2rem 2rem;
-  background-color: rgba(255, 255, 255, 0.1);
+  background-color: rgba(18, 18, 18, 0.8);
   backdrop-filter: blur(10px);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
   position: fixed;
   top: 0;
   left: 0;
@@ -162,38 +138,13 @@ onMounted(async () => {
 .logo {
   display: flex;
   align-items: center;
-  font-size: 1.4rem;
+  font-size: 1.3rem;
   font-weight: bold;
-  color: var(--main-color, #333);
+  color: #ffffff;
 
   .logo-img {
     height: 2rem;
     margin-right: 0.6rem;
-  }
-}
-
-.github-link a {
-  display: flex;
-  align-items: center;
-  text-decoration: none;
-  color: #333;
-  padding: 0.6rem 1.2rem;
-  border-radius: 2rem;
-  background-color: rgba(255, 255, 255, 0.4);
-  transition: all 0.3s ease;
-
-  &:hover {
-    background-color: rgba(255, 255, 255, 0.6);
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-  }
-
-  svg {
-    margin-right: 8px;
-  }
-
-  .stars-count {
-    font-weight: 600;
   }
 }
 
@@ -205,6 +156,19 @@ onMounted(async () => {
   align-items: center;
   text-align: center;
   padding: 0 2rem;
+  position: relative;
+  overflow: hidden;
+  
+  &::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: radial-gradient(circle at center, rgba(24, 144, 255, 0.15) 0%, transparent 70%);
+    z-index: -1;
+  }
 }
 
 .hero-content {
@@ -212,57 +176,47 @@ onMounted(async () => {
 }
 
 .title {
-  font-size: 4rem;
+  font-size: 4.5rem;
   font-weight: 700;
   margin-bottom: 1.5rem;
-  background: linear-gradient(45deg, #333, #666);
+  background: linear-gradient(45deg, #ffffff, #a0a0a0);
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
-  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
-}
-
-.description {
-  margin-bottom: 2.5rem;
+  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
 }
 
 .subtitle {
-  font-size: 1.5rem;
-  font-weight: 500;
-  margin-bottom: 1.5rem;
-  color: #555;
+  font-size: 1.6rem;
+  font-weight: 400;
+  margin-bottom: 3rem;
+  color: #b0b0b0;
+  line-height: 1.5;
+  max-width: 700px;
+  margin-left: auto;
+  margin-right: auto;
 }
 
-.features {
-  display: flex;
-  justify-content: center;
-  gap: 1.5rem;
-  font-size: 1.1rem;
-
-  span {
-    padding: 0.5rem 1rem;
-    background-color: rgba(255, 255, 255, 0.6);
-    border-radius: 2rem;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-  }
+.cta-container {
+  margin-top: 2rem;
 }
 
 .start-button {
-  padding: 1rem 3rem;
+  padding: 1.2rem 3.5rem;
   font-size: 1.2rem;
   font-weight: 600;
-  color: white;
-  background: linear-gradient(135deg, var(--main-500), var(--main-600));
+  color: #121212;
+  background: linear-gradient(135deg, #1890ff, #40a9ff);
   border: none;
   border-radius: 3rem;
   cursor: pointer;
   transition: all 0.3s ease;
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 4px 15px rgba(24, 144, 255, 0.3);
 
   &:hover {
     transform: translateY(-3px);
-    box-shadow: 0 7px 20px rgba(0, 0, 0, 0.15);
-    background: linear-gradient(135deg, var(--main-600), var(--main-700));
+    box-shadow: 0 7px 20px rgba(24, 144, 255, 0.4);
+    filter: brightness(1.1);
   }
 
   &:active {
@@ -270,26 +224,97 @@ onMounted(async () => {
   }
 }
 
+.section-header {
+  text-align: center;
+  margin-bottom: 3rem;
+  
+  h2 {
+    font-size: 2.5rem;
+    font-weight: 700;
+    margin-bottom: 1rem;
+    background: linear-gradient(45deg, #ffffff, #a0a0a0);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+  
+  .divider {
+    width: 80px;
+    height: 4px;
+    background: linear-gradient(90deg, transparent, #1890ff, transparent);
+    margin: 0 auto;
+  }
+}
+
+.features-section {
+  padding: 6rem 2rem;
+  background-color: #161616;
+}
+
+.features-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 2.5rem;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.feature-card {
+  background-color: rgba(30, 30, 30, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 1rem;
+  padding: 2.5rem;
+  transition: all 0.3s ease;
+  text-align: center;
+  
+  &:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+    border-color: rgba(24, 144, 255, 0.3);
+  }
+  
+  .feature-icon {
+    font-size: 3rem;
+    margin-bottom: 1.5rem;
+  }
+  
+  h3 {
+    font-size: 1.5rem;
+    margin-bottom: 1rem;
+    color: #ffffff;
+  }
+  
+  p {
+    color: #b0b0b0;
+    line-height: 1.6;
+  }
+}
+
 .preview-section {
-  padding: 5rem 2rem;
-  display: flex;
-  justify-content: center;
+  padding: 6rem 2rem;
+  background-color: #121212;
 }
 
 .preview-container {
   position: relative;
   max-width: 1000px;
+  margin: 0 auto;
   overflow: hidden;
   border-radius: 1rem;
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.1);
   transition: all 0.3s ease;
 
   &:hover {
     transform: translateY(-5px);
-    box-shadow: 0 25px 50px rgba(0, 0, 0, 0.15);
+    box-shadow: 0 25px 50px rgba(0, 0, 0, 0.5);
 
     .preview-overlay {
       opacity: 1;
+    }
+    
+    img {
+      transform: scale(1.02);
     }
   }
 
@@ -305,8 +330,8 @@ onMounted(async () => {
     bottom: 0;
     left: 0;
     right: 0;
-    background: linear-gradient(to top, rgba(0, 0, 0, 0.7), transparent);
-    padding: 2rem;
+    background: linear-gradient(to top, rgba(0, 0, 0, 0.9), transparent);
+    padding: 3rem 2rem;
     opacity: 0.8;
     transition: opacity 0.3s ease;
 
@@ -314,13 +339,14 @@ onMounted(async () => {
       color: white;
 
       h3 {
-        font-size: 1.5rem;
-        margin-bottom: 0.5rem;
+        font-size: 1.8rem;
+        margin-bottom: 0.8rem;
       }
 
       p {
-        font-size: 1rem;
+        font-size: 1.1rem;
         opacity: 0.9;
+        max-width: 600px;
       }
     }
   }
@@ -330,8 +356,10 @@ footer {
   margin-top: auto;
   text-align: center;
   padding: 2rem;
-  color: #666;
+  color: #999;
   font-size: 0.9rem;
+  background-color: #0a0a0a;
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
 }
 
 @media (max-width: 768px) {
@@ -340,29 +368,41 @@ footer {
   }
 
   .logo {
-    font-size: 1.2rem;
+    font-size: 1.1rem;
+    
+    .logo-img {
+      height: 1.6rem;
+    }
   }
 
   .title {
-    font-size: 2.5rem;
+    font-size: 2.8rem;
   }
 
   .subtitle {
     font-size: 1.2rem;
   }
 
-  .features {
-    flex-direction: column;
-    gap: 0.8rem;
-  }
-
   .start-button {
-    padding: 0.8rem 2rem;
-    font-size: 1rem;
+    padding: 1rem 2.5rem;
+    font-size: 1.1rem;
+  }
+  
+  .section-header h2 {
+    font-size: 2rem;
+  }
+  
+  .features-grid {
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
+  }
+  
+  .feature-card {
+    padding: 2rem;
   }
 
-  .preview-section {
-    padding: 3rem 1rem;
+  .preview-section, .features-section {
+    padding: 4rem 1rem;
   }
 }
 </style>

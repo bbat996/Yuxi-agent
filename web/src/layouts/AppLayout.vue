@@ -1,119 +1,32 @@
-<script setup>
-import { ref, reactive, onMounted, useTemplateRef, shallowRef } from 'vue'
-import { RouterLink, RouterView, useRoute } from 'vue-router'
-import {
-  GithubOutlined,
-  ExclamationCircleOutlined,
-} from '@ant-design/icons-vue'
-import { Bot, Waypoints, LibraryBig, Settings } from 'lucide-vue-next';
-import { onLongPress } from '@vueuse/core'
-
-import { useConfigStore } from '@/stores/config'
-import { useDatabaseStore } from '@/stores/database'
-import { useInfoStore } from '@/stores/info'
-import UserInfoComponent from '@/components/UserInfoComponent.vue'
-import DebugComponent from '@/components/DebugComponent.vue'
-
-const configStore = useConfigStore()
-const databaseStore = useDatabaseStore()
-const infoStore = useInfoStore()
-
-const layoutSettings = reactive({
-  showDebug: false,
-  useTopBar: false, // 是否使用顶栏
-})
-
-// Add state for GitHub stars
-const githubStars = ref(0)
-const isLoadingStars = ref(false)
-
-// Add state for debug modal
-const showDebugModal = ref(false)
-const htmlRefHook = useTemplateRef('htmlRefHook')
-
-// Setup long press for debug modal
-onLongPress(
-  htmlRefHook,
-  () => {
-    console.log('long press')
-    showDebugModal.value = true
-  },
-  {
-    delay: 1000, // 1秒长按
-    modifiers: {
-      prevent: true
-    }
-  }
-)
-
-// Handle debug modal close
-const handleDebugModalClose = () => {
-  showDebugModal.value = false
-}
-
-const getRemoteConfig = () => {
-  configStore.refreshConfig()
-}
-
-const getRemoteDatabase = () => {
-  databaseStore.refreshDatabase()
-}
-
-// Fetch GitHub stars count
-const fetchGithubStars = async () => {
-  try {
-    isLoadingStars.value = true
-    // 公共API，可以直接使用fetch
-    const response = await fetch('https://api.github.com/repos/xerrors/Yuxi-Know')
-    const data = await response.json()
-    githubStars.value = data.stargazers_count
-  } catch (error) {
-    console.error('获取GitHub stars失败:', error)
-  } finally {
-    isLoadingStars.value = false
-  }
-}
-
-onMounted(async () => {
-  // 加载信息配置
-  await infoStore.loadInfoConfig()
-  // 加载其他配置
-  getRemoteConfig()
-  getRemoteDatabase()
-  fetchGithubStars() // Fetch GitHub stars on mount
-})
-
-// 打印当前页面的路由信息，使用 vue3 的 setup composition API
-const route = useRoute()
-console.log(route)
-
-// 下面是导航菜单部分，添加智能体项
-const mainList = [{
-    name: '智能体',
-    path: '/agent',
-    icon: Bot,
-    activeIcon: Bot,
-  }, {
-    name: '图谱',
-    path: '/graph',
-    icon: Waypoints,
-    activeIcon: Waypoints,
-  }, {
-    name: '知识库',
-    path: '/database',
-    icon: LibraryBig,
-    activeIcon: LibraryBig,
-  }
-]
-</script>
-
 <template>
   <div class="app-layout" :class="{ 'use-top-bar': layoutSettings.useTopBar }">
+    <div class="debug-panel">
+      <!-- <a-float-button
+        @click="layoutSettings.showDebug = !layoutSettings.showDebug"
+        tooltip="调试面板"
+        :style="{
+          right: '12px'
+        }"
+      >
+        <template #icon>
+          <BugOutlined />
+        </template>
+      </a-float-button> -->
+      <a-drawer
+        v-model:open="layoutSettings.showDebug"
+        title="调试面板"
+        width="800"
+        :contentWrapperStyle="{ maxWidth: '100%' }"
+        placement="right"
+      >
+        <DebugComponent />
+      </a-drawer>
+    </div>
     <div class="header" :class="{ 'top-bar': layoutSettings.useTopBar }">
       <div class="logo circle">
         <router-link to="/">
-          <img :src="infoStore.organization.avatar">
-          <span class="logo-text">{{ infoStore.organization.short_name }}</span>
+          <img src="/avatar.png" />
+          <span class="logo-text">{{ configStore.siteName }}</span>
         </router-link>
       </div>
       <div class="nav">
@@ -124,36 +37,28 @@ const mainList = [{
           :to="item.path"
           v-show="!item.hidden"
           class="nav-item"
-          active-class="active">
-          <component class="icon" :is="route.path.startsWith(item.path) ? item.activeIcon : item.icon" size="22"/>
-          <span class="text">{{item.name}}</span>
+          active-class="active"
+        >
+          <component
+            class="icon"
+            :is="route.path.startsWith(item.path) ? item.activeIcon : item.icon"
+            size="22"
+          />
+          <span class="text">{{ item.name }}</span>
         </RouterLink>
 
         <a-tooltip placement="right">
-          <template #title>后端疑似没有正常启动或者正在繁忙中，请刷新一下或者检查 docker logs api-dev</template>
+          <template #title
+            >后端疑似没有正常启动或者正在繁忙中，请刷新一下或者检查 docker logs api-dev</template
+          >
           <div class="nav-item warning" v-if="!configStore.config._config_items">
             <component class="icon" :is="ExclamationCircleOutlined" />
             <span class="text">警告</span>
           </div>
         </a-tooltip>
       </div>
-      <div
-        ref="htmlRefHook"
-        class="fill debug-trigger"
-      ></div>
+      <div class="fill" style="flex-grow: 1"></div>
 
-
-      <div class="github nav-item">
-        <a-tooltip placement="right">
-          <template #title>欢迎 Star</template>
-          <a href="https://github.com/xerrors/Yuxi-Know" target="_blank" class="github-link">
-            <GithubOutlined class="icon" style="color: #222;"/>
-            <span v-if="githubStars > 0" class="github-stars">
-              <span class="star-count">{{ (githubStars / 1000).toFixed(1) }}k</span>
-            </span>
-          </a>
-        </a-tooltip>
-      </div>
       <!-- <div class="nav-item api-docs">
         <a-tooltip placement="right">
           <template #title>接口文档 {{ apiDocsUrl }}</template>
@@ -163,6 +68,12 @@ const mainList = [{
         </a-tooltip>
       </div> -->
 
+      <RouterLink class="nav-item setting" to="/setting" active-class="active">
+        <a-tooltip placement="right">
+          <template #title>设置</template>
+          <Settings />
+        </a-tooltip>
+      </RouterLink>
       <!-- 用户信息组件 -->
       <div class="nav-item user-info">
         <a-tooltip placement="right">
@@ -170,13 +81,6 @@ const mainList = [{
           <UserInfoComponent />
         </a-tooltip>
       </div>
-
-      <RouterLink class="nav-item setting" to="/setting" active-class="active">
-        <a-tooltip placement="right">
-          <template #title>设置</template>
-          <Settings />
-        </a-tooltip>
-      </RouterLink>
     </div>
     <div class="header-mobile">
       <RouterLink to="/chat" class="nav-item" active-class="active">对话</RouterLink>
@@ -189,28 +93,106 @@ const mainList = [{
       </keep-alive>
       <component :is="Component" v-else />
     </router-view>
-
-    <!-- Debug Modal -->
-    <a-modal
-      v-model:open="showDebugModal"
-      title="调试面板"
-      width="90%"
-      :footer="null"
-      @cancel="handleDebugModalClose"
-      :maskClosable="true"
-      :destroyOnClose="true"
-      class="debug-modal"
-    >
-      <DebugComponent />
-    </a-modal>
   </div>
 </template>
+
+
+<script setup>
+import { ref, reactive, KeepAlive, onMounted, computed } from 'vue'
+import { RouterLink, RouterView, useRoute } from 'vue-router'
+import {
+  BugOutlined,
+  ExclamationCircleOutlined,
+  UserOutlined,
+  LogoutOutlined
+} from '@ant-design/icons-vue'
+import {
+  Bot,
+  Waypoints,
+  LibraryBig,
+  MessageSquareMore,
+  Settings,
+  User2,
+  Mic2
+} from 'lucide-vue-next'
+import { Dropdown } from 'ant-design-vue'
+
+import { useConfigStore } from '@/stores/config'
+import { useDatabaseStore } from '@/stores/database'
+import DebugComponent from '@/components/DebugComponent.vue'
+import UserInfoComponent from '@/components/UserInfoComponent.vue'
+
+const configStore = useConfigStore()
+const databaseStore = useDatabaseStore()
+
+const layoutSettings = reactive({
+  showDebug: false,
+  useTopBar: false // 是否使用顶栏
+})
+
+const getRemoteConfig = () => {
+  configStore.refreshConfig()
+}
+
+const getRemoteDatabase = () => {
+  if (!configStore.config.enable_knowledge_base) {
+    return
+  }
+  databaseStore.refreshDatabase()
+}
+
+onMounted(() => {
+  getRemoteConfig()
+  getRemoteDatabase()
+})
+
+// 打印当前页面的路由信息，使用 vue3 的 setup composition API
+const route = useRoute()
+console.log(route)
+
+// 下面是导航菜单部分，添加智能体项
+const mainList = [
+  {
+    name: '智能体',
+    path: '/agent',
+    icon: Bot,
+    activeIcon: Bot
+  },
+  {
+    name: '知识库',
+    path: '/database',
+    icon: LibraryBig,
+    activeIcon: LibraryBig
+    // hidden: !configStore.config.enable_knowledge_base,
+  },
+  {
+    name: '数字人',
+    path: '/digital-human',
+    icon: User2,
+    activeIcon: User2
+  },
+  {
+    name: '音色',
+    path: '/voice',
+    icon: Mic2,
+    activeIcon: Mic2
+  },
+  // {
+  //   name: '图谱',
+  //   path: '/graph',
+  //   icon: Waypoints,
+  //   activeIcon: Waypoints
+  //   // hidden: !configStore.config.enable_knowledge_graph,
+  // },
+
+]
+</script>
 
 <style lang="less" scoped>
 @import '@/assets/css/main.css';
 
 :root {
-  --header-width: 60px;
+  --header-width: 100px;
 }
 
 .app-layout {
@@ -234,7 +216,8 @@ const mainList = [{
   }
 }
 
-div.header, #app-router-view {
+div.header,
+#app-router-view {
   height: 100%;
   max-width: 100%;
   user-select: none;
@@ -248,42 +231,23 @@ div.header, #app-router-view {
 .header {
   display: flex;
   flex-direction: column;
-  flex: 0 0 var(--header-width);
+  flex: 0 0 80px;
   justify-content: flex-start;
   align-items: center;
-  background-color: var(--gray-100);
+  background-color: #121212;
   height: 100%;
-  width: var(--header-width);
-  border-right: 1px solid var(--gray-300);
-
-  .nav {
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
-    position: relative;
-    // height: 45px;
-    gap: 16px;
-  }
-
-  // 添加debug触发器样式
-  .debug-trigger {
-    position: relative;
-    height: 100%;
-    width: 100%;
-    min-height: 20px;
-    flex-grow: 1;
-  }
+  width: 80px;
+  border-right: 1px solid #2a2a2a;
 
   .logo {
-    width: 40px;
-    height: 40px;
+    width: 50px;
+    height: 50px;
     margin: 14px 0 14px 0;
 
     img {
       width: 100%;
       height: 100%;
-      border-radius: 4px;  // 50% for circle
+      border-radius: 4px;
     }
 
     .logo-text {
@@ -294,7 +258,7 @@ div.header, #app-router-view {
       text-decoration: none;
       font-size: 24px;
       font-weight: bold;
-      color: #333;
+      color: #ffffff;
     }
   }
 
@@ -309,62 +273,40 @@ div.header, #app-router-view {
     border: 1px solid transparent;
     border-radius: 8px;
     background-color: transparent;
-    color: #222;
+    color: #f0f0f0;
     font-size: 20px;
-    transition: background-color 0.2s ease-in-out;
+    transition: all 0.1s ease-in-out;
     margin: 0;
     text-decoration: none;
     cursor: pointer;
-
-    &.github {
-      padding: 10px 12px;
-      &:hover {
-        background-color: transparent;
-        border: 1px solid transparent;
-      }
-
-      .github-link {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        color: inherit;
-      }
-
-      .github-stars {
-        display: flex;
-        align-items: center;
-        font-size: 12px;
-        margin-top: 4px;
-
-        .star-icon {
-          color: #f0a742;
-          font-size: 12px;
-          margin-right: 2px;
-        }
-
-        .star-count {
-          font-weight: 600;
-        }
-      }
-    }
+    width: 56px;
+    padding: 6px;
 
     &.api-docs {
       padding: 10px 12px;
     }
+
     &.active {
       font-weight: bold;
-      color: var(--main-600);
-      background-color: white;
-      border: 1px solid white;
+      color: white;
+      background-color: rgba(255, 255, 255, 0.15);
+      border: 1px solid #4299e1;
+      box-shadow: 0 0 8px rgba(66, 153, 225, 0.5);
+
+      &:hover {
+        transform: none;
+        backdrop-filter: none;
+      }
     }
 
     &.warning {
-      color: red;
+      color: #ff4d4f;
     }
 
     &:hover {
-      background-color: rgba(255, 255, 255, 0.8);
       backdrop-filter: blur(10px);
+      background-color: rgba(255, 255, 255, 0.15);
+      transform: translateY(-2px);
     }
 
     .text {
@@ -377,7 +319,7 @@ div.header, #app-router-view {
   .setting {
     width: auto;
     font-size: 20px;
-    color: #333;
+    color: #ffffff;
     margin-bottom: 8px;
     padding: 16px 12px;
 
@@ -387,6 +329,15 @@ div.header, #app-router-view {
   }
 }
 
+.header .nav {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  align-items: center;
+  position: relative;
+  height: 45px;
+  gap: 16px;
+}
 
 @media (max-width: 520px) {
   .app-layout {
@@ -399,7 +350,6 @@ div.header, #app-router-view {
     .debug-panel {
       bottom: 10rem;
     }
-
   }
   .app-layout div.header-mobile {
     display: flex;
@@ -410,18 +360,18 @@ div.header, #app-router-view {
     align-items: center;
     flex: 0 0 60px;
     border-right: none;
-    height: 40px;
+    height: 50px;
 
     .nav-item {
       text-decoration: none;
-      width: 40px;
-      color: var(--gray-900);
+      width: 50px;
+      color: var(--gray-00);
       font-size: 1rem;
       font-weight: bold;
       transition: color 0.1s ease-in-out, font-size 0.1s ease-in-out;
 
       &.active {
-        color: black;
+        color: #1890ff;
         font-size: 1.1rem;
       }
     }
@@ -441,8 +391,8 @@ div.header, #app-router-view {
   width: 100%;
   height: 50px;
   border-right: none;
-  border-bottom: 1px solid var(--main-light-2);
-  background-color: var(--main-light-3);
+  border-bottom: 1px solid #2a2a2a;
+  background-color: #121212;
   padding: 0 20px;
   gap: 24px;
 
@@ -471,7 +421,7 @@ div.header, #app-router-view {
       font-size: 16px;
       font-weight: 600;
       letter-spacing: 0.5px;
-      color: var(--main-600);
+      color: #ffffff;
       white-space: nowrap;
     }
   }
@@ -490,11 +440,12 @@ div.header, #app-router-view {
 
     .icon {
       margin-right: 8px;
-      font-size: 15px; // 减小图标大小
+      font-size: 15px;
       border: none;
       outline: none;
 
-      &:focus, &:active {
+      &:focus,
+      &:active {
         border: none;
         outline: none;
       }
@@ -505,7 +456,7 @@ div.header, #app-router-view {
       font-size: 15px;
     }
 
-    &.github, &.setting {
+    &.setting {
       padding: 8px 12px;
 
       .icon {
@@ -514,26 +465,11 @@ div.header, #app-router-view {
       }
 
       &.active {
-        color: var(--main-600);
-      }
-    }
-
-    &.github {
-      a {
-        display: flex;
-        align-items: center;
-      }
-
-      .github-stars {
-        display: flex;
-        align-items: center;
-        margin-left: 6px;
-
-        .star-icon {
-          color: #f0a742;
-          font-size: 14px;
-          margin-right: 2px;
-        }
+        color: white;
+        background-color: #2b6cb0;
+        border: 1px solid #4299e1;
+        padding: 6px 18px;
+        box-shadow: 0 0 8px rgba(66, 153, 225, 0.5);
       }
     }
   }

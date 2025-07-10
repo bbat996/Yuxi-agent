@@ -33,7 +33,7 @@ RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --no-install-project
 
 # 复制代码到容器中
-COPY ../src /app/src
+COPY ../server/src /app/src
 COPY ../server /app/server
 
 # 同步项目

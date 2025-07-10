@@ -7,8 +7,8 @@ from fastapi import APIRouter, Query, HTTPException, Depends
 from server.utils.auth_middleware import get_admin_user
 from server.models.user_model import User
 
-from src import knowledge_base
-from src.utils.logging_config import logger
+from server.src import knowledge_base
+from server.src.utils.logging_config import logger
 
 graph = APIRouter()
 

@@ -4,10 +4,10 @@ from pathlib import Path
 from fastapi import Request, Body, Depends, HTTPException
 from fastapi import APIRouter
 
-from src import config, knowledge_base, graph_base
+from server.src import config, knowledge_base, graph_base
 from server.utils.auth_middleware import get_admin_user, get_superadmin_user
 from server.models.user_model import User
-from src.utils.logging_config import logger
+from server.src.utils.logging_config import logger
 
 
 base = APIRouter(tags=["base"])
@@ -91,15 +91,15 @@ async def update_config_item(
 
 @base.post("/restart")
 async def restart(current_user: User = Depends(get_superadmin_user)):
-    graph_base.start()
+    # graph_base.start()
     return {"message": "Restarted!"}
 
 @base.get("/log")
 def get_log(current_user: User = Depends(get_admin_user)):
-    from src.utils.logging_config import LOG_FILE
+    from server.src.utils.logging_config import LOG_FILE
     from collections import deque
 
-    with open(LOG_FILE) as f:
+    with open(LOG_FILE, encoding='utf-8') as f:
         last_lines = deque(f, maxlen=1000)
 
     log = ''.join(last_lines)

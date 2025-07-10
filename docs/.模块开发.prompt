@@ -1,0 +1,7 @@
+
+开发模块需要遵循一下开发规则
+* models的实现数据结构
+* services模块主要负责查询数据功能
+* 根据service代码，实现router的接口
+* 前端需要根据后端router接口实现api.js的对接
+* 前端页面的实现要根据api.js的逻辑实现

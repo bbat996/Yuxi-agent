@@ -4,12 +4,13 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from contextlib import contextmanager
 
-from src import config
+from server.src import config
 from server.models import Base
 from server.models.user_model import User
 from server.models.thread_model import Thread
 from server.models.kb_models import KnowledgeDatabase, KnowledgeFile, KnowledgeNode
-from src.utils import logger
+from server.models.agent_models import CustomAgent, PromptTemplate, MCPSkill, AgentInstance, AgentShare
+from server.src.utils import logger
 
 class DBManager:
     """数据库管理器 - 只提供基础的数据库连接和会话管理"""
