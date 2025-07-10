@@ -1,0 +1,200 @@
+/**
+ * 智能体管理API模块
+ * 处理智能体的创建、查询、更新、删除等操作
+ */
+import { apiRequest, apiGet, apiPost, apiPut, apiDelete } from './base'
+
+/**
+ * 获取智能体列表
+ * @param {Object} params - 查询参数
+ * @param {number} params.page - 页码
+ * @param {number} params.page_size - 每页数量
+ * @param {string} params.search - 搜索关键词
+ * @param {string} params.agent_type - 智能体类型
+ * @param {boolean} params.only_mine - 只显示我的智能体
+ * @param {boolean} params.only_public - 只显示公开智能体
+ * @param {string} params.sort_by - 排序字段
+ * @param {string} params.sort_order - 排序方向
+ * @returns {Promise} API响应
+ */
+export const getAgents = (params = {}) => {
+  return apiGet('/agents', params)
+}
+
+/**
+ * 获取智能体详情
+ * @param {string} agentId - 智能体ID
+ * @returns {Promise} API响应
+ */
+export const getAgent = (agentId) => {
+  return apiGet(`/agents/${agentId}`)
+}
+
+/**
+ * 创建智能体
+ * @param {Object} agentData - 智能体数据
+ * @param {string} agentData.name - 智能体名称
+ * @param {string} agentData.description - 智能体描述
+ * @param {string} agentData.agent_type - 智能体类型
+ * @param {string} agentData.system_prompt - 系统提示词
+ * @param {Object} agentData.model_config - 模型配置
+ * @param {Array} agentData.tools_config - 工具配置
+ * @param {Object} agentData.knowledge_config - 知识库配置
+ * @param {Object} agentData.mcp_config - MCP技能配置
+ * @returns {Promise} API响应
+ */
+export const createAgent = (agentData) => {
+  return apiPost('/agents', agentData)
+}
+
+/**
+ * 更新智能体
+ * @param {string} agentId - 智能体ID
+ * @param {Object} agentData - 更新的智能体数据
+ * @returns {Promise} API响应
+ */
+export const updateAgent = (agentId, agentData) => {
+  return apiPut(`/agents/${agentId}`, agentData)
+}
+
+/**
+ * 删除智能体
+ * @param {string} agentId - 智能体ID
+ * @returns {Promise} API响应
+ */
+export const deleteAgent = (agentId) => {
+  return apiDelete(`/agents/${agentId}`)
+}
+
+/**
+ * 复制智能体
+ * @param {string} agentId - 源智能体ID
+ * @param {Object} options - 复制选项
+ * @param {string} options.new_name - 新智能体名称
+ * @returns {Promise} API响应
+ */
+export const duplicateAgent = (agentId, options = {}) => {
+  return apiPost(`/agents/${agentId}/duplicate`, options)
+}
+
+/**
+ * 获取智能体实例状态
+ * @param {string} agentId - 智能体ID
+ * @returns {Promise} API响应
+ */
+export const getAgentInstance = (agentId) => {
+  return apiGet(`/agents/${agentId}/instance`)
+}
+
+/**
+ * 创建智能体实例
+ * @param {string} agentId - 智能体ID
+ * @param {Object} config - 实例配置
+ * @returns {Promise} API响应
+ */
+export const createAgentInstance = (agentId, config = {}) => {
+  return apiPost(`/agents/${agentId}/instance`, config)
+}
+
+/**
+ * 更新智能体实例配置
+ * @param {string} agentId - 智能体ID
+ * @param {Object} config - 实例配置
+ * @returns {Promise} API响应
+ */
+export const updateAgentInstance = (agentId, config) => {
+  return apiPut(`/agents/${agentId}/instance`, config)
+}
+
+/**
+ * 删除智能体实例
+ * @param {string} agentId - 智能体ID
+ * @returns {Promise} API响应
+ */
+export const deleteAgentInstance = (agentId) => {
+  return apiDelete(`/agents/${agentId}/instance`)
+}
+
+/**
+ * 测试智能体配置
+ * @param {Object} agentData - 智能体配置数据
+ * @param {string} testMessage - 测试消息
+ * @returns {Promise} API响应
+ */
+export const testAgent = (agentData, testMessage) => {
+  return apiPost('/agents/test', {
+    agent_config: agentData,
+    test_message: testMessage
+  })
+}
+
+/**
+ * 获取智能体使用统计
+ * @param {string} agentId - 智能体ID
+ * @param {Object} params - 查询参数
+ * @param {string} params.start_date - 开始日期
+ * @param {string} params.end_date - 结束日期
+ * @returns {Promise} API响应
+ */
+export const getAgentStats = (agentId, params = {}) => {
+  return apiGet(`/agents/${agentId}/stats`, params)
+}
+
+/**
+ * 导出智能体配置
+ * @param {string} agentId - 智能体ID
+ * @returns {Promise} API响应
+ */
+export const exportAgent = (agentId) => {
+  return apiGet(`/agents/${agentId}/export`)
+}
+
+/**
+ * 导入智能体配置
+ * @param {Object} agentConfig - 智能体配置
+ * @returns {Promise} API响应
+ */
+export const importAgent = (agentConfig) => {
+  return apiPost('/agents/import', agentConfig)
+}
+
+/**
+ * 分享智能体
+ * @param {string} agentId - 智能体ID
+ * @param {Object} shareConfig - 分享配置
+ * @param {boolean} shareConfig.is_public - 是否公开
+ * @param {Array} shareConfig.shared_users - 分享给的用户ID列表
+ * @returns {Promise} API响应
+ */
+export const shareAgent = (agentId, shareConfig) => {
+  return apiPost(`/agents/${agentId}/share`, shareConfig)
+}
+
+/**
+ * 取消分享智能体
+ * @param {string} agentId - 智能体ID
+ * @returns {Promise} API响应
+ */
+export const unshareAgent = (agentId) => {
+  return apiDelete(`/agents/${agentId}/share`)
+}
+
+// 智能体API对象，包含所有智能体相关的API方法
+export const agentAPI = {
+  getAgents,
+  getAgent,
+  createAgent,
+  updateAgent,
+  deleteAgent,
+  duplicateAgent,
+  getAgentInstance,
+  createAgentInstance,
+  updateAgentInstance,
+  deleteAgentInstance,
+  testAgent,
+  getAgentStats,
+  exportAgent,
+  importAgent,
+  shareAgent,
+  unshareAgent
+} 

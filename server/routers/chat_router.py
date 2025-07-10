@@ -84,7 +84,7 @@ async def call(query: str = Body(...), meta: dict = Body(None), current_user: Us
 @chat.get("/agent")
 async def get_agent(current_user: User = Depends(get_required_user)):
     """获取所有可用智能体（需要登录）"""
-    agents = await agent_manager.get_agents_info()
+    agents = await agent_manager.get_all_agents_info()
     # logger.debug(f"agents: {agents}")
     return {"agents": agents}
 
@@ -119,7 +119,8 @@ async def chat_agent(agent_name: str,
         yield make_chunk(status="init", meta=meta, msg=HumanMessage(content=query).model_dump())
 
         try:
-            agent = agent_manager.get_agent(agent_name)
+            # 尝试获取智能体（预定义或自定义）
+            agent = agent_manager.get_agent_by_identifier(agent_name)
         except Exception as e:
             logger.error(f"Error getting agent {agent_name}: {e}, {traceback.format_exc()}")
             yield make_chunk(message=f"Error getting agent {agent_name}: {e}", status="error")

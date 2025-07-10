@@ -19,18 +19,18 @@
 
 #### 1.1 数据库模型设计
 **文件：** `server/models/agent_models.py`
-- [ ] **CustomAgent模型**：存储用户创建的智能体
+- [x] **CustomAgent模型**：存储用户创建的智能体 ✅ 已完成
   - 字段：id, name, description, agent_type, system_prompt, model_config, tools_config, knowledge_config, created_by, created_at, updated_at
-- [ ] **PromptTemplate模型**：存储预置提示词模板
+- [x] **PromptTemplate模型**：存储预置提示词模板 ✅ 已完成
   - 字段：id, name, content, category, description, is_system, created_at
-- [ ] **MCPSkill模型**：存储MCP技能配置
+- [x] **MCPSkill模型**：存储MCP技能配置 ✅ 已完成
   - 字段：id, name, description, mcp_config, parameters, created_at
-- [ ] **AgentInstance模型**：存储智能体实例运行状态
+- [x] **AgentInstance模型**：存储智能体实例运行状态 ✅ 已完成
   - 字段：id, agent_id, user_id, status, last_used, config_override
 
 #### 1.2 后端API开发
 **文件：** `server/routers/agent_router.py`
-- [ ] **智能体管理API**
+- [x] **智能体管理API** ✅ 已完成
   - `POST /agents` - 创建自定义智能体
   - `GET /agents` - 获取智能体列表（含分页）
   - `GET /agents/{agent_id}` - 获取智能体详情
@@ -39,7 +39,7 @@
   - `POST /agents/{agent_id}/duplicate` - 复制智能体
 
 **文件：** `server/routers/template_router.py`
-- [ ] **模板管理API**
+- [x] **模板管理API** ✅ 已完成
   - `GET /templates/prompts` - 获取提示词模板列表
   - `POST /templates/prompts` - 创建提示词模板
   - `PUT /templates/prompts/{template_id}` - 更新提示词模板
@@ -51,14 +51,14 @@
 
 #### 2.1 智能体管理器升级
 **文件：** `server/src/agents/custom_agent.py`
-- [ ] **CustomAgent类**：动态智能体实现
+- [x] **CustomAgent类**：动态智能体实现 ✅ 已完成
   - 支持运行时配置加载
   - 动态工具绑定
   - 独立工作目录管理
   - 配置验证和错误处理
 
 **文件：** `server/src/agents/registry.py`（重构）
-- [ ] **AgentManager升级**
+- [x] **AgentManager升级** ✅ 已完成
   - 支持从数据库加载自定义智能体
   - 智能体实例缓存和生命周期管理
   - 配置热重载机制
@@ -66,14 +66,14 @@
 
 #### 2.2 MCP技能系统实现
 **文件：** `server/src/mcp/`
-- [ ] **MCP协议集成**
+- [x] **MCP协议集成** ✅ 已完成
   - 研究和实现MCP (Model Context Protocol)
   - MCP服务器连接管理
   - MCP技能动态加载和调用
   - 错误处理和重试机制
 
 **文件：** `server/src/agents/mcp_integration.py`
-- [ ] **MCP工具适配器**
+- [x] **MCP工具适配器** ✅ 已完成
   - 将MCP技能封装为LangChain工具
   - 异步调用支持
   - 参数验证和序列化
@@ -82,35 +82,38 @@
 
 #### 3.1 智能体管理页面
 **文件：** `web/src/views/AgentManagementView.vue`
-- [ ] **智能体列表页面**
+- [x] **智能体列表页面** ✅ 已完成
   - 智能体卡片展示（名称、描述、类型、最后使用时间）
   - 搜索和筛选功能
   - 批量操作（删除、导出）
   - 分页加载
 
-**文件：** `web/src/views/AgentCreateView.vue`
-- [ ] **智能体创建页面**
-  - 分步向导界面
-  - 基础信息配置（名称、描述、头像）
-  - 指令配置（提示词选择/自定义）
-  - 知识库选择和配置
-  - MCP技能选择和参数配置
-  - 预览和测试功能
+**文件：** `web/src/apis/agent_api.js`
+- [x] **前端API集成** ✅ 已完成
+  - 完整的智能体CRUD API封装
+  - 实例管理、测试、统计等高级功能
+  - 导入导出和分享功能
 
-#### 3.2 配置表单组件
-**文件：** `web/src/components/AgentConfigForm/`
-- [ ] **AgentBasicForm.vue** - 基础信息表单
-- [ ] **AgentPromptForm.vue** - 提示词配置表单
-  - 预置模板选择器
-  - 富文本编辑器
-  - 变量占位符支持
-- [ ] **AgentKnowledgeForm.vue** - 知识库配置表单
-  - 知识库多选
-  - 检索参数配置
-- [ ] **AgentSkillsForm.vue** - MCP技能配置表单
-  - 技能选择器
-  - 参数配置界面
-  - 技能测试功能
+**文件：** `web/src/components/`
+- [x] **核心组件** ✅ 已完成
+  - **AgentCard.vue** - 智能体卡片组件
+  - **AgentModal.vue** - 创建/编辑智能体模态框
+  - **AgentDetailModal.vue** - 智能体详情查看
+
+#### 3.2 配置表单组件（集成在AgentModal中）
+- [x] **AgentModal.vue集成表单** ✅ 已完成
+  - 基础信息表单（名称、描述、类型）
+  - 提示词配置（模板选择器、变量插入）
+  - 模型配置（温度、长度、Top-P等）
+  - 工具配置（动态添加移除）
+  - 知识库配置（多选、检索参数）
+  - MCP技能配置
+  - 配置测试功能
+
+#### 3.3 已知问题
+- [ ] **Vue.js语法兼容** ⚠️ 待修复
+  - v-model语法与Ant Design Vue版本兼容性问题
+  - 需要根据项目使用的Vue/Ant Design版本调整语法
 
 #### 3.3 模板管理页面
 **文件：** `web/src/views/TemplateManagementView.vue`

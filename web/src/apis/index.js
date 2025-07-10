@@ -12,6 +12,9 @@ export * from './auth_api'
 // 导出需要管理员权限的API模块
 export * from './admin_api'
 
+// 导出智能体管理API模块
+export * from './agent_api'
+
 // 导出基础工具函数
 export { apiRequest, apiGet, apiPost, apiPut, apiDelete } from './base'
 

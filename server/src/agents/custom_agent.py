@@ -178,10 +178,27 @@ class CustomAgent(BaseAgent):
                     result_tools.append(platform_tools[tool_name])
                     logger.debug(f"添加知识库工具: {tool_name}")
         
-        # TODO: 添加MCP技能工具
-        # 这里将在MCP系统实现后添加
+        # 添加MCP技能工具
         if mcp_skills and isinstance(mcp_skills, list):
-            logger.debug(f"MCP技能将在后续版本支持: {mcp_skills}")
+            try:
+                from server.src.agents.mcp_integration import get_mcp_tools_for_agent
+                import asyncio
+                
+                # 异步获取MCP工具
+                if asyncio.get_event_loop().is_running():
+                    # 如果在异步环境中，直接调用
+                    mcp_tools = asyncio.create_task(get_mcp_tools_for_agent(mcp_skills))
+                else:
+                    # 如果在同步环境中，使用run_until_complete
+                    mcp_tools = asyncio.run(get_mcp_tools_for_agent(mcp_skills))
+                
+                if isinstance(mcp_tools, list):
+                    result_tools.extend(mcp_tools)
+                    logger.debug(f"添加MCP工具: {len(mcp_tools)} 个")
+                    
+            except Exception as e:
+                logger.error(f"加载MCP技能工具失败: {e}")
+                logger.debug(f"MCP技能配置: {mcp_skills}")
         
         logger.info(f"智能体 {self.name} 加载了 {len(result_tools)} 个工具")
         return result_tools
