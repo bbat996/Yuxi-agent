@@ -8,18 +8,23 @@
           </a-button>
         </div>
         <div class="header-item">
-          <AgentSelectorComponent
-            :model-value="selectedAgentId"
-            mode="compact"
-            :default-agent-id="defaultAgentId"
-            width="280px"
-            @update:model-value="selectedAgentId = $event"
-            @change="handleAgentChange"
-            @open-config="toggleConf"
-            @view-details="handleViewDetails"
-            @set-default="handleSetDefault"
-            @create-agent="goToAgentManagement"
-          />
+          <a-select
+            v-model:value="selectedAgentId"
+            class="agent-list"
+            style="width: 200px"
+            @change="selectAgent"
+          >
+            <a-select-option
+              v-for="(agent, name) in agents"
+              :key="name"
+              :value="name"
+            >
+              <div class="agent-option">
+                智能体：{{ agent.name }}
+                <StarFilled v-if="name === defaultAgentId" class="default-icon" />
+              </div>
+            </a-select-option>
+          </a-select>
         </div>
       </div>
       <div class="header-center">
@@ -186,7 +191,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, reactive, watch, computed, h, watchEffect } from 'vue';
+import { ref, onMounted, reactive, watch, computed, h } from 'vue';
 import { useRouter } from 'vue-router';
 import {
   CloseOutlined,
@@ -200,16 +205,13 @@ import {
 import { message } from 'ant-design-vue';
 import AgentChatComponent from '@/components/agent/AgentChatComponent.vue';
 import ModelSelectorComponent from '@/components/model/ModelSelectorComponent.vue';
-import AgentSelectorComponent from '@/components/agent/AgentSelectorComponent.vue';
 import { useUserStore } from '@/stores/user';
-import { useAgentStore } from '@/stores/agent';
 import { chatApi } from '@/apis/auth_api';
 import { systemConfigApi } from '@/apis/admin_api';
 
-// 路由和Store
+// 路由
 const router = useRouter();
 const userStore = useUserStore();
-const agentStore = useAgentStore();
 
 // 状态
 const agents = ref({});
@@ -235,39 +237,6 @@ const agentConfig = ref({});
 const isDefaultAgent = computed(() => {
   return selectedAgentId.value === defaultAgentId.value;
 });
-
-// 处理智能体改变
-const handleAgentChange = (agent) => {
-  console.log('智能体改变:', agent);
-  if (agent) {
-    selectAgent(agent.agent_id);
-  }
-};
-
-// 处理查看详情
-const handleViewDetails = (agent) => {
-  console.log('查看智能体详情:', agent);
-  // 可以显示智能体详情模态框或跳转到详情页
-};
-
-// 处理设置默认智能体
-const handleSetDefault = async (agent) => {
-  if (!agent || !userStore.isAdmin) return;
-
-  try {
-    await systemConfigApi.setDefaultAgent(agent.agent_id);
-    defaultAgentId.value = agent.agent_id;
-    message.success(`已将"${agent.name}"设为默认智能体`);
-  } catch (error) {
-    console.error('设置默认智能体错误:', error);
-    message.error(error.message || '设置默认智能体时发生错误');
-  }
-};
-
-// 跳转到智能体管理页面
-const goToAgentManagement = () => {
-  router.push('/agents');
-};
 
 // 设置为默认智能体
 const setAsDefaultAgent = async () => {
@@ -463,57 +432,37 @@ watch(
   }
 );
 
-// 初始加载
-onMounted(() => {
-  watchEffect(() => {
-    if (userStore.isLoggedIn) {
-      loadInitialData();
-    }
-  });
-});
-
-/**
- * 加载页面初始数据
- */
-const loadInitialData = async () => {
-  // 从store加载智能体
-  const loadedAgents = await agentStore.fetchAgents();
-  if (loadedAgents.length > 0) {
-    const agentMap = {};
-    loadedAgents.forEach(agent => {
-      agentMap[agent.agent_id] = agent;
-    });
-    agents.value = agentMap;
-
-    // 确定选中的智能体
-    const urlAgentId = router.currentRoute.value.query.agent;
-    if (urlAgentId && agentMap[urlAgentId]) {
-      selectAgent(urlAgentId);
-    } else {
-      // 获取默认智能体ID
-      const fetchedDefaultAgentId = await getDefaultAgentId();
-      defaultAgentId.value = fetchedDefaultAgentId;
-      selectAgent(fetchedDefaultAgentId || loadedAgents[0].agent_id);
-    }
-  } else {
-    // 处理没有智能体的情况
-    if (agentStore.errors.fetch) {
-      message.error(`加载智能体失败: ${agentStore.errors.fetch}`);
-    } else {
-      message.warning('当前没有可用的智能体。');
-    }
-  }
-};
-
-
-// 选中智能体
-const selectAgent = async (agentId) => {
+// 选择智能体
+const selectAgent = (agentId) => {
   selectedAgentId.value = agentId;
   // 保存选择到本地存储
   localStorage.setItem('last-selected-agent', agentId);
   // 加载该智能体的配置
   loadAgentConfig();
 };
+
+// 初始化
+onMounted(async () => {
+  // 获取默认智能体
+  await fetchDefaultAgent();
+  // 获取智能体列表
+  await fetchAgents();
+
+  // 恢复上次选择的智能体
+  const lastSelectedAgent = localStorage.getItem('last-selected-agent');
+  if (lastSelectedAgent && agents.value[lastSelectedAgent]) {
+    selectedAgentId.value = lastSelectedAgent;
+  } else if (defaultAgentId.value && agents.value[defaultAgentId.value]) {
+    // 如果有默认智能体，优先选择默认智能体
+    selectedAgentId.value = defaultAgentId.value;
+  } else if (Object.keys(agents.value).length > 0) {
+    // 默认选择第一个智能体
+    selectedAgentId.value = Object.keys(agents.value)[0];
+  }
+
+  // 加载配置
+  loadAgentConfig();
+});
 
 // 获取配置标签
 const getConfigLabel = (key, value) => {

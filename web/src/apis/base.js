@@ -7,6 +7,34 @@ import { message } from 'ant-design-vue'
  */
 
 /**
+ * 获取认证头
+ * @returns {Object} 认证头对象
+ */
+function getAuthHeaders() {
+  const token = localStorage.getItem('user_token')
+  if (!token) {
+    return {}
+  }
+  // 确保 token 格式正确
+  const tokenValue = token.startsWith('Bearer ') ? token : `Bearer ${token}`
+  return { 'Authorization': tokenValue }
+}
+
+/**
+ * 确保 URL 以 /api 开头
+ * @param {string} url - 原始 URL
+ * @returns {string} - 处理后的 URL
+ */
+function ensureApiPrefix(url) {
+  // 如果 URL 已经是完整的 URL（以 http:// 或 https:// 开头），则直接返回
+  if (url.startsWith('http://') || url.startsWith('https://')) {
+    return url
+  }
+  // 确保 URL 以 /api 开头
+  return url.startsWith('/api') ? url : `/api${url}`
+}
+
+/**
  * 发送API请求的基础函数
  * @param {string} url - API端点
  * @param {Object} options - 请求选项
@@ -15,6 +43,9 @@ import { message } from 'ant-design-vue'
  */
 export async function apiRequest(url, options = {}, requiresAuth = false) {
   try {
+    // 处理 URL
+    const apiUrl = ensureApiPrefix(url)
+
     // 默认请求配置
     const requestOptions = {
       ...options,
@@ -26,16 +57,15 @@ export async function apiRequest(url, options = {}, requiresAuth = false) {
 
     // 如果需要认证，添加认证头
     if (requiresAuth) {
-      const userStore = useUserStore()
-      if (!userStore.isLoggedIn) {
+      const token = localStorage.getItem('user_token')
+      if (!token) {
         throw new Error('用户未登录')
       }
-
-      Object.assign(requestOptions.headers, userStore.getAuthHeaders())
+      Object.assign(requestOptions.headers, getAuthHeaders())
     }
 
     // 发送请求
-    const response = await fetch(url, requestOptions)
+    const response = await fetch(apiUrl, requestOptions)
 
     // 处理API返回的错误
     if (!response.ok) {

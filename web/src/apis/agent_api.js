@@ -23,7 +23,7 @@ export const getAgents = (params = {}) => {
     Object.entries(params).filter(([_, value]) => value !== undefined && value !== null)
   )
   const queryString = new URLSearchParams(filteredParams).toString()
-  const url = queryString ? `/api/agents?${queryString}` : '/api/agents'
+  const url = queryString ? `/agents?${queryString}` : '/agents'
   return apiGet(url, {}, true)
 }
 

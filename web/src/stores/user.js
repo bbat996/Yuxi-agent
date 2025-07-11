@@ -38,8 +38,9 @@ export const useUserStore = defineStore('user', () => {
       username.value = data.username
       userRole.value = data.role
 
-      // 保存到本地存储
-      localStorage.setItem('user_token', data.access_token)
+      // 保存到本地存储，确保 token 格式正确
+      const tokenValue = data.access_token.startsWith('Bearer ') ? data.access_token : `Bearer ${data.access_token}`
+      localStorage.setItem('user_token', tokenValue)
       localStorage.setItem('user_id', data.user_id)
       localStorage.setItem('username', data.username)
       localStorage.setItem('user_role', data.role)
@@ -88,8 +89,9 @@ export const useUserStore = defineStore('user', () => {
       username.value = data.username
       userRole.value = data.role
 
-      // 保存到本地存储
-      localStorage.setItem('user_token', data.access_token)
+      // 保存到本地存储，确保 token 格式正确
+      const tokenValue = data.access_token.startsWith('Bearer ') ? data.access_token : `Bearer ${data.access_token}`
+      localStorage.setItem('user_token', tokenValue)
       localStorage.setItem('user_id', data.user_id)
       localStorage.setItem('username', data.username)
       localStorage.setItem('user_role', data.role)
