@@ -5,7 +5,7 @@ import pytz
 
 from loguru import logger as loguru_logger
 
-SAVE_DIR = os.getenv('SAVE_DIR', 'saves')
+SAVE_DIR = os.getenv('SAVE_DIR', 'storage')
 DATETIME = datetime.now(pytz.timezone('Asia/Shanghai')).strftime('%Y-%m-%d')
 LOG_FILE = f'{SAVE_DIR}/logs/yuxi-{DATETIME}.log'
 

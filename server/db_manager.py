@@ -11,22 +11,32 @@ from server.models.thread_model import Thread
 from server.models.kb_models import KnowledgeDatabase, KnowledgeFile, KnowledgeNode
 from server.models.agent_models import CustomAgent, PromptTemplate, MCPSkill, AgentInstance, AgentShare
 from server.src.utils import logger
-
 class DBManager:
-    """数据库管理器 - 只提供基础的数据库连接和会话管理"""
+    """数据库管理器 - 只提供基础的数据库连接和会话管理 (单例模式)"""
+    
+    _instance = None
+    _initialized = False
+
+    def __new__(cls):
+        if cls._instance is None:
+            cls._instance = super(DBManager, cls).__new__(cls)
+        return cls._instance
 
     def __init__(self):
-        self.db_path = os.path.join(config.save_dir, "database", "server.db")
-        self.ensure_db_dir()
+        if not self._initialized:
+            self.db_path = os.path.join(config.save_dir, "database", "server.db")
+            self.ensure_db_dir()
 
-        # 创建SQLAlchemy引擎
-        self.engine = create_engine(f"sqlite:///{self.db_path}")
+            # 创建SQLAlchemy引擎
+            self.engine = create_engine(f"sqlite:///{self.db_path}")
 
-        # 创建会话工厂
-        self.Session = sessionmaker(bind=self.engine)
+            # 创建会话工厂
+            self.Session = sessionmaker(bind=self.engine)
 
-        # 确保表存在
-        self.create_tables()
+            # 确保表存在
+            self.create_tables()
+            
+            DBManager._initialized = True
 
     def ensure_db_dir(self):
         """确保数据库目录存在"""
@@ -66,5 +76,4 @@ class DBManager:
         finally:
             session.close()
 
-# 创建全局数据库管理器实例
 db_manager = DBManager()

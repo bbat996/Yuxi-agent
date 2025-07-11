@@ -35,6 +35,8 @@ cache
 server/src/data
 */package-lock.json
 web/package-lock.json
+storage
+storage_dev
 saves
 saves_dev
 notebooks

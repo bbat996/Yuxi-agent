@@ -77,7 +77,7 @@ class Configuration(dict):
     @classmethod
     def from_file(cls, agent_name: str) -> Configuration:
         """从文件加载配置"""
-        config_file_path = Path(f"src/agents/{agent_name}/config.private.yaml")
+        config_file_path = Path(f"server/src/agents/{agent_name}/config.private.yaml")
         file_config = {}
         if os.path.exists(config_file_path):
             try:
@@ -101,7 +101,7 @@ class Configuration(dict):
             True if saving was successful, False otherwise
         """
         try:
-            config_file_path = Path(f"src/agents/{agent_name}/config.private.yaml")
+            config_file_path = Path(f"server/src/agents/{agent_name}/config.private.yaml")
             # 确保目录存在
             os.makedirs(os.path.dirname(config_file_path), exist_ok=True)
             with open(config_file_path, 'w', encoding='utf-8') as f:
