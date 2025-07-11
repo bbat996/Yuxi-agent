@@ -149,11 +149,11 @@
 import { ref, reactive, onMounted, watch, nextTick, computed, onUnmounted, toRaw } from 'vue';
 import { ShareAltOutlined, LoadingOutlined } from '@ant-design/icons-vue';
 import { message } from 'ant-design-vue';
-import MessageInputComponent from '@/components/MessageInputComponent.vue'
-import AgentMessageComponent from '@/components/AgentMessageComponent.vue'
-import ChatSidebarComponent from '@/components/ChatSidebarComponent.vue'
-import RefsComponent from '@/components/RefsComponent.vue'
-import AgentInfoPanel from '@/components/AgentInfoPanel.vue'
+import MessageInputComponent from '@/components/message/MessageInputComponent.vue'
+import AgentMessageComponent from '@/components/agent/AgentMessageComponent.vue'
+import ChatSidebarComponent from '@/components/chat/ChatSidebarComponent.vue'
+import RefsComponent from '@/components/message/RefsComponent.vue'
+import AgentInfoPanel from '@/components/agent/AgentInfoPanel.vue'
 import { chatApi, threadApi } from '@/apis/auth_api'
 import { PanelLeftOpen, MessageSquarePlus } from 'lucide-vue-next';
 

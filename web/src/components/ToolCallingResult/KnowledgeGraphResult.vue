@@ -55,7 +55,7 @@
 <script setup>
 import { computed, ref } from 'vue'
 import { DeploymentUnitOutlined } from '@ant-design/icons-vue'
-import GraphContainer from '../GraphContainer.vue'
+import GraphContainer from '../knowledge/GraphContainer.vue'
 
 const props = defineProps({
   data: {

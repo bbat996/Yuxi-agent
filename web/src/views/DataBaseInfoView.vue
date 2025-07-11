@@ -357,7 +357,7 @@ import {
   SettingOutlined,
 } from '@ant-design/icons-vue'
 import HeaderComponent from '@/components/HeaderComponent.vue';
-import KnowledgeGraphViewer from '@/components/KnowledgeGraphViewer.vue';
+import KnowledgeGraphViewer from '@/components/knowledge/KnowledgeGraphViewer.vue';
 import { Waypoints } from 'lucide-vue-next';
 
 

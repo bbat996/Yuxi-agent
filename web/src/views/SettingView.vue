@@ -90,13 +90,13 @@ import {
   ToolOutlined
 } from '@ant-design/icons-vue';
 import HeaderComponent from '@/components/HeaderComponent.vue';
-import ModelProvidersComponent from '@/components/ModelProvidersComponent.vue';
-import UserManagementComponent from '@/components/UserManagementComponent.vue';
-import PromptTemplateManagement from '@/components/PromptTemplateManagement.vue';
-import MCPSkillManagement from '@/components/MCPSkillManagement.vue';
+import ModelProvidersComponent from '@/components/model/ModelProvidersComponent.vue';
+import UserManagementComponent from '@/components/user/UserManagementComponent.vue';
+import PromptTemplateManagement from '@/components/prompt_templates/PromptTemplateManagement.vue';
+import MCPSkillManagement from '@/components/mcp_skill/MCPSkillManagement.vue';
 import { notification, Button } from 'ant-design-vue';
 import { systemConfigApi } from '@/apis/admin_api'
-import ModelSelectorComponent from '@/components/ModelSelectorComponent.vue';
+import ModelSelectorComponent from '@/components/model/ModelSelectorComponent.vue';
 
 const configStore = useConfigStore()
 const userStore = useUserStore()

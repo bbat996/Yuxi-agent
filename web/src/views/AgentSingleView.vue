@@ -12,7 +12,7 @@
 <script setup>
 import { computed, ref } from 'vue';
 import { useRoute } from 'vue-router';
-import AgentChatComponent from '@/components/AgentChatComponent.vue';
+import AgentChatComponent from '@/components/agent/AgentChatComponent.vue';
 import UserInfoComponent from '@/components/UserInfoComponent.vue';
 import sidebarLeftIcon from '@/assets/icons/sidebar_left.svg';
 import sidebarRightIcon from '@/assets/icons/sidebar_right.svg';

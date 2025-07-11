@@ -198,9 +198,9 @@ import {
   PlusCircleOutlined
 } from '@ant-design/icons-vue';
 import { message } from 'ant-design-vue';
-import AgentChatComponent from '@/components/AgentChatComponent.vue';
-import ModelSelectorComponent from '@/components/ModelSelectorComponent.vue';
-import AgentSelectorComponent from '@/components/AgentSelectorComponent.vue';
+import AgentChatComponent from '@/components/agent/AgentChatComponent.vue';
+import ModelSelectorComponent from '@/components/model/ModelSelectorComponent.vue';
+import AgentSelectorComponent from '@/components/agent/AgentSelectorComponent.vue';
 import { useUserStore } from '@/stores/user';
 import { useAgentStore } from '@/stores/agent';
 import { chatApi } from '@/apis/auth_api';

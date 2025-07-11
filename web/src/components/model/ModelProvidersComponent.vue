@@ -305,7 +305,7 @@
                 message="该提供商暂未适配获取模型列表的方法，如果需要添加模型，请在 src/static/models.private.yml 中添加。"
               />
               <img
-                src="@/assets/pics/guides/how-to-add-models.png"
+                src="../../assets/pics/guides/how-to-add-models.png"
                 alt="添加模型指引"
                 style="width: 100%; height: 100%"
               />

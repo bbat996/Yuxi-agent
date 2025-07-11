@@ -177,8 +177,8 @@ import {
   ToolOutlined,
   ExperimentOutlined
 } from '@ant-design/icons-vue'
-import MCPSkillModal from '@/components/MCPSkillModal.vue'
-import MCPSkillPreview from '@/components/MCPSkillPreview.vue'
+import MCPSkillModal from '@/components/mcp_skill/MCPSkillModal.vue'
+import MCPSkillPreview from '@/components/mcp_skill/MCPSkillPreview.vue'
 
 const templateStore = useTemplateStore()
 

@@ -84,7 +84,7 @@ const router = createRouter({
       ]
     },
     {
-      path: '/setting',
+      path: '/user',
       name: 'setting',
       component: AppLayout,
       children: [

@@ -80,7 +80,7 @@
 <script setup>
 import { computed, ref } from 'vue';
 import { CaretRightOutlined } from '@ant-design/icons-vue';
-import RefsComponent from '@/components/RefsComponent.vue'
+import RefsComponent from '@/components/message/RefsComponent.vue'
 
 
 import { MdPreview } from 'md-editor-v3'

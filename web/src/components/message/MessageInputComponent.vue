@@ -118,7 +118,7 @@ const focusInput = () => {
   }
 };
 
-// Wait for component to mount before setting up onStartTyping
+// Wait for component to mount before user up onStartTyping
 onMounted(() => {
   // Use the template ref element for onStartTyping
   setTimeout(() => {

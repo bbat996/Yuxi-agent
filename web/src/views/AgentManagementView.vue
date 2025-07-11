@@ -135,9 +135,9 @@ import { ref, reactive, computed, onMounted, watch } from 'vue'
 import { message, Modal } from 'ant-design-vue'
 import { PlusOutlined, ReloadOutlined } from '@ant-design/icons-vue'
 import { agentAPI } from '@/apis/agent_api'
-import AgentCard from '@/components/AgentCard.vue'
-import AgentModal from '@/components/AgentModal.vue'
-import AgentDetailModal from '@/components/AgentDetailModal.vue'
+import AgentCard from '@/components/agent/AgentCard.vue'
+import AgentModal from '@/components/agent/AgentModal.vue'
+import AgentDetailModal from '@/components/agent/AgentDetailModal.vue'
 
 // 响应式数据
 const loading = ref(false)
