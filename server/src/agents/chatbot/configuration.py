@@ -5,6 +5,7 @@ from dataclasses import dataclass, field
 from server.src.agents.registry import Configuration
 from server.src.agents.tools_factory import get_all_tools
 
+
 @dataclass(kw_only=True)
 class ChatbotConfiguration(Configuration):
     """Chatbot 的配置
@@ -17,29 +18,15 @@ class ChatbotConfiguration(Configuration):
 
     system_prompt: str = field(
         default="You are a helpful assistant.",
-        metadata={
-            "name": "系统提示词",
-            "configurable": True,
-            "description": "用来描述智能体的角色和行为"
-        },
+        metadata={"name": "系统提示词", "configurable": True, "description": "用来描述智能体的角色和行为"},
     )
 
     model: str = field(
         default="zhipu/glm-4-plus",
-        metadata={
-            "name": "智能体模型",
-            "configurable": True,
-            "options": [],
-            "description": "智能体的驱动模型"
-        },
+        metadata={"name": "智能体模型", "configurable": True, "options": [], "description": "智能体的驱动模型"},
     )
 
     tools: list[str] = field(
         default_factory=list,
-        metadata={
-            "name": "工具",
-            "configurable": True,
-            "options": list(get_all_tools().keys()),  # 这里的选择是所有的工具
-            "description": "工具列表"
-        },
+        metadata={"name": "工具", "configurable": True, "options": list(get_all_tools().keys()), "description": "工具列表"},  # 这里的选择是所有的工具
     )

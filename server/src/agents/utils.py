@@ -13,8 +13,6 @@ from langchain_core.messages import AIMessageChunk, ToolMessage
 from pydantic import SecretStr
 
 
-
-
 def load_chat_model(fully_specified_name: str, **kwargs) -> BaseChatModel:
     """
     Load a chat model from a fully specified name.
@@ -23,6 +21,7 @@ def load_chat_model(fully_specified_name: str, **kwargs) -> BaseChatModel:
 
     if provider == "custom":
         from langchain_openai import ChatOpenAI
+
         model_info = get_custom_model(model)
         api_key = model_info.get("api_key") or "custom_model"
         base_url = get_docker_safe_url(model_info["api_base"])
@@ -39,6 +38,7 @@ def load_chat_model(fully_specified_name: str, **kwargs) -> BaseChatModel:
 
     if provider in ["deepseek", "dashscope"]:
         from langchain_deepseek import ChatDeepSeek
+
         return ChatDeepSeek(
             model=model,
             api_key=SecretStr(api_key),
@@ -48,6 +48,7 @@ def load_chat_model(fully_specified_name: str, **kwargs) -> BaseChatModel:
 
     elif provider == "together":
         from langchain_together import ChatTogether
+
         return ChatTogether(
             model=model,
             api_key=SecretStr(api_key),
@@ -57,6 +58,7 @@ def load_chat_model(fully_specified_name: str, **kwargs) -> BaseChatModel:
     else:
         try:  # 其他模型，默认使用OpenAIBase, like openai, zhipuai
             from langchain_openai import ChatOpenAI
+
             return ChatOpenAI(
                 model=model,
                 api_key=SecretStr(api_key),
@@ -64,7 +66,6 @@ def load_chat_model(fully_specified_name: str, **kwargs) -> BaseChatModel:
             )
         except Exception as e:
             raise ValueError(f"Model provider {provider} load failed, {e} \n {traceback.format_exc()}")
-
 
 
 async def agent_cli(agent: BaseAgent, config: RunnableConfig | None = None):
@@ -100,6 +101,6 @@ async def agent_cli(agent: BaseAgent, config: RunnableConfig | None = None):
             if isinstance(msg, ToolMessage):
                 print(f"Tool: {msg.content}")
 
+
 def get_cur_time_with_utc():
     return datetime.now(tz=UTC).isoformat()
-

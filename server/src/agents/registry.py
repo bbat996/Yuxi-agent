@@ -13,7 +13,9 @@ from langchain_core.messages import BaseMessage
 from langgraph.graph.state import CompiledStateGraph
 from langgraph.graph.message import add_messages
 
+from server.src.config import PROJECT_DIR
 from server.src.utils import logger
+
 
 class State(TypedDict):
     messages: Annotated[list[BaseMessage], add_messages]
@@ -31,9 +33,7 @@ class Configuration(dict):
     """
 
     @classmethod
-    def from_runnable_config(
-        cls, config: RunnableConfig | None = None, agent_name: str | None = None
-    ) -> Configuration:
+    def from_runnable_config(cls, config: RunnableConfig | None = None, agent_name: str | None = None) -> Configuration:
         """Create a Configuration instance from a RunnableConfig object.
 
         Args:
@@ -77,11 +77,11 @@ class Configuration(dict):
     @classmethod
     def from_file(cls, agent_name: str) -> Configuration:
         """从文件加载配置"""
-        config_file_path = Path(f"server/src/agents/{agent_name}/config.private.yaml")
+        config_file_path = Path(f"{PROJECT_DIR}server/src/agents/{agent_name}/config.private.yaml")
         file_config = {}
         if os.path.exists(config_file_path):
             try:
-                with open(config_file_path, encoding='utf-8') as f:
+                with open(config_file_path, encoding="utf-8") as f:
                     file_config = yaml.safe_load(f) or {}
                     # logger.info(f"从文件加载智能体 {agent_name} 配置: {file_config}")
             except Exception as e:
@@ -101,10 +101,10 @@ class Configuration(dict):
             True if saving was successful, False otherwise
         """
         try:
-            config_file_path = Path(f"server/src/agents/{agent_name}/config.private.yaml")
+            config_file_path = Path(f"{PROJECT_DIR}/server/src/agents/{agent_name}/config.private.yaml")
             # 确保目录存在
             os.makedirs(os.path.dirname(config_file_path), exist_ok=True)
-            with open(config_file_path, 'w', encoding='utf-8') as f:
+            with open(config_file_path, "w", encoding="utf-8") as f:
                 yaml.dump(config, f, indent=2, allow_unicode=True)
 
             # logger.info(f"智能体 {agent_name} 配置已保存到 {config_file_path}")
@@ -138,27 +138,18 @@ class Configuration(dict):
         confs["configurable_items"] = configurable_items
         return confs
 
-
     thread_id: str = field(
         default_factory=lambda: str(uuid.uuid4()),
-        metadata={
-            "name": "线程ID",
-            "configurable": False,
-            "description": "用来描述智能体的角色和行为"
-        },
+        metadata={"name": "线程ID", "configurable": False, "description": "用来描述智能体的角色和行为"},
     )
 
     user_id: str = field(
         default_factory=lambda: str(uuid.uuid4()),
-        metadata={
-            "name": "用户ID",
-            "configurable": False,
-            "description": "用来描述智能体的角色和行为"
-        },
+        metadata={"name": "用户ID", "configurable": False, "description": "用来描述智能体的角色和行为"},
     )
 
-class BaseAgent:
 
+class BaseAgent:
     """
     定义一个基础 Agent 供 各类 graph 继承
     """
@@ -223,12 +214,12 @@ class BaseAgent:
 
             result = []
             if state:
-                messages = state.values.get('messages', [])
+                messages = state.values.get("messages", [])
                 for msg in messages:
-                    if hasattr(msg, 'model_dump'):
+                    if hasattr(msg, "model_dump"):
                         msg_dict = msg.model_dump()  # 转换成字典
                     else:
-                        msg_dict = dict(msg) if hasattr(msg, '__dict__') else {"content": str(msg)}
+                        msg_dict = dict(msg) if hasattr(msg, "__dict__") else {"content": str(msg)}
                     result.append(msg_dict)
 
             return result

@@ -1,3 +1,4 @@
+import asyncio
 import os
 import uuid
 from typing import Any
@@ -16,6 +17,7 @@ from server.src.agents.registry import State, BaseAgent
 from server.src.agents.utils import load_chat_model, get_cur_time_with_utc
 from server.src.agents.chatbot.configuration import ChatbotConfiguration
 from server.src.agents.tools_factory import get_all_tools
+
 
 class ChatbotAgent(BaseAgent):
     name = "chatbot"
@@ -56,9 +58,7 @@ class ChatbotAgent(BaseAgent):
             model = model.bind_tools(tools)
 
         # 使用异步调用
-        res = await model.ainvoke(
-            [{"role": "system", "content": system_prompt}, *state["messages"]]
-        )
+        res = await model.ainvoke([{"role": "system", "content": system_prompt}, *state["messages"]])
         return {"messages": [res]}
 
     async def get_graph(self, config_schema: RunnableConfig = None, **kwargs):
@@ -98,16 +98,18 @@ class ChatbotAgent(BaseAgent):
         """获取异步存储实例"""
         return AsyncSqliteSaver(await self.get_async_conn())
 
+
 def main():
-    agent = ChatbotAgent(ChatbotConfiguration())
+    agent = ChatbotAgent()
 
     thread_id = str(uuid.uuid4())
     config = {"configurable": {"thread_id": thread_id}}
 
     from server.src.agents.utils import agent_cli
+
     agent_cli(agent, config)
 
 
 if __name__ == "__main__":
-    main()
-    # asyncio.run(main())
+    # main()
+    asyncio.run(main())

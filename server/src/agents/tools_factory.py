@@ -13,11 +13,9 @@ from server.src.utils import logger
 
 class KnowledgeRetrieverModel(BaseModel):
     query_text: str = Field(
-        description=(
-            "查询的关键词，查询的时候，应该尽量以可能帮助回答这个问题的关键词进行查询，"
-            "不要直接使用用户的原始输入去查询。"
-        )
+        description=("查询的关键词，查询的时候，应该尽量以可能帮助回答这个问题的关键词进行查询，" "不要直接使用用户的原始输入去查询。")
     )
+
 
 def get_all_tools():
     """获取所有工具"""
@@ -25,11 +23,8 @@ def get_all_tools():
 
     # 获取所有知识库
     for db_Id, retrieve_info in knowledge_base.get_retrievers().items():
-        name = f"retrieve_{db_Id[:8]}" # Deepseek does not support non-alphanumeric characters in tool names
-        description = (
-            f"使用 {retrieve_info['name']} 知识库进行检索。\n"
-            f"下面是这个知识库的描述：\n{retrieve_info['description']}"
-        )
+        name = f"retrieve_{db_Id[:8]}"  # Deepseek does not support non-alphanumeric characters in tool names
+        description = f"使用 {retrieve_info['name']} 知识库进行检索。\n" f"下面是这个知识库的描述：\n{retrieve_info['description']}"
 
         # 创建异步工具，确保正确处理异步检索器
         async def async_retriever_wrapper(query_text: str, db_id=db_Id):
@@ -47,13 +42,11 @@ def get_all_tools():
 
         # 使用 StructuredTool.from_function 创建异步工具
         tools[name] = StructuredTool.from_function(
-            coroutine=async_retriever_wrapper,  # 指定为协程
-            name=name,
-            description=description,
-            args_schema=KnowledgeRetrieverModel
+            coroutine=async_retriever_wrapper, name=name, description=description, args_schema=KnowledgeRetrieverModel  # 指定为协程
         )
 
     return tools
+
 
 class BaseToolOutput:
     """
@@ -84,6 +77,7 @@ class BaseToolOutput:
         else:
             return str(self.data)
 
+
 @tool
 def calculator(a: float, b: float, operation: str) -> float:
     """Calculate two numbers. operation: add, subtract, multiply, divide"""
@@ -98,12 +92,11 @@ def calculator(a: float, b: float, operation: str) -> float:
     else:
         raise ValueError(f"Invalid operation: {operation}, only support add, subtract, multiply, divide")
 
+
 @tool
 def query_knowledge_graph(query: Annotated[str, "The keyword to query knowledge graph."]):
     """Use this to query knowledge graph."""
     return graph_base.query_node(query, hops=2)
-
-
 
 
 _TOOLS_REGISTRY = {

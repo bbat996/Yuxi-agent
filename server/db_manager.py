@@ -11,9 +11,11 @@ from server.models.thread_model import Thread
 from server.models.kb_models import KnowledgeDatabase, KnowledgeFile, KnowledgeNode
 from server.models.agent_models import CustomAgent, PromptTemplate, MCPSkill, AgentInstance, AgentShare
 from server.src.utils import logger
+
+
 class DBManager:
     """数据库管理器 - 只提供基础的数据库连接和会话管理 (单例模式)"""
-    
+
     _instance = None
     _initialized = False
 
@@ -35,7 +37,7 @@ class DBManager:
 
             # 确保表存在
             self.create_tables()
-            
+
             DBManager._initialized = True
 
     def ensure_db_dir(self):
@@ -75,5 +77,6 @@ class DBManager:
             return session.query(User).count() == 0
         finally:
             session.close()
+
 
 db_manager = DBManager()
