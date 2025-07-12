@@ -4,6 +4,7 @@ from pathlib import Path
 from fastapi import Request, Body, Depends, HTTPException
 from fastapi import APIRouter
 
+from server.config import CONFIG_PATH
 from server.src import config, knowledge_base, graph_base
 from server.utils.auth_middleware import get_admin_user, get_superadmin_user
 from server.models.user_model import User
@@ -16,7 +17,7 @@ def load_info_config():
     """加载信息配置文件"""
     try:
         # 配置文件路径
-        config_path = Path("src/static/info.local.yaml")
+        config_path = Path(f"{CONFIG_PATH}/info.local.yaml")
 
         # 检查文件是否存在
         if not config_path.exists():

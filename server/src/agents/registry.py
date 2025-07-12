@@ -13,7 +13,7 @@ from langchain_core.messages import BaseMessage
 from langgraph.graph.state import CompiledStateGraph
 from langgraph.graph.message import add_messages
 
-from server.src.config import PROJECT_DIR
+from server.config import PROJECT_DIR
 from server.src.utils import logger
 
 

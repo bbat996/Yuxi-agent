@@ -114,7 +114,7 @@ docker logs <容器名称> -f # 例如：docker logs api-dev
 
 #### 添加新模型供应商
 
-如需添加供应商模型，了解 OpenAI 调用方法后，在 [src/static/models.yaml](server/src/static/models.yaml) 中添加对应配置：
+如需添加供应商模型，了解 OpenAI 调用方法后，在 [config/models.yaml](server/config/models.yaml) 中添加对应配置：
 
 ```yaml
 ark:
@@ -161,7 +161,7 @@ ark:
 
 > 提醒：在 0.2.0 版本之后，将不再支持本地向量模型和本地重排序模型，届时除了 OCR 之外（CPU-ONLY），项目本身启动后不会运行任何 AI 模型。其余的 Embedding、Reranker 模型将需要使用单独的部署脚本，与项目本身的服务解耦。
 
-~~强烈建议测试阶段先使用硅基流动部署的 bge-m3（免费且无需修改）。其他模型配置参考 [src/static/models.yaml](server/src/static/models.yaml)~~
+~~强烈建议测试阶段先使用硅基流动部署的 bge-m3（免费且无需修改）。其他模型配置参考 [src/static/models.yaml](server/config/models.yaml)~~
 ~~选择 `local` 前缀的模型会自动下载。如遇下载问题，请参考 [HF-Mirror](https://hf-mirror.com/) 配置。~~
 
 ## 📚 知识库功能

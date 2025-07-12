@@ -302,7 +302,7 @@
             <div v-else>
               <a-alert
                 type="warning"
-                message="该提供商暂未适配获取模型列表的方法，如果需要添加模型，请在 src/static/models.private.yml 中添加。"
+                message="该提供商暂未适配获取模型列表的方法，如果需要添加模型，请在 config/models.private.yml 中添加。"
               />
               <img
                 src="../../assets/pics/guides/how-to-add-models.png"
