@@ -41,9 +41,9 @@ class Config(SimpleConfig):
     def __init__(self):
         super().__init__()
         self._config_items = {}
-        self.save_dir = os.getenv("SAVE_DIR", "storage")
-        self.filename = str(Path(f"{self.save_dir}/config/base.yaml"))
-        os.makedirs(os.path.dirname(self.filename), exist_ok=True)
+        self.storage_dir = os.getenv("SAVE_DIR", "storage")
+        self.config_file = str(Path(f"{CONFIG_PATH}/base.yaml"))
+        os.makedirs(os.path.dirname(self.config_file), exist_ok=True)
 
         self._update_models_from_file()
 
@@ -148,48 +148,43 @@ class Config(SimpleConfig):
 
     def load(self):
         """根据传入的文件覆盖掉默认配置"""
-        logger.info(f"Loading config from {self.filename}")
-        if self.filename is not None and os.path.exists(self.filename):
+        logger.info(f"Loading config from {self.config_file}")
+        if self.config_file is not None and os.path.exists(self.config_file):
 
-            if self.filename.endswith(".json"):
-                with open(self.filename) as f:
+            if self.config_file.endswith(".json"):
+                with open(self.config_file) as f:
                     content = f.read()
                     if content:
                         local_config = json.loads(content)
                         self.update(local_config)
                     else:
-                        print(f"{self.filename} is empty.")
+                        print(f"{self.config_file} is empty.")
 
-            elif self.filename.endswith(".yaml"):
-                with open(self.filename) as f:
+            elif self.config_file.endswith(".yaml"):
+                with open(self.config_file) as f:
                     content = f.read()
                     if content:
                         local_config = yaml.safe_load(content)
                         self.update(local_config)
                     else:
-                        print(f"{self.filename} is empty.")
+                        print(f"{self.config_file} is empty.")
             else:
-                logger.warning(f"Unknown config file type {self.filename}")
+                logger.warning(f"Unknown config file type {self.config_file}")
 
     def save(self):
-        logger.info(f"Saving config to {self.filename}")
-        if self.filename is None:
-            logger.warning("Config file is not specified, save to default config/base.yaml")
-            self.filename = os.path.join(self.save_dir, "config", "base.yaml")
-            os.makedirs(os.path.dirname(self.filename), exist_ok=True)
-
-        if self.filename.endswith(".json"):
-            with open(self.filename, "w+") as f:
+        logger.info(f"Saving config to {self.config_file}")
+        if self.config_file.endswith(".json"):
+            with open(self.config_file, "w+") as f:
                 json.dump(self.__dict__(), f, indent=4, ensure_ascii=False)
-        elif self.filename.endswith(".yaml"):
-            with open(self.filename, "w+") as f:
+        elif self.config_file.endswith(".yaml"):
+            with open(self.config_file, "w+") as f:
                 yaml.dump(self.__dict__(), f, indent=2, allow_unicode=True)
         else:
-            logger.warning(f"Unknown config file type {self.filename}, save as json")
-            with open(self.filename, "w+") as f:
+            logger.warning(f"Unknown config file type {self.config_file}, save as json")
+            with open(self.config_file, "w+") as f:
                 json.dump(self, f, indent=4)
 
-        logger.info(f"Config file {self.filename} saved")
+        logger.info(f"Config file {self.config_file} saved")
 
     def dump_config(self):
         return json.loads(str(self))

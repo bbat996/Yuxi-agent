@@ -26,7 +26,7 @@ class DBManager:
 
     def __init__(self):
         if not self._initialized:
-            self.db_path = os.path.join(config.save_dir, "database", "server.db")
+            self.db_path = os.path.join(config.storage_dir, "database", "server.db")
             self.ensure_db_dir()
 
             # 创建SQLAlchemy引擎

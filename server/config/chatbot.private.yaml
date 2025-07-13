@@ -1,0 +1,7 @@
+model: zhipu/glm-4-plus
+system_prompt: You are a helpful assistant.
+tools:
+- QueryKnowledgeGraph
+- Calculator
+- WebSearchWithTavily
+- retrieve_kb_07b63

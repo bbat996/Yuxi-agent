@@ -16,13 +16,8 @@ from server.db_manager import DBManager
 from server.models.agent_models import CustomAgent as CustomAgentModel
 
 
-class CustomAgentConfiguration(Configuration):
+class ChatbotAgentConfiguration(Configuration):
     """自定义智能体配置类"""
-
-    # 基础配置
-    name: str = "自定义智能体"
-    description: str = "用户自定义的智能体"
-    agent_type: str = "custom"
 
     # 核心配置
     system_prompt: str = "You are a helpful assistant."
@@ -40,7 +35,7 @@ class CustomAgentConfiguration(Configuration):
     model_parameters: Dict[str, Any] = {}
 
     @classmethod
-    def from_db_record(cls, db_record: CustomAgentModel) -> "CustomAgentConfiguration":
+    def from_db_record(cls, db_record: CustomAgentModel) -> "ChatbotAgentConfiguration":
         """从数据库记录创建配置"""
         config_data = {}
 
@@ -81,63 +76,34 @@ class CustomAgentConfiguration(Configuration):
         return cls(**config_data)
 
 
-class CustomAgent(BaseAgent):
-    """动态自定义智能体类"""
+class ChatbotAgent(BaseAgent):
+    """无数据库依赖的 ChatbotAgent，所有配置均外部传入或YAML"""
 
-    def __init__(self, agent_id: str, **kwargs):
-        """
-        初始化自定义智能体
+    # 基础配置
+    name: str = "chatbot"
+    description: str = "基础的对话机器人，可以回答问题，默认不使用任何工具，可在配置中启用需要的工具。"
+    agent_type: str = "chatbot"
 
-        Args:
-            agent_id: 智能体ID
-            **kwargs: 额外参数
-        """
-        self.agent_id = agent_id
-        self.db_manager = DBManager()
-
-        # 从数据库加载智能体配置
-        self._load_agent_from_db()
-
-        # 设置基础属性
-        self.name = self.db_record.name or "custom_agent"
-        self.description = self.db_record.description or "自定义智能体"
-        self.config_schema = CustomAgentConfiguration.from_db_record(self.db_record)
-        self.requirements = []  # 自定义智能体没有硬性要求
-
-        # 工作目录
-        self.workdir = Path(sys_config.save_dir) / "agents" / f"custom_{self.agent_id[:8]}"
+    def __init__(self, agent_id: str = None, config: dict = None, **kwargs):
+        # agent_id 仅用于区分工作目录和日志
+        self.agent_id = agent_id or "chatbot"
+        self.description = (
+            kwargs.get("description")
+            or "基础的对话机器人，可以回答问题，默认不使用任何工具，可在配置中启用需要的工具。"
+        )
+        # 合并 YAML、外部 config、默认值
+        if config is not None:
+            self.config_schema = ChatbotAgentConfiguration.from_runnable_config(config, agent_name=self.agent_id)
+        else:
+            self.config_schema = ChatbotAgentConfiguration.from_runnable_config(agent_name=self.agent_id)
+        self.requirements = ["TAVILY_API_KEY", "ZHIPUAI_API_KEY"]
+        self.workdir = Path(sys_config.storage_dir) / "agents" / self.name
         self.workdir.mkdir(parents=True, exist_ok=True)
-
-        # 图实例缓存
         self.graph = None
-
-        # 检查要求
-        self.check_requirements()
-
-        logger.info(f"自定义智能体初始化完成: {self.name} (ID: {self.agent_id})")
-
-    def _load_agent_from_db(self):
-        """从数据库加载智能体配置"""
-        with self.db_manager.get_session_context() as session:
-            db_record = (
-                session.query(CustomAgentModel)
-                .filter(
-                    CustomAgentModel.agent_id == self.agent_id,
-                    CustomAgentModel.deleted_at.is_(None),
-                    CustomAgentModel.is_active == True,
-                )
-                .first()
-            )
-
-            if not db_record:
-                raise ValueError(f"智能体不存在或已停用: {self.agent_id}")
-
-            self.db_record = db_record
+        logger.info(f"ChatbotAgent 初始化完成: {self.name}")
 
     def reload_config(self):
         """重新加载配置"""
-        self._load_agent_from_db()
-        self.config_schema = CustomAgentConfiguration.from_db_record(self.db_record)
         # 清除图缓存，强制重新构建
         self.graph = None
         logger.info(f"智能体配置重新加载完成: {self.name}")
@@ -145,11 +111,9 @@ class CustomAgent(BaseAgent):
     def _get_tools(self, tools: List[str], mcp_skills: List[str] = None) -> List:
         """
         根据配置获取工具
-
         Args:
             tools: 内置工具列表
             mcp_skills: MCP技能列表
-
         Returns:
             工具列表
         """
@@ -163,25 +127,25 @@ class CustomAgent(BaseAgent):
                     result_tools.append(platform_tools[tool_name])
                     logger.debug(f"添加内置工具: {tool_name}")
 
-        # 添加知识库检索工具
-        if self.db_record.knowledge_config and self.db_record.knowledge_config.get("databases"):
-            for db_id in self.db_record.knowledge_config["databases"]:
+        # 添加知识库检索工具（从 config_schema 获取）
+        knowledge_dbs = getattr(self.config_schema, "knowledge_databases", [])
+        if knowledge_dbs:
+            for db_id in knowledge_dbs:
                 tool_name = f"retrieve_{db_id[:8]}"
                 if tool_name in platform_tools:
                     result_tools.append(platform_tools[tool_name])
                     logger.debug(f"添加知识库工具: {tool_name}")
 
-        # 添加MCP技能工具
+        # 添加MCP技能工具（langchain-mcp-adapters 版）
         if mcp_skills and isinstance(mcp_skills, list):
-            from server.src.agents.mcp_integration import get_mcp_tools_for_agent
+            from server.src.agents.mcp_client import get_mcp_tools_for_agent
             import asyncio
 
-            # 异步获取MCP工具
-            if asyncio.get_event_loop().is_running():
-                # 如果在异步环境中，直接调用
-                mcp_tools = asyncio.create_task(get_mcp_tools_for_agent(mcp_skills))
-            else:
-                # 如果在同步环境中，使用run_until_complete
+            # 兼容异步环境
+            try:
+                loop = asyncio.get_running_loop()
+                mcp_tools = loop.run_until_complete(get_mcp_tools_for_agent(mcp_skills))
+            except RuntimeError:
                 mcp_tools = asyncio.run(get_mcp_tools_for_agent(mcp_skills))
 
             if isinstance(mcp_tools, list):
@@ -192,19 +156,19 @@ class CustomAgent(BaseAgent):
         return result_tools
 
     def _get_model_config(self) -> Dict[str, Any]:
-        """获取模型配置"""
+        """获取模型配置（仅从 config_schema）"""
         model_config = {}
-
-        # 基础模型配置
-        if self.db_record.model_config:
-            model_config.update(self.db_record.model_config)
-
-        # 确保有默认的模型设置
-        if "provider" not in model_config:
+        model_str = getattr(self.config_schema, "model", "zhipu/glm-4-plus")
+        if "/" in model_str:
+            provider, model_name = model_str.split("/", 1)
+            model_config["provider"] = provider
+            model_config["model_name"] = model_name
+        else:
             model_config["provider"] = "zhipu"
-        if "model_name" not in model_config:
-            model_config["model_name"] = "glm-4-plus"
-
+            model_config["model_name"] = model_str
+        # 额外参数
+        if hasattr(self.config_schema, "model_parameters"):
+            model_config["parameters"] = getattr(self.config_schema, "model_parameters")
         return model_config
 
     async def llm_call(self, state: State, config: RunnableConfig = None) -> Dict[str, Any]:
@@ -291,36 +255,28 @@ class CustomAgent(BaseAgent):
         return True
 
     async def get_info(self):
-        """获取智能体信息"""
-        # 重新加载最新配置
-        self._load_agent_from_db()
-
-        # 获取配置信息
+        """获取智能体信息（无数据库依赖）"""
         config_dict = self.config_schema.to_dict()
-
-        # 获取工具信息
         tools = self._get_tools(config_dict.get("tools", []), config_dict.get("mcp_skills", []))
         tool_names = [getattr(tool, "name", str(tool)) for tool in tools]
-
-        return {
+        info = {
             "agent_id": self.agent_id,
             "name": self.name,
             "description": self.description,
-            "agent_type": self.db_record.agent_type,
+            "agent_type": self.name,
             "config_schema": config_dict,
             "requirements": self.requirements,
             "available_tools": tool_names,
             "has_checkpointer": await self.check_checkpointer(),
             "met_requirements": self.check_requirements(),
-            "is_active": self.db_record.is_active,
-            "created_at": self.db_record.created_at.isoformat() if self.db_record.created_at else None,
-            "updated_at": self.db_record.updated_at.isoformat() if self.db_record.updated_at else None,
+            "is_active": True,
+            "created_at": None,
+            "updated_at": None,
         }
+        return info
 
     def check_requirements(self) -> bool:
-        """检查环境要求"""
-        # 自定义智能体的要求检查
-        # 检查模型配置
+        """检查环境要求（无数据库依赖）"""
         model_config = self._get_model_config()
         provider = model_config.get("provider")
 
@@ -333,21 +289,20 @@ class CustomAgent(BaseAgent):
             return False
 
         # 检查工具要求
-        if self.db_record.tools_config:
-            tools = self.db_record.tools_config.get("builtin_tools", [])
-            if "web_search" in tools and "TAVILY_API_KEY" not in os.environ:
-                logger.warning("启用了网页搜索但缺少 TAVILY_API_KEY 环境变量")
-                return False
+        tools = getattr(self.config_schema, "tools", [])
+        if "web_search" in tools and "TAVILY_API_KEY" not in os.environ:
+            logger.warning("启用了网页搜索但缺少 TAVILY_API_KEY 环境变量")
+            return False
 
         return True
 
     def to_dict(self) -> Dict[str, Any]:
-        """转换为字典格式"""
+        """转换为字典格式（无数据库依赖）"""
         return {
             "agent_id": self.agent_id,
             "name": self.name,
             "description": self.description,
-            "agent_type": self.db_record.agent_type if hasattr(self, "db_record") else "custom",
+            "agent_type": self.name,
             "workdir": str(self.workdir),
             "config": self.config_schema.to_dict() if self.config_schema else {},
         }

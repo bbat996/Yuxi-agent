@@ -39,7 +39,7 @@ export const useUserStore = defineStore('user', () => {
       userRole.value = data.role
 
       // 保存到本地存储，确保 token 格式正确
-      const tokenValue = data.access_token.startsWith('Bearer ') ? data.access_token : `Bearer ${data.access_token}`
+      const tokenValue = data.access_token
       localStorage.setItem('user_token', tokenValue)
       localStorage.setItem('user_id', data.user_id)
       localStorage.setItem('username', data.username)
@@ -90,7 +90,7 @@ export const useUserStore = defineStore('user', () => {
       userRole.value = data.role
 
       // 保存到本地存储，确保 token 格式正确
-      const tokenValue = data.access_token.startsWith('Bearer ') ? data.access_token : `Bearer ${data.access_token}`
+      const tokenValue = data.access_token
       localStorage.setItem('user_token', tokenValue)
       localStorage.setItem('user_id', data.user_id)
       localStorage.setItem('username', data.username)

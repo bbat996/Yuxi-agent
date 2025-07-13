@@ -1,6 +1,5 @@
 import asyncio
-from server.src.agents.chatbot import ChatbotAgent
-from server.src.agents.react import ReActAgent
+from server.src.agents.chatbot_agent import ChatbotAgent
 from server.src.utils import logger
 
 
@@ -40,7 +39,7 @@ class AgentManager:
 
     def get_custom_agent(self, agent_id: str, **kwargs):
         """获取自定义智能体实例"""
-        from server.src.agents.custom_agent import CustomAgent
+        from server.src.agents.chatbot_agent import ChatbotAgent
 
         # 使用agent_id作为缓存键
         cache_key = f"custom_{agent_id}"
@@ -48,7 +47,7 @@ class AgentManager:
         if cache_key not in self._custom_instances:
             try:
                 # 创建自定义智能体实例
-                self._custom_instances[cache_key] = CustomAgent(agent_id=agent_id, **kwargs)
+                self._custom_instances[cache_key] = ChatbotAgent(agent_id=agent_id, **kwargs)
             except Exception as e:
                 logger.error(f"创建自定义智能体失败 {agent_id}: {e}")
                 raise
@@ -170,7 +169,6 @@ class AgentManager:
 
 agent_manager = AgentManager()
 agent_manager.register_agent(ChatbotAgent)
-agent_manager.register_agent(ReActAgent)  # 暂时屏蔽 ReActAgent
 agent_manager.init_all_agents()
 
 __all__ = ["agent_manager"]

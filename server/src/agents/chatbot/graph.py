@@ -28,7 +28,7 @@ class ChatbotAgent(BaseAgent):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.graph = None
-        self.workdir = Path(sys_config.save_dir) / "agents" / self.name
+        self.workdir = Path(sys_config.storage_dir) / "agents" / self.name
         self.workdir.mkdir(parents=True, exist_ok=True)
 
     def _get_tools(self, tools: list[str]):

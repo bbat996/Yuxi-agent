@@ -13,111 +13,76 @@ from server.src.utils.logging_config import logger
 
 base = APIRouter(tags=["base"])
 
+
 def load_info_config():
     """加载信息配置文件"""
-    try:
-        # 配置文件路径
-        config_path = Path(f"{CONFIG_PATH}/info.local.yaml")
+    # 配置文件路径
+    config_path = Path(f"{CONFIG_PATH}/info.local.yaml")
+    # 读取配置文件
+    with open(config_path, encoding="utf-8") as file:
+        config = yaml.safe_load(file)
 
-        # 检查文件是否存在
-        if not config_path.exists():
-            logger.debug(f"The config file {config_path} does not exist, using default config")
-            return get_default_info_config()
+    return config
 
-        # 读取配置文件
-        with open(config_path, encoding='utf-8') as file:
-            config = yaml.safe_load(file)
-
-        return config
-
-    except Exception as e:
-        logger.error(f"Failed to load info config: {e}")
-        return get_default_info_config()
-
-def get_default_info_config():
-    """获取默认信息配置"""
-    return {
-        "organization": {
-            "name": "江南语析",
-            "short_name": "语析",
-            "logo": "/favicon.svg",
-            "avatar": "/avatar.jpg"
-        },
-        "branding": {
-            "title": "Yuxi-Know",
-            "subtitle": "大模型驱动的知识库管理工具",
-            "description": "结合知识库与知识图谱，提供更准确、更全面的回答"
-        },
-        "features": [
-            "📚 灵活知识库",
-            "🕸️ 知识图谱集成",
-            "🤖 多模型支持"
-        ],
-        "footer": {
-            "copyright": "© 江南语析 2025 [WIP] v0.12.138"
-        }
-    }
 
 @base.get("/")
 async def route_index():
     return {"message": "You Got It!"}
+
 
 @base.get("/health")
 async def health_check():
     """简单的健康检查接口"""
     return {"status": "ok", "message": "服务正常运行"}
 
+
 @base.get("/config")
 def get_config(current_user: User = Depends(get_admin_user)):
     return config.dump_config()
 
+
 @base.post("/config")
-async def update_config(
-    key = Body(...),
-    value = Body(...),
-    current_user: User = Depends(get_admin_user)
-) -> dict:
+async def update_config(key=Body(...), value=Body(...), current_user: User = Depends(get_admin_user)) -> dict:
     config[key] = value
     config.save()
     return config.dump_config()
 
+
 @base.post("/config/update")
-async def update_config_item(
-    items: dict = Body(...),
-    current_user: User = Depends(get_admin_user)
-) -> dict:
+async def update_config_item(items: dict = Body(...), current_user: User = Depends(get_admin_user)) -> dict:
     config.update(items)
     config.save()
     return config.dump_config()
+
 
 @base.post("/restart")
 async def restart(current_user: User = Depends(get_superadmin_user)):
     # graph_base.start()
     return {"message": "Restarted!"}
 
+
 @base.get("/log")
 def get_log(current_user: User = Depends(get_admin_user)):
     from server.src.utils.logging_config import LOG_FILE
     from collections import deque
 
-    with open(LOG_FILE, encoding='utf-8') as f:
+    with open(LOG_FILE, encoding="utf-8") as f:
         last_lines = deque(f, maxlen=1000)
 
-    log = ''.join(last_lines)
+    log = "".join(last_lines)
     return {"log": log, "message": "success", "log_file": LOG_FILE}
+
 
 @base.get("/info")
 async def get_info_config():
     """获取系统信息配置（公开接口，无需认证）"""
     try:
         config = load_info_config()
-        return {
-            "success": True,
-            "data": config
-        }
+        return {"success": True, "data": config}
     except Exception as e:
         logger.error(f"获取信息配置失败: {e}")
         raise HTTPException(status_code=500, detail="获取信息配置失败")
+
 
 @base.get("/info/reload")
 async def reload_info_config():
@@ -125,13 +90,7 @@ async def reload_info_config():
     # 注：这里暂时不添加权限验证，后续可以根据需要添加
     try:
         config = load_info_config()
-        return {
-            "success": True,
-            "message": "配置重新加载成功",
-            "data": config
-        }
+        return {"success": True, "message": "配置重新加载成功", "data": config}
     except Exception as e:
         logger.error(f"重新加载信息配置失败: {e}")
         raise HTTPException(status_code=500, detail="重新加载信息配置失败")
-
-

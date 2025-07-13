@@ -17,7 +17,7 @@ from server.src import config
 from server.src.utils import logger, hashstr, get_docker_safe_url
 from server.src.plugins import ocr
 
-work_dir = os.path.join(config.save_dir, "lightrag_data")
+work_dir = os.path.join(config.storage_dir, "lightrag_data")
 log_dir = os.path.join(work_dir, "logs", "lightrag")
 setup_logger("lightrag", log_file_path=os.path.join(log_dir, f"lightrag_{datetime.now().strftime('%Y-%m-%d')}.log"))
 
@@ -33,7 +33,7 @@ class LightRagBasedKB:
         # 文件信息存储 {file_id: file_info}
         self.files_meta: dict[str, dict] = {}
         # 工作目录
-        self.work_dir = os.path.join(config.save_dir, "lightrag_data")
+        self.work_dir = os.path.join(config.storage_dir, "lightrag_data")
         os.makedirs(self.work_dir, exist_ok=True)
 
         # 加载已有的元数据

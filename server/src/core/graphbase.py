@@ -24,7 +24,7 @@ class GraphDatabase:
         self.kgdb_name = "neo4j"
         self.embed_model_name = os.getenv("GRAPH_EMBED_MODEL_NAME") or "siliconflow/BAAI/bge-m3"
         self.embed_model = get_embedding_model(self.embed_model_name)
-        self.work_dir = os.path.join(config.save_dir, "knowledge_graph", self.kgdb_name)
+        self.work_dir = os.path.join(config.storage_dir, "knowledge_graph", self.kgdb_name)
         os.makedirs(self.work_dir, exist_ok=True)
 
         # 尝试加载已保存的图数据库信息

@@ -10,6 +10,7 @@
     <div class="setting-container layout-container">
       <div class="sider" v-if="state.windowWidth > 520">
         <a-button type="text" v-if="userStore.isSuperAdmin" :class="{ activesec: state.section === 'base'}" @click="state.section='base'" :icon="h(SettingOutlined)"> 基本设置 </a-button>
+        <a-button type="text" :class="{ activesec: state.section === 'agent'}" @click="state.section='agent'" :icon="h(TeamOutlined)"> 智能体 </a-button>
         <a-button type="text" v-if="userStore.isSuperAdmin" :class="{ activesec: state.section === 'model'}" @click="state.section='model'" :icon="h(CodeOutlined)"> 模型配置 </a-button>
         <a-button type="text" :class="{ activesec: state.section === 'templates'}" @click="state.section='templates'" :icon="h(FileTextOutlined)"> 提示词模板 </a-button>
         <a-button type="text" :class="{ activesec: state.section === 'mcp-skills'}" @click="state.section='mcp-skills'" :icon="h(ToolOutlined)"> MCP技能 </a-button>
@@ -72,6 +73,12 @@
       <div class="setting" v-if="state.section === 'user' && userStore.isAdmin">
          <UserManagementComponent />
       </div>
+
+      <!-- 智能体管理 -->
+      <div class="setting" v-if="state.windowWidth <= 520 || state.section === 'agent'">
+        <AgentManagementComponent v-if="currentView === 'list'" @edit-agent="toEdit" />
+        <AgentEditPanel v-else :agentId="editingAgentId" @back="toList" />
+      </div>
     </div>
   </div>
 </template>
@@ -87,7 +94,8 @@ import {
   CodeOutlined,
   UserOutlined,
   FileTextOutlined,
-  ToolOutlined
+  ToolOutlined,
+  TeamOutlined
 } from '@ant-design/icons-vue';
 import HeaderComponent from '@/components/HeaderComponent.vue';
 import ModelProvidersComponent from '@/components/model/ModelProvidersComponent.vue';
@@ -97,6 +105,8 @@ import MCPSkillManagement from '@/components/mcp_skill/MCPSkillManagement.vue';
 import { notification, Button } from 'ant-design-vue';
 import { systemConfigApi } from '@/apis/admin_api'
 import ModelSelectorComponent from '@/components/model/ModelSelectorComponent.vue';
+import AgentManagementComponent from '@/components/agent/AgentManagementComponent.vue';
+import AgentEditPanel from '@/components/agent/AgentEditPanel.vue'
 
 const configStore = useConfigStore()
 const userStore = useUserStore()
@@ -154,6 +164,17 @@ const handleChatModelSelect = ({ provider, name }) => {
     model_provider: provider,
     model_name: name,
   })
+}
+
+const currentView = ref('list')
+const editingAgentId = ref(null)
+
+function toEdit(agentId) {
+  editingAgentId.value = agentId
+  currentView.value = 'edit'
+}
+function toList() {
+  currentView.value = 'list'
 }
 
 onMounted(() => {
