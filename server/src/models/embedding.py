@@ -46,24 +46,21 @@ class BaseEmbeddingModel:
 
         if len(messages) > batch_size:
             task_id = hashstr(messages)
-            self.embed_state[task_id] = {
-                'status': 'in-progress',
-                'total': len(messages),
-                'progress': 0
-            }
+            self.embed_state[task_id] = {"status": "in-progress", "total": len(messages), "progress": 0}
 
         for i in range(0, len(messages), batch_size):
-            group_msg = messages[i:i+batch_size]
+            group_msg = messages[i : i + batch_size]
             logger.info(f"Encoding {i} to {i+batch_size} with {len(messages)} messages")
             response = self.encode(group_msg)
             # logger.debug(f"Response: {len(response)=}, {len(group_msg)=}, {len(response[0])=}")
             data.extend(response)
 
         if len(messages) > batch_size:
-            self.embed_state[task_id]['progress'] = len(messages)
-            self.embed_state[task_id]['status'] = 'completed'
+            self.embed_state[task_id]["progress"] = len(messages)
+            self.embed_state[task_id]["status"] = "completed"
 
         return data
+
 
 class OllamaEmbedding(BaseEmbeddingModel):
     """
@@ -92,10 +89,7 @@ class OtherEmbedding(BaseEmbeddingModel):
 
     def __init__(self, model_id) -> None:
         super().__init__(model_id)
-        self.headers = {
-            "Authorization": f"Bearer {self.api_key}",
-            "Content-Type": "application/json"
-        }
+        self.headers = {"Authorization": f"Bearer {self.api_key}", "Content-Type": "application/json"}
 
     def predict(self, message):
         payload = self.build_payload(message)
@@ -111,8 +105,9 @@ class OtherEmbedding(BaseEmbeddingModel):
             "input": message,
         }
 
+
 def get_embedding_model(model_id):
-    provider, model_name = model_id.split('/', 1) if model_id else ("", "")
+    provider, model_name = model_id.split("/", 1) if model_id else ("", "")
     support_embed_models = config.embed_model_names.keys()
     assert model_id in support_embed_models, f"Unsupported embed model: {model_id}, only support {support_embed_models}"
     logger.debug(f"Loading embedding model {model_id}")

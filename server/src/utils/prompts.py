@@ -1,7 +1,8 @@
 from datetime import datetime
 
+
 def get_system_prompt():
-    return (f"当前时间：{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
+    return f"当前时间：{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n"
 
 
 knowbase_qa_template = """
@@ -74,5 +75,5 @@ HYDE_PROMPT_TEMPLATE = (
     "\n"
     "{query}\n"
     "\n"
-    'Passage:\n'
+    "Passage:\n"
 )

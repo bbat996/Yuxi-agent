@@ -1,5 +1,6 @@
 from server.src.utils.prompts import get_system_prompt
 
+
 class HistoryManager:
     def __init__(self, history=None, system_prompt=None):
         self.messages = []
@@ -36,7 +37,7 @@ class HistoryManager:
         if max_rounds is None:
             history = self.messages[:]
         else:
-            history = self.messages[-(2*max_rounds):]
+            history = self.messages[-(2 * max_rounds) :]
 
         history.append({"role": role, "content": msg})
         return history
@@ -44,6 +45,6 @@ class HistoryManager:
     def __str__(self):
         history_str = ""
         for message in self.messages:
-            msg = message["content"].replace('\n', ' ')
+            msg = message["content"].replace("\n", " ")
             history_str += f"\n{message['role']}: {msg}"
         return history_str

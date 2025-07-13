@@ -121,7 +121,11 @@ class CustomAgent(BaseAgent):
         with self.db_manager.get_session_context() as session:
             db_record = (
                 session.query(CustomAgentModel)
-                .filter(CustomAgentModel.agent_id == self.agent_id, CustomAgentModel.deleted_at.is_(None), CustomAgentModel.is_active == True)
+                .filter(
+                    CustomAgentModel.agent_id == self.agent_id,
+                    CustomAgentModel.deleted_at.is_(None),
+                    CustomAgentModel.is_active == True,
+                )
                 .first()
             )
 
@@ -219,7 +223,10 @@ class CustomAgent(BaseAgent):
         model = load_chat_model(model_str)
 
         # 获取工具
-        tools = self._get_tools(final_config.get("tools", self.config_schema.tools), final_config.get("mcp_skills", self.config_schema.mcp_skills))
+        tools = self._get_tools(
+            final_config.get("tools", self.config_schema.tools),
+            final_config.get("mcp_skills", self.config_schema.mcp_skills),
+        )
 
         if tools:
             model = model.bind_tools(tools)

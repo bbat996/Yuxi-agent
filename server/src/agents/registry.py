@@ -77,7 +77,7 @@ class Configuration(dict):
     @classmethod
     def from_file(cls, agent_name: str) -> Configuration:
         """从文件加载配置"""
-        config_file_path = Path(f"{PROJECT_DIR}server/src/agents/{agent_name}/config.private.yaml")
+        config_file_path = Path(f"{PROJECT_DIR}/server/config/{agent_name}.private.yaml")
         file_config = {}
         if os.path.exists(config_file_path):
             try:
@@ -101,7 +101,7 @@ class Configuration(dict):
             True if saving was successful, False otherwise
         """
         try:
-            config_file_path = Path(f"{PROJECT_DIR}/server/src/agents/{agent_name}/config.private.yaml")
+            config_file_path = Path(f"{PROJECT_DIR}/server/config/{agent_name}.private.yaml")
             # 确保目录存在
             os.makedirs(os.path.dirname(config_file_path), exist_ok=True)
             with open(config_file_path, "w", encoding="utf-8") as f:
@@ -178,7 +178,7 @@ class BaseAgent:
             return True
         for requirement in self.requirements:
             if requirement not in os.environ:
-                raise ValueError(f"没有配置{requirement} 环境变量，请在 src/.env 文件中配置，并重新启动服务")
+                raise ValueError(f"没有配置{requirement} 环境变量，请在 server/.env 文件中配置，并重新启动服务")
         return True
 
     async def stream_values(self, messages: list[str], config_schema: RunnableConfig = None, **kwargs):

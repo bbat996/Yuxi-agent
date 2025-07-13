@@ -5,6 +5,7 @@ from server.src import config
 from server.src.utils.logging_config import logger
 from server.src.models.chat_model import OpenAIBase
 
+
 def select_model(model_provider, model_name=None):
     """根据模型提供者选择模型"""
     assert model_provider is not None, "Model provider not specified"
@@ -15,16 +16,19 @@ def select_model(model_provider, model_name=None):
 
     if model_provider == "qianfan":
         from server.src.models.chat_model import Qianfan
+
         return Qianfan(model_name)
 
     if model_provider == "openai":
         from server.src.models.chat_model import OpenModel
+
         return OpenModel(model_name)
 
     if model_provider == "custom":
         model_info = get_custom_model(model_name)
 
         from server.src.models.chat_model import CustomModel
+
         return CustomModel(model_info)
 
     # 其他模型，默认使用OpenAIBase
@@ -37,6 +41,7 @@ def select_model(model_provider, model_name=None):
         return model
     except Exception as e:
         raise ValueError(f"Model provider {model_provider} load failed, {e} \n {traceback.format_exc()}")
+
 
 def get_custom_model(model_id):
     """return model_info"""

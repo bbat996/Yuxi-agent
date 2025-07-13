@@ -45,10 +45,14 @@ def do_parse(
             new_pdf_bytes = convert_pdf_bytes_to_bytes_by_pypdfium2(pdf_bytes, start_page_id, end_page_id)
             pdf_bytes_list[idx] = new_pdf_bytes
 
-
-        result = pipeline_doc_analyze(pdf_bytes_list, p_lang_list, parse_method=parse_method, formula_enable=p_formula_enable,table_enable=p_table_enable)
+        result = pipeline_doc_analyze(
+            pdf_bytes_list,
+            p_lang_list,
+            parse_method=parse_method,
+            formula_enable=p_formula_enable,
+            table_enable=p_table_enable,
+        )
         infer_results, all_image_lists, all_pdf_docs, lang_list, ocr_enabled_list = result
-
 
         md_results = []
         for idx, model_list in enumerate(infer_results):
@@ -61,7 +65,9 @@ def do_parse(
             pdf_doc = all_pdf_docs[idx]
             _lang = lang_list[idx]
             _ocr_enable = ocr_enabled_list[idx]
-            middle_json = pipeline_result_to_middle_json(model_list, images_list, pdf_doc, image_writer, _lang, _ocr_enable, p_formula_enable)
+            middle_json = pipeline_result_to_middle_json(
+                model_list, images_list, pdf_doc, image_writer, _lang, _ocr_enable, p_formula_enable
+            )
 
             pdf_info = middle_json["pdf_info"]
 
@@ -124,7 +130,9 @@ def do_parse(
             pdf_bytes = convert_pdf_bytes_to_bytes_by_pypdfium2(pdf_bytes, start_page_id, end_page_id)
             local_image_dir, local_md_dir = prepare_env(output_dir, pdf_file_name, parse_method)
             image_writer, md_writer = FileBasedDataWriter(local_image_dir), FileBasedDataWriter(local_md_dir)
-            middle_json, infer_result = vlm_doc_analyze(pdf_bytes, image_writer=image_writer, backend=backend, server_url=server_url)
+            middle_json, infer_result = vlm_doc_analyze(
+                pdf_bytes, image_writer=image_writer, backend=backend, server_url=server_url
+            )
 
             pdf_info = middle_json["pdf_info"]
 
@@ -176,35 +184,35 @@ def do_parse(
 
 
 def parse_doc(
-        path_list: list[Path],
-        output_dir,
-        lang="ch",
-        backend="pipeline",
-        method="auto",
-        server_url=None,
-        start_page_id=0,  # Start page ID for parsing, default is 0
-        end_page_id=None  # End page ID for parsing, default is None (parse all pages until the end of the document)
+    path_list: list[Path],
+    output_dir,
+    lang="ch",
+    backend="pipeline",
+    method="auto",
+    server_url=None,
+    start_page_id=0,  # Start page ID for parsing, default is 0
+    end_page_id=None,  # End page ID for parsing, default is None (parse all pages until the end of the document)
 ) -> list[str]:
     """
-        Parameter description:
-        path_list: List of document paths to be parsed, can be PDF or image files.
-        output_dir: Output directory for storing parsing results.
-        lang: Language option, default is 'ch', optional values include['ch', 'ch_server', 'ch_lite', 'en', 'korean', 'japan', 'chinese_cht', 'ta', 'te', 'ka']。
-            Input the languages in the pdf (if known) to improve OCR accuracy.  Optional.
-            Adapted only for the case where the backend is set to "pipeline"
-        backend: the backend for parsing pdf:
-            pipeline: More general.
-            vlm-transformers: More general.
-            vlm-sglang-engine: Faster(engine).
-            vlm-sglang-client: Faster(client).
-            without method specified, pipeline will be used by default.
-        method: the method for parsing pdf:
-            auto: Automatically determine the method based on the file type.
-            txt: Use text extraction method.
-            ocr: Use OCR method for image-based PDFs.
-            Without method specified, 'auto' will be used by default.
-            Adapted only for the case where the backend is set to "pipeline".
-        server_url: When the backend is `sglang-client`, you need to specify the server_url, for example:`http://127.0.0.1:30000`
+    Parameter description:
+    path_list: List of document paths to be parsed, can be PDF or image files.
+    output_dir: Output directory for storing parsing results.
+    lang: Language option, default is 'ch', optional values include['ch', 'ch_server', 'ch_lite', 'en', 'korean', 'japan', 'chinese_cht', 'ta', 'te', 'ka']。
+        Input the languages in the pdf (if known) to improve OCR accuracy.  Optional.
+        Adapted only for the case where the backend is set to "pipeline"
+    backend: the backend for parsing pdf:
+        pipeline: More general.
+        vlm-transformers: More general.
+        vlm-sglang-engine: Faster(engine).
+        vlm-sglang-client: Faster(client).
+        without method specified, pipeline will be used by default.
+    method: the method for parsing pdf:
+        auto: Automatically determine the method based on the file type.
+        txt: Use text extraction method.
+        ocr: Use OCR method for image-based PDFs.
+        Without method specified, 'auto' will be used by default.
+        Adapted only for the case where the backend is set to "pipeline".
+    server_url: When the backend is `sglang-client`, you need to specify the server_url, for example:`http://127.0.0.1:30000`
     """
     try:
         file_name_list = []
@@ -226,13 +234,14 @@ def parse_doc(
             parse_method=method,
             server_url=server_url,
             start_page_id=start_page_id,
-            end_page_id=end_page_id
+            end_page_id=end_page_id,
         )
         return result if result else [""]
 
     except Exception as e:
         logger.exception(e)
         return [""]
+
 
 if __name__ == "__main__":
 
@@ -242,8 +251,10 @@ if __name__ == "__main__":
     image_suffixes = [".png", ".jpeg", ".jpg"]
 
     doc_path_list = []
-    for doc_path in Path(pdf_files_dir).glob('*'):
+    for doc_path in Path(pdf_files_dir).glob("*"):
         if doc_path.suffix in pdf_suffixes + image_suffixes:
             doc_path_list.append(doc_path)
 
-    parse_doc(doc_path_list, output_dir, backend="vlm-sglang-client", server_url="http://172.19.13.5:30000")  # faster(client).
+    parse_doc(
+        doc_path_list, output_dir, backend="vlm-sglang-client", server_url="http://172.19.13.5:30000"
+    )  # faster(client).

@@ -21,6 +21,7 @@ work_dir = os.path.join(config.save_dir, "lightrag_data")
 log_dir = os.path.join(work_dir, "logs", "lightrag")
 setup_logger("lightrag", log_file_path=os.path.join(log_dir, f"lightrag_{datetime.now().strftime('%Y-%m-%d')}.log"))
 
+
 class LightRagBasedKB:
     """基于 LightRAG 的知识库管理类"""
 
@@ -45,7 +46,7 @@ class LightRagBasedKB:
         meta_file = os.path.join(self.work_dir, "metadata.json")
         if os.path.exists(meta_file):
             try:
-                with open(meta_file, encoding='utf-8') as f:
+                with open(meta_file, encoding="utf-8") as f:
                     data = json.load(f)
                     self.databases_meta = data.get("databases", {})
                     self.files_meta = data.get("files", {})
@@ -60,11 +61,8 @@ class LightRagBasedKB:
 
         meta_file = os.path.join(self.work_dir, "metadata.json")
         try:
-            data = {
-                "databases": self.databases_meta,
-                "files": self.files_meta
-            }
-            with open(meta_file, 'w', encoding='utf-8') as f:
+            data = {"databases": self.databases_meta, "files": self.files_meta}
+            with open(meta_file, "w", encoding="utf-8") as f:
                 json.dump(data, f, ensure_ascii=False, indent=2)
         except Exception as e:
             logger.error(f"Failed to save metadata: {e}")
@@ -128,7 +126,9 @@ class LightRagBasedKB:
         # api_key = os.getenv(provider_info.get("env")[0] or "OPENAI_API_KEY") or "no_api_key"
         # base_url = get_docker_safe_url(provider_info.get("base_url", "http://localhost:8081/v1"))
         from server.src.models import get_custom_model
+
         llm_info = get_custom_model("qwen3:32b-RFnC")
+
         async def llm_model_func(prompt, system_prompt=None, history_messages=[], **kwargs):
             return await openai_complete_if_cache(
                 llm_info.get("name", "qwen3-1.7b"),
@@ -140,6 +140,7 @@ class LightRagBasedKB:
                 extra_body={"enable_thinking": False},
                 **kwargs,
             )
+
         return llm_model_func
 
     def _get_embedding_func(self, embed_info: dict):
@@ -153,7 +154,7 @@ class LightRagBasedKB:
                 texts=texts,
                 model=embed_info.get("model_name") or "Qwen3-Embedding-0.6B",
                 api_key=api_key,
-                base_url=get_docker_safe_url(base_url)
+                base_url=get_docker_safe_url(base_url),
             ),
         )
 
@@ -162,27 +163,29 @@ class LightRagBasedKB:
         file_path_obj = Path(file_path)
         file_ext = file_path_obj.suffix.lower()
 
-        if file_ext == '.pdf':
+        if file_ext == ".pdf":
             # 使用 OCR 处理 PDF
             from server.src.core.indexing import parse_pdf_async
+
             text = await parse_pdf_async(str(file_path_obj), params=params)
             return f"Using OCR to process {file_path_obj.name}\n\n{text}"
 
-        elif file_ext in ['.txt', '.md']:
+        elif file_ext in [".txt", ".md"]:
             # 直接读取文本文件
-            with open(file_path_obj, encoding='utf-8') as f:
+            with open(file_path_obj, encoding="utf-8") as f:
                 content = f.read()
             return f"# {file_path_obj.name}\n\n{content}"
 
-        elif file_ext in ['.doc', '.docx']:
+        elif file_ext in [".doc", ".docx"]:
             # 处理 Word 文档
 
             from docx import Document  # type: ignore
+
             doc = Document(file_path_obj)
-            text = '\n'.join([para.text for para in doc.paragraphs])
+            text = "\n".join([para.text for para in doc.paragraphs])
             return f"# {file_path_obj.name}\n\n{text}"
 
-        elif file_ext in ['.jpg', '.jpeg', '.png', '.bmp']:
+        elif file_ext in [".jpg", ".jpeg", ".png", ".bmp"]:
             # 使用 OCR 处理图片
             text = ocr.process_image(str(file_path_obj))
             return f"# {file_path_obj.name}\n\n{text}"
@@ -190,6 +193,7 @@ class LightRagBasedKB:
         else:
             # 尝试作为文本文件读取
             import textract  # type: ignore
+
             text = textract.process(file_path_obj)
             return f"# {file_path_obj.name}\n\n{text}"
 
@@ -199,7 +203,7 @@ class LightRagBasedKB:
         from bs4 import BeautifulSoup
 
         response = requests.get(url, timeout=30)
-        soup = BeautifulSoup(response.content, 'html.parser')
+        soup = BeautifulSoup(response.content, "html.parser")
         text_content = soup.get_text()
         return f"# {url}\n\n{text_content}"
 
@@ -224,7 +228,7 @@ class LightRagBasedKB:
                         "path": file_info.get("path", ""),
                         "type": file_info.get("file_type", ""),
                         "status": file_info.get("status", "done"),
-                        "created_at": file_info.get("created_at", time.time())
+                        "created_at": file_info.get("created_at", time.time()),
                     }
 
             db_dict["files"] = db_files
@@ -244,7 +248,7 @@ class LightRagBasedKB:
             "description": description,
             "embed_info": embed_info,
             "metadata": kwargs,
-            "created_at": datetime.now().isoformat()
+            "created_at": datetime.now().isoformat(),
         }
         self._save_metadata()
 
@@ -264,8 +268,7 @@ class LightRagBasedKB:
         # TODO 删除数据库时，需要删除文件记录，并删除 LightRAG 中的文件
         if db_id in self.databases_meta:
             # 删除相关文件记录
-            files_to_delete = [fid for fid, finfo in self.files_meta.items()
-                             if finfo.get("database_id") == db_id]
+            files_to_delete = [fid for fid, finfo in self.files_meta.items() if finfo.get("database_id") == db_id]
             for file_id in files_to_delete:
                 del self.files_meta[file_id]
 
@@ -297,7 +300,7 @@ class LightRagBasedKB:
         if not rag:
             raise ValueError(f"Failed to get LightRAG instance for {db_id}")
 
-        content_type = params.get('content_type', 'file') if params else 'file'
+        content_type = params.get("content_type", "file") if params else "file"
 
         processed_items_info = []
 
@@ -322,7 +325,7 @@ class LightRagBasedKB:
                 "path": item_path,
                 "file_type": file_type,
                 "status": "processing",
-                "created_at": time.time()
+                "created_at": time.time(),
             }
             self.files_meta[file_id] = file_record
             self._save_metadata()
@@ -335,30 +338,26 @@ class LightRagBasedKB:
                 # 根据内容类型处理内容
                 if content_type == "file":
                     markdown_content = await self._process_file_to_markdown(item, params=params)
-                    newline = '\n'
+                    newline = "\n"
                     logger.info(f"Markdown content: {markdown_content[:100].replace(newline, ' ')}...")
                 else:  # URL
                     markdown_content = await self._process_url_to_markdown(item, params=params)
 
                 # 使用 LightRAG 插入内容
-                await rag.ainsert(
-                    input=markdown_content,
-                    ids=file_id,
-                    file_paths=item_path
-                )
+                await rag.ainsert(input=markdown_content, ids=file_id, file_paths=item_path)
 
                 logger.info(f"Inserted {content_type} {item} into LightRAG. Done.")
 
                 # 更新状态为完成
                 self.files_meta[file_id]["status"] = "done"
                 self._save_metadata()
-                file_record['status'] = "done"
+                file_record["status"] = "done"
 
             except Exception as e:
                 logger.error(f"处理{content_type} {item} 失败: {e}, {traceback.format_exc()}")
                 self.files_meta[file_id]["status"] = "failed"
                 self._save_metadata()
-                file_record['status'] = "failed"
+                file_record["status"] = "failed"
 
             processed_items_info.append(file_record)
 
@@ -382,7 +381,7 @@ class LightRagBasedKB:
                     "path": file_info.get("path", ""),
                     "type": file_info.get("file_type", ""),
                     "status": file_info.get("status", "done"),
-                    "created_at": file_info.get("created_at", time.time())
+                    "created_at": file_info.get("created_at", time.time()),
                 }
 
         meta["files"] = db_files
@@ -416,8 +415,8 @@ class LightRagBasedKB:
         if rag:
             try:
                 # 获取文档的所有 chunks
-                assert hasattr(rag.text_chunks, 'get_all'), "text_chunks does not have get_all method"
-                all_chunks = await rag.text_chunks.get_all() # type: ignore
+                assert hasattr(rag.text_chunks, "get_all"), "text_chunks does not have get_all method"
+                all_chunks = await rag.text_chunks.get_all()  # type: ignore
 
                 # 筛选属于该文档的 chunks
                 doc_chunks = []
@@ -497,9 +496,11 @@ class LightRagBasedKB:
         """获取所有检索器 - 用于工具系统"""
         retrievers = {}
         for db_id, meta in self.databases_meta.items():
+
             def make_retriever(db_id):
                 async def retriever(query_text):
                     return await self.aquery(query_text, db_id)
+
                 return retriever
 
             retrievers[db_id] = {

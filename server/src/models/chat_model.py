@@ -4,6 +4,7 @@ from openai import OpenAI
 from server.src.utils import logger, get_docker_safe_url
 from langchain_openai import ChatOpenAI
 
+
 class OpenAIBase:
     def __init__(self, api_key, base_url, model_name, **kwargs):
         self.api_key = api_key
@@ -14,7 +15,7 @@ class OpenAIBase:
 
     def predict(self, message, stream=False):
         if isinstance(message, str):
-            messages=[{"role": "user", "content": message}]
+            messages = [{"role": "user", "content": message}]
         else:
             messages = message
 
@@ -31,8 +32,8 @@ class OpenAIBase:
                 stream=True,
             )
             for chunk in response:
-                    if len(chunk.choices) > 0:
-                        yield chunk.choices[0].delta
+                if len(chunk.choices) > 0:
+                    yield chunk.choices[0].delta
 
         except Exception as e:
             err = f"Error streaming response: {e}, URL: {self.base_url}, API Key: {self.api_key[:5]}***, Model: {self.model_name}"
@@ -49,11 +50,7 @@ class OpenAIBase:
 
     def get_models(self):
         try:
-            return self.client.models.list(
-                extra_query={
-                    "type": "text"
-                }
-            )
+            return self.client.models.list(extra_query={"type": "text"})
         except Exception as e:
             logger.error(f"Error getting models: {e}")
             return []
@@ -65,7 +62,6 @@ class OpenModel(OpenAIBase):
         api_key = os.getenv("OPENAI_API_KEY")
         base_url = os.getenv("OPENAI_API_BASE")
         super().__init__(api_key=api_key, base_url=base_url, model_name=model_name)
-
 
 
 class CustomModel(OpenAIBase):
@@ -89,6 +85,7 @@ class Qianfan(OpenAIBase):
 
     def __init__(self, model_name="ernie_speed") -> None:
         import qianfan
+
         self.model_name = model_name
         access_key = os.getenv("QIANFAN_ACCESS_KEY")
         secret_key = os.getenv("QIANFAN_SECRET_KEY")
@@ -96,7 +93,7 @@ class Qianfan(OpenAIBase):
 
     def predict(self, message, stream=False):
         if isinstance(message, str):
-            messages=[{"role": "user", "content": message}]
+            messages = [{"role": "user", "content": message}]
         else:
             messages = message
 

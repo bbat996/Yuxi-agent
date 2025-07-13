@@ -28,5 +28,10 @@ class ChatbotConfiguration(Configuration):
 
     tools: list[str] = field(
         default_factory=list,
-        metadata={"name": "工具", "configurable": True, "options": list(get_all_tools().keys()), "description": "工具列表"},  # 这里的选择是所有的工具
+        metadata={
+            "name": "工具",
+            "configurable": True,
+            "options": list(get_all_tools().keys()),
+            "description": "工具列表",
+        },  # 这里的选择是所有的工具
     )

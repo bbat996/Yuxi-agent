@@ -16,15 +16,12 @@ from .client import MCPClient
 from .registry import MCPSkillRegistry
 from .adapter import MCPToolAdapter
 
-__all__ = [
-    "MCPClient",
-    "MCPSkillRegistry", 
-    "MCPToolAdapter"
-]
+__all__ = ["MCPClient", "MCPSkillRegistry", "MCPToolAdapter"]
 
 # 全局MCP技能注册表实例
 mcp_registry = MCPSkillRegistry()
 
+
 def get_mcp_registry():
     """获取全局MCP技能注册表"""
-    return mcp_registry 
+    return mcp_registry

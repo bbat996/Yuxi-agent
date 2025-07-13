@@ -10,7 +10,7 @@ from langchain_community.document_loaders import (
     UnstructuredMarkdownLoader,
     UnstructuredHTMLLoader,
     CSVLoader,
-    JSONLoader
+    JSONLoader,
 )
 
 
@@ -29,22 +29,22 @@ def chunk_with_parser(file_path, params=None):
     file_type = Path(file_path).suffix.lower()
 
     # 选择合适的加载器
-    if file_type in ['.txt']:
+    if file_type in [".txt"]:
         loader = TextLoader(file_path)
 
-    elif file_type in ['.md']:
+    elif file_type in [".md"]:
         loader = UnstructuredMarkdownLoader(file_path)
 
-    elif file_type in ['.docx', '.doc']:
+    elif file_type in [".docx", ".doc"]:
         loader = Docx2txtLoader(file_path)
 
-    elif file_type in ['.html', '.htm']:
+    elif file_type in [".html", ".htm"]:
         loader = UnstructuredHTMLLoader(file_path)
 
-    elif file_type in ['.json']:
+    elif file_type in [".json"]:
         loader = JSONLoader(file_path, jq_schema=".")
 
-    elif file_type in ['.csv']:
+    elif file_type in [".csv"]:
         loader = CSVLoader(file_path)
 
     else:
@@ -71,6 +71,7 @@ def chunk_with_parser(file_path, params=None):
 
     return nodes
 
+
 def chunk_text(text, params=None):
     """
     将文本切分成固定大小的块
@@ -81,9 +82,7 @@ def chunk_text(text, params=None):
 
     # 创建文本分割器
     text_splitter = RecursiveCharacterTextSplitter(
-        chunk_size=chunk_size,
-        chunk_overlap=chunk_overlap,
-        separators=["\n\n", "\n", ".", " ", ""]
+        chunk_size=chunk_size, chunk_overlap=chunk_overlap, separators=["\n\n", "\n", ".", " ", ""]
     )
 
     # 分割文档
@@ -93,8 +92,10 @@ def chunk_text(text, params=None):
     nodes = [{"text": node, "metadata": {"chunk_idx": i}} for i, node in enumerate(nodes)]
     return nodes
 
+
 def chunk(text_or_path, params=None):
     raise NotImplementedError("chunk is deprecated, use chunk_with_parser or chunk_text instead")
+
 
 def pdfreader(file_path, params=None):
     """读取PDF文件并返回text文本"""
@@ -109,6 +110,7 @@ def pdfreader(file_path, params=None):
     text = "\n\n".join([d.page_content for d in docs])
     return text
 
+
 def plainreader(file_path):
     """读取普通文本文件并返回text文本"""
     assert os.path.exists(file_path), "File not found"
@@ -119,24 +121,29 @@ def plainreader(file_path):
     text = "\n\n".join([d.page_content for d in docs])
     return text
 
+
 def parse_pdf(file, params=None):
     params = params or {}
     opt_ocr = params.get("enable_ocr", "disable")
 
     if opt_ocr == "onnx_rapid_ocr":
         from server.src.plugins import ocr
+
         return ocr.process_pdf(file)
 
     elif opt_ocr == "mineru_ocr":
         from server.src.plugins import ocr
+
         return ocr.process_pdf_mineru(file)
 
     elif opt_ocr == "paddlex_ocr":
         from server.src.plugins import ocr
+
         return ocr.process_pdf_paddlex(file)
 
     else:
         return pdfreader(file, params=params)
+
 
 async def parse_pdf_async(file, params=None):
     return await asyncio.to_thread(parse_pdf, file, params=params)

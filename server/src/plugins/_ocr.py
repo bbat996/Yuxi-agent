@@ -20,7 +20,7 @@ class OCRPlugin:
 
     def __init__(self, **kwargs):
         self.ocr = None
-        self.det_box_thresh = kwargs.get('det_box_thresh', 0.3)
+        self.det_box_thresh = kwargs.get("det_box_thresh", 0.3)
 
     def load_model(self):
         """加载 OCR 模型"""
@@ -72,7 +72,7 @@ class OCRPlugin:
 
             # 提取文本
             if result:
-                text = '\n'.join([line[1] for line in result])
+                text = "\n".join([line[1] for line in result])
                 return text
             else:
                 logger.warning("OCR未能识别出文本内容")
@@ -93,11 +93,11 @@ class OCRPlugin:
             str: 临时文件路径
         """
         # 为临时文件创建目录（如果不存在）
-        tmp_dir = os.path.join(os.getcwd(), 'tmp')
+        tmp_dir = os.path.join(os.getcwd(), "tmp")
         os.makedirs(tmp_dir, exist_ok=True)
 
         # 生成临时文件路径
-        temp_filename = f'ocr_temp_{uuid.uuid4().hex[:8]}.png'
+        temp_filename = f"ocr_temp_{uuid.uuid4().hex[:8]}.png"
         image_path = os.path.join(tmp_dir, temp_filename)
 
         # 根据图像类型保存文件
@@ -127,7 +127,7 @@ class OCRPlugin:
 
             pdfDoc = fitz.open(pdf_path)
             totalPage = pdfDoc.page_count
-            for pg in tqdm(range(totalPage), desc='to images', ncols=100):
+            for pg in tqdm(range(totalPage), desc="to images", ncols=100):
                 page = pdfDoc[pg]
                 rotate, zoom_x, zoom_y = 0, 2, 2
                 mat = fitz.Matrix(zoom_x, zoom_y).prerotate(rotate)
@@ -137,11 +137,11 @@ class OCRPlugin:
 
             # 处理每个图像并合并文本
             all_text = []
-            for img_path in tqdm(images, desc='to txt', ncols=100):
+            for img_path in tqdm(images, desc="to txt", ncols=100):
                 text = self.process_image(img_path)
                 all_text.append(text)
 
-            return '\n\n'.join(all_text)
+            return "\n\n".join(all_text)
 
         except Exception as e:
             logger.error(f"PDF processing error: {str(e)}")
@@ -155,20 +155,23 @@ class OCRPlugin:
         """
         import requests
         from .mineru import parse_doc
+
         mineru_ocr_uri = os.getenv("MINERU_OCR_URI", "http://localhost:30000")
         mineru_ocr_uri_health = f"{mineru_ocr_uri}/health"
 
         health_check_response = requests.get(mineru_ocr_uri_health, timeout=5)
         if health_check_response.status_code != 200:
-            logger.error(f"Mineru OCR service health check failed with {mineru_ocr_uri_health}: {health_check_response.json()}")
-            raise RuntimeError("Mineru OCR service health check failed. Please check the log use `docker logs mineru-api`")
+            logger.error(
+                f"Mineru OCR service health check failed with {mineru_ocr_uri_health}: {health_check_response.json()}"
+            )
+            raise RuntimeError(
+                "Mineru OCR service health check failed. Please check the log use `docker logs mineru-api`"
+            )
 
         pdf_path_list = [pdf_path]
         output_dir = os.path.join(os.getcwd(), "tmp", "mineru_ocr")
 
-        pdf_text = parse_doc(pdf_path_list, output_dir,
-                         backend="vlm-sglang-client",
-                         server_url=mineru_ocr_uri)[0]
+        pdf_text = parse_doc(pdf_path_list, output_dir, backend="vlm-sglang-client", server_url=mineru_ocr_uri)[0]
 
         logger.debug(f"Mineru OCR result: {pdf_text[:50]}(...) total {len(pdf_text)} characters.")
         return pdf_text
@@ -185,7 +188,9 @@ class OCRPlugin:
         health_check_response = check_paddlex_health(paddlex_uri)
         if not health_check_response.ok:
             logger.error(f"Paddlex OCR service health check failed with {paddlex_uri}: {health_check_response.json()}")
-            raise RuntimeError("Paddlex OCR service health check failed. Please check the log use `docker logs paddlex`")
+            raise RuntimeError(
+                "Paddlex OCR service health check failed. Please check the log use `docker logs paddlex`"
+            )
 
         result = analyze_document(pdf_path, base_url=paddlex_uri)
 
@@ -195,8 +200,10 @@ class OCRPlugin:
 
         return result["full_text"]
 
+
 def get_state(task_id):
     return GOLBAL_STATE.get(task_id, {})
+
 
 def plainreader(file_path):
     """读取普通文本文件并返回text文本"""
@@ -207,11 +214,10 @@ def plainreader(file_path):
     return text
 
 
-
 if __name__ == "__main__":
     parser = ArgumentParser()
-    parser.add_argument('--pdf-path', type=str, required=True, help='Path to the PDF file')
-    parser.add_argument('--return-text', action='store_true', help='Return the extracted text')
+    parser.add_argument("--pdf-path", type=str, required=True, help="Path to the PDF file")
+    parser.add_argument("--return-text", action="store_true", help="Return the extracted text")
     args = parser.parse_args()
 
     ocr = OCRPlugin()
