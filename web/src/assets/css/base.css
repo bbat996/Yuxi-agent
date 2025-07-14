@@ -2,20 +2,20 @@
 /* color palette from <https://github.com/vuejs/theme> */
 /* https://material-foundation.github.io/material-theme-builder/ */
 :root {
-  --main-1000: #002A36;
-  --main-900: #003A51;
-  --main-800: #004F69;
-  --main-700: #00637F;
-  --main-600: #1B7796;
-  --main-500: #2C86A8;
-  --main-400: #4e99b9;
-  --main-300: #6AADCB;
-  --main-200: #8CC6E1;
-  --main-100: #ABE0F7;
-  --main-50: #CDF5FF;
-  --main-25: #E6FAFF;
-  --main-10: #F5FDFF;
-  --main-5: #FAFCFD;
+  --main-1000: #1e1b4b;
+  --main-900: #312e81;
+  --main-800: #3730a3;
+  --main-700: #4338ca;
+  --main-600: #6366f1;
+  --main-500: #7c3aed;
+  --main-400: #8b5cf6;
+  --main-300: #a855f7;
+  --main-200: #EFF1F2;
+  --main-100: #F8FAFB;
+  --main-50: #FBFDFE;
+  --main-25: #FCFEFF;
+  --main-10: #faf5ff;
+  --main-5: #fdf4ff;
 
   --gray-10000: #000000;
   --gray-2000: #0C1214;
@@ -47,10 +47,21 @@
   --secondry-color: #4e616d;
   --error-color: #ba1a1a;
 
-  --bg-sider: var(--main-5);
+  --bg-sider: var(--gray-200);
   --color-text: var(--c-black);
 
   --min-width: 400px;
+
+  /* 动画时长变量 - 可以根据需要调整这些值 */
+  --transition-fast: 0.1s;
+  --transition-normal: 0.15s;
+  --transition-slow: 0.2s;
+  --transition-very-slow: 0.3s;
+  
+  /* 动画缓动函数 */
+  --ease-fast: ease;
+  --ease-normal: ease-in-out;
+  --ease-slow: ease-out;
 }
 
 *,

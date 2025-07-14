@@ -10,7 +10,7 @@
               <span>自</span>
             </div>
             <div class="provider-details">
-              <h3>自定义模型</h3>
+              <div>自定义模型</div>
               <span class="provider-status"
                 >{{ (configStore.config.custom_models || []).length }} 个模型</span
               >
@@ -643,7 +643,7 @@ const filteredModels = computed(() => {
 
     &.custom-models-section {
       .provider-header {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        background: linear-gradient(135deg, #667eea 0%, #8022df 100%);
         color: white;
 
         .provider-details h3 {

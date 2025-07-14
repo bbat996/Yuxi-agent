@@ -1190,7 +1190,7 @@ const toggleAutoRefresh = (checked) => {
       border-radius: 8px;
       background: #fff;
       border: 1px solid var(--main-light-3);
-      transition: box-shadow 0.3s ease;
+      transition: box-shadow var(--transition-normal) var(--ease-fast);
 
       &:hover {
         box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
@@ -1314,7 +1314,7 @@ const toggleAutoRefresh = (checked) => {
         border-radius: 8px;
         background-color: var(--main-light-4);
         border: 1px solid var(--main-light-3);
-        transition: all 0.2s ease;
+        transition: all var(--transition-fast) var(--ease-fast);
         &.active {
           color: var(--main-color);
           background-color: var(--main-10);
