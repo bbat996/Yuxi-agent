@@ -31,6 +31,8 @@ class Configuration(dict):
     2. 文件配置(config.private.yaml)：中等优先级，从文件加载
     3. 类默认配置：最低优先级，类中定义的默认值
     """
+    config_file_path = Path(f"{PROJECT_DIR}/server/config/agents/chatbot.private.yaml")
+    
 
     @classmethod
     def from_runnable_config(cls, config: RunnableConfig | None = None, agent_name: str | None = None) -> Configuration:
@@ -82,11 +84,10 @@ class Configuration(dict):
     @classmethod
     def from_file(cls, agent_name: str) -> Configuration:
         """从文件加载配置"""
-        config_file_path = Path(f"{PROJECT_DIR}/server/config/agents/{agent_name}.private.yaml")
         file_config = {}
-        if os.path.exists(config_file_path):
+        if os.path.exists(cls.config_file_path):
             try:
-                with open(config_file_path, encoding="utf-8") as f:
+                with open(cls.config_file_path, encoding="utf-8") as f:
                     file_config = yaml.safe_load(f) or {}
             except Exception as e:
                 logger.error(f"加载智能体配置文件出错: {e}")
@@ -105,10 +106,9 @@ class Configuration(dict):
             True if saving was successful, False otherwise
         """
         try:
-            config_file_path = Path(f"{PROJECT_DIR}/server/config/{agent_name}.private.yaml")
             # 确保目录存在
-            os.makedirs(os.path.dirname(config_file_path), exist_ok=True)
-            with open(config_file_path, "w", encoding="utf-8") as f:
+            os.makedirs(os.path.dirname(cls.config_file_path), exist_ok=True)
+            with open(cls.config_file_path, "w", encoding="utf-8") as f:
                 yaml.dump(config, f, indent=2, allow_unicode=True)
 
             # logger.info(f"智能体 {agent_name} 配置已保存到 {config_file_path}")

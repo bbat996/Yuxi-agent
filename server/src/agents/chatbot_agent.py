@@ -47,44 +47,49 @@ class ChatbotConfiguration(Configuration):
     model_parameters: Dict[str, Any] = field(default_factory=dict, metadata={"name": "模型参数", "configurable": True})
 
     @classmethod
-    def from_db_record(cls, db_record: CustomAgentModel) -> "ChatbotConfiguration":
+    def from_db_record(cls, db_record) -> "ChatbotConfiguration":
         """从数据库记录创建配置"""
-        config_data = {}
+        # 使用数据库模型的to_chatbot_config方法
+        if hasattr(db_record, 'to_chatbot_config'):
+            config_data = db_record.to_chatbot_config()
+        else:
+            # 兼容旧版本
+            config_data = {}
 
-        # 基础信息
-        if db_record.name:
-            config_data["name"] = db_record.name
-        if db_record.description:
-            config_data["description"] = db_record.description
-        if db_record.agent_type:
-            config_data["agent_type"] = db_record.agent_type
-        if db_record.system_prompt:
-            config_data["system_prompt"] = db_record.system_prompt
+            # 基础信息
+            if hasattr(db_record, 'name') and db_record.name:
+                config_data["name"] = db_record.name
+            if hasattr(db_record, 'description') and db_record.description:
+                config_data["description"] = db_record.description
+            if hasattr(db_record, 'agent_type') and db_record.agent_type:
+                config_data["agent_type"] = db_record.agent_type
+            if hasattr(db_record, 'system_prompt') and db_record.system_prompt:
+                config_data["system_prompt"] = db_record.system_prompt
 
-        # 模型配置
-        if db_record.model_config:
-            model_config = db_record.model_config
-            if "provider" in model_config and "model_name" in model_config:
-                config_data["provider"] = model_config["provider"]
-                config_data["model_name"] = model_config["model_name"]
-            if "parameters" in model_config:
-                config_data["model_parameters"] = model_config["parameters"]
+            # 模型配置
+            if hasattr(db_record, 'model_config') and db_record.model_config:
+                model_config = db_record.model_config
+                if "provider" in model_config and "model_name" in model_config:
+                    config_data["provider"] = model_config["provider"]
+                    config_data["model_name"] = model_config["model_name"]
+                if "parameters" in model_config:
+                    config_data["model_parameters"] = model_config["parameters"]
 
-        # 工具配置
-        if db_record.tools_config:
-            tools_config = db_record.tools_config
-            if "builtin_tools" in tools_config:
-                config_data["tools"] = tools_config["builtin_tools"]
-            if "mcp_skills" in tools_config:
-                config_data["mcp_skills"] = tools_config["mcp_skills"]
+            # 工具配置
+            if hasattr(db_record, 'tools_config') and db_record.tools_config:
+                tools_config = db_record.tools_config
+                if "builtin_tools" in tools_config:
+                    config_data["tools"] = tools_config["builtin_tools"]
+                if "mcp_skills" in tools_config:
+                    config_data["mcp_skills"] = tools_config["mcp_skills"]
 
-        # 知识库配置
-        if db_record.knowledge_config:
-            knowledge_config = db_record.knowledge_config
-            if "databases" in knowledge_config:
-                config_data["knowledge_databases"] = knowledge_config["databases"]
-            if "retrieval_params" in knowledge_config:
-                config_data["retrieval_params"] = knowledge_config["retrieval_params"]
+            # 知识库配置
+            if hasattr(db_record, 'knowledge_config') and db_record.knowledge_config:
+                knowledge_config = db_record.knowledge_config
+                if "databases" in knowledge_config:
+                    config_data["knowledge_databases"] = knowledge_config["databases"]
+                if "retrieval_params" in knowledge_config:
+                    config_data["retrieval_params"] = knowledge_config["retrieval_params"]
 
         return cls(**config_data)
 
@@ -97,17 +102,32 @@ class ChatbotAgent(BaseAgent):
     description: str = "基础的对话机器人，可以回答问题，默认不使用任何工具，可在配置中启用需要的工具。"
     agent_type: str = "chatbot"
 
+    @classmethod
+    def from_db_record(cls, db_record, agent_id: str = None, **kwargs) -> "ChatbotAgent":
+        """从数据库记录创建ChatbotAgent实例"""
+        # 获取配置
+        config = ChatbotConfiguration.from_db_record(db_record)
+        
+        # 创建实例
+        agent_id = agent_id or getattr(db_record, 'agent_id', None)
+        return cls(agent_id=agent_id, config=config.to_dict(), **kwargs)
+
     def __init__(self, agent_id: str = None, config: dict = None, **kwargs):
         self.agent_id = agent_id or "chatbot"
-        self.description = (
-            kwargs.get("description")
-            or "基础的对话机器人，可以回答问题，默认不使用任何工具，可在配置中启用需要的工具。"
-        )
+        
         # 合并 YAML、外部 config、默认值
         if config is not None:
             self.config_schema = ChatbotConfiguration.from_runnable_config(config, agent_name=self.agent_id)
         else:
             self.config_schema = ChatbotConfiguration.from_runnable_config(agent_name=self.agent_id)
+        
+        # 从配置中获取名称和描述
+        self.name = getattr(self.config_schema, "name", "chatbot")
+        self.description = (
+            kwargs.get("description") or 
+            getattr(self.config_schema, "description", "基础的对话机器人，可以回答问题，默认不使用任何工具，可在配置中启用需要的工具。")
+        )
+        
         # 初始化MCP连接配置
         self._init_mcp_connections()
         self.requirements = ["TAVILY_API_KEY", "ZHIPUAI_API_KEY"]

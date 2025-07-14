@@ -13,7 +13,7 @@ class CustomAgent(Base):
     agent_id = Column(String, nullable=False, unique=True, index=True, default=lambda: str(uuid.uuid4()))  # 智能体ID
     name = Column(String, nullable=False, index=True)  # 智能体名称
     description = Column(Text, nullable=True)  # 描述
-    agent_type = Column(String, nullable=False, default='custom')  # 智能体类型 (custom, chatbot, react等)
+    agent_type = Column(String, nullable=False, default='chatbot')  # 智能体类型 (chatbot, react等)
     avatar = Column(String, nullable=True)  # 头像URL
     
     # 配置字段
@@ -62,6 +62,40 @@ class CustomAgent(Base):
             })
         
         return result
+
+    def to_chatbot_config(self) -> dict:
+        """转换为ChatbotConfiguration兼容的配置格式"""
+        config = {
+            "name": self.name,
+            "description": self.description,
+            "agent_type": self.agent_type,
+            "system_prompt": self.system_prompt,
+        }
+        
+        # 模型配置
+        if self.model_config:
+            if "provider" in self.model_config:
+                config["provider"] = self.model_config["provider"]
+            if "model_name" in self.model_config:
+                config["model_name"] = self.model_config["model_name"]
+            if "parameters" in self.model_config:
+                config["model_parameters"] = self.model_config["parameters"]
+        
+        # 工具配置
+        if self.tools_config:
+            if "builtin_tools" in self.tools_config:
+                config["tools"] = self.tools_config["builtin_tools"]
+            if "mcp_skills" in self.tools_config:
+                config["mcp_skills"] = self.tools_config["mcp_skills"]
+        
+        # 知识库配置
+        if self.knowledge_config:
+            if "databases" in self.knowledge_config:
+                config["knowledge_databases"] = self.knowledge_config["databases"]
+            if "retrieval_params" in self.knowledge_config:
+                config["retrieval_params"] = self.knowledge_config["retrieval_params"]
+        
+        return config
 
 class PromptTemplate(Base):
     """提示词模板模型"""

@@ -1,17 +1,14 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, Body
-from fastapi.responses import JSONResponse
-from sqlalchemy.orm import Session
 from sqlalchemy import desc, asc, and_, or_
 from typing import List, Optional, Dict, Any
 import uuid
-import json
 from datetime import datetime
 from pydantic import BaseModel, Field
 
 from server.db_manager import DBManager
-from server.models.agent_models import CustomAgent, AgentInstance, AgentShare
+from server.models.agent_models import CustomAgent, AgentInstance
 from server.models.user_model import User
-from server.utils.auth_middleware import get_required_user, get_admin_user
+from server.utils.auth_middleware import get_required_user
 from server.src.utils import logger
 
 # 创建路由器
@@ -19,30 +16,67 @@ agent_router = APIRouter(prefix="/agents", tags=["agents"])
 db_manager = DBManager()
 
 
-# Pydantic模型用于API参数验证
+# Pydantic模型用于API参数验证 - 匹配ChatbotConfiguration结构
+class ModelConfig(BaseModel):
+    """模型配置"""
+
+    provider: str = Field(default="zhipu", description="模型提供商")
+    model_name: str = Field(default="glm-4-plus", description="模型名称")
+    parameters: Optional[Dict[str, Any]] = Field(default_factory=dict, description="模型参数")
+
+
+class ToolsConfig(BaseModel):
+    """工具配置"""
+
+    builtin_tools: Optional[List[str]] = Field(default_factory=list, description="内置工具列表")
+    mcp_skills: Optional[Dict[str, Any]] = Field(default_factory=dict, description="MCP技能配置")
+
+
+class KnowledgeConfig(BaseModel):
+    """知识库配置"""
+
+    databases: Optional[List[str]] = Field(default_factory=list, description="知识库ID列表")
+    retrieval_params: Optional[Dict[str, Any]] = Field(default_factory=dict, description="检索参数")
+
+
 class AgentCreateRequest(BaseModel):
-    name: str = Field(..., min_length=1, max_length=100)
-    description: Optional[str] = Field(None, max_length=500)
-    agent_type: str = Field(default="custom")
-    avatar: Optional[str] = None
-    system_prompt: Optional[str] = None
-    model_config: Optional[Dict[str, Any]] = Field(default_factory=dict)
-    tools_config: Optional[Dict[str, Any]] = Field(default_factory=dict)
-    knowledge_config: Optional[Dict[str, Any]] = Field(default_factory=dict)
-    tags: Optional[List[str]] = Field(default_factory=list)
-    is_public: bool = Field(default=False)
+    name: str = Field(..., min_length=1, max_length=100, description="智能体名称")
+    description: Optional[str] = Field(None, max_length=500, description="智能体描述")
+    agent_type: str = Field(default="chatbot", description="智能体类型")
+    avatar: Optional[str] = Field(None, description="头像URL")
+    system_prompt: Optional[str] = Field(None, description="系统提示词")
+
+    # 分开的模型配置
+    provider: Optional[str] = Field(default="zhipu", description="模型提供商")
+    model_name: Optional[str] = Field(default="glm-4-plus", description="模型名称")
+    model_parameters: Optional[Dict[str, Any]] = Field(default_factory=dict, description="模型参数")
+
+    # 工具配置
+    tools: Optional[List[str]] = Field(default_factory=list, description="内置工具列表")
+    mcp_skills: Optional[Dict[str, Any]] = Field(default_factory=dict, description="MCP技能配置")
+
+    # 知识库配置
+    knowledge_databases: Optional[List[str]] = Field(default_factory=list, description="知识库ID列表")
+    retrieval_params: Optional[Dict[str, Any]] = Field(default_factory=dict, description="检索参数")
+
+    tags: Optional[List[str]] = Field(default_factory=list, description="标签列表")
+    is_public: bool = Field(default=False, description="是否公开")
 
     model_config = {
         "json_schema_extra": {
             "example": {
                 "name": "客服助手",
                 "description": "专业的客服智能体",
-                "agent_type": "custom",
+                "agent_type": "chatbot",
                 "avatar": "https://example.com/avatar.png",
                 "system_prompt": "你是一个专业的客服助手...",
-                "model_config": {"provider": "zhipu", "model_name": "glm-4-plus"},
-                "tools_config": {"builtin_tools": ["web_search"]},
-                "knowledge_config": {"databases": ["kb_1"]},
+                "provider": "zhipu",
+                "model_name": "glm-4-plus",
+                "model_parameters": {"temperature": 0.7},
+                "tools": ["web_search", "calculator"],
+                "mcp_skills": {"file_manager": {"enabled": True}},
+                "knowledge_databases": ["kb_1", "kb_2"],
+                "retrieval_params": {"top_k": 5},
                 "tags": ["客服", "售后"],
                 "is_public": False,
             }
@@ -51,28 +85,43 @@ class AgentCreateRequest(BaseModel):
 
 
 class AgentUpdateRequest(BaseModel):
-    name: Optional[str] = Field(None, min_length=1, max_length=100)
-    description: Optional[str] = Field(None, max_length=500)
-    agent_type: Optional[str] = None
-    avatar: Optional[str] = None
-    system_prompt: Optional[str] = None
-    model_config: Optional[Dict[str, Any]] = None
-    tools_config: Optional[Dict[str, Any]] = None
-    knowledge_config: Optional[Dict[str, Any]] = None
-    tags: Optional[List[str]] = None
-    is_public: Optional[bool] = None
+    name: Optional[str] = Field(None, min_length=1, max_length=100, description="智能体名称")
+    description: Optional[str] = Field(None, max_length=500, description="智能体描述")
+    agent_type: Optional[str] = Field(None, description="智能体类型")
+    avatar: Optional[str] = Field(None, description="头像URL")
+    system_prompt: Optional[str] = Field(None, description="系统提示词")
+
+    # 分开的模型配置
+    provider: Optional[str] = Field(None, description="模型提供商")
+    model_name: Optional[str] = Field(None, description="模型名称")
+    model_parameters: Optional[Dict[str, Any]] = Field(None, description="模型参数")
+
+    # 工具配置
+    tools: Optional[List[str]] = Field(None, description="内置工具列表")
+    mcp_skills: Optional[Dict[str, Any]] = Field(None, description="MCP技能配置")
+
+    # 知识库配置
+    knowledge_databases: Optional[List[str]] = Field(None, description="知识库ID列表")
+    retrieval_params: Optional[Dict[str, Any]] = Field(None, description="检索参数")
+
+    tags: Optional[List[str]] = Field(None, description="标签列表")
+    is_public: Optional[bool] = Field(None, description="是否公开")
 
     model_config = {
         "json_schema_extra": {
             "example": {
                 "name": "更新后的客服助手",
                 "description": "更新后的专业客服智能体",
-                "agent_type": "custom",
+                "agent_type": "chatbot",
                 "avatar": "https://example.com/new_avatar.png",
                 "system_prompt": "你是一个更专业的客服助手...",
-                "model_config": {"provider": "zhipu", "model_name": "glm-4-plus"},
-                "tools_config": {"builtin_tools": ["web_search", "calculator"]},
-                "knowledge_config": {"databases": ["kb_1", "kb_2"]},
+                "provider": "zhipu",
+                "model_name": "glm-4-plus",
+                "model_parameters": {"temperature": 0.8},
+                "tools": ["web_search", "calculator", "file_reader"],
+                "mcp_skills": {"file_manager": {"enabled": True}, "calendar": {"enabled": True}},
+                "knowledge_databases": ["kb_1", "kb_2", "kb_3"],
+                "retrieval_params": {"top_k": 10},
                 "tags": ["客服", "售后", "技术支持"],
                 "is_public": True,
             }
@@ -81,63 +130,61 @@ class AgentUpdateRequest(BaseModel):
 
 
 class AgentConfigOverride(BaseModel):
-    model_config: Optional[Dict[str, Any]] = None
-    tools_config: Optional[Dict[str, Any]] = None
-    knowledge_config: Optional[Dict[str, Any]] = None
+    """运行时配置覆盖"""
+
+    provider: Optional[str] = Field(None, description="模型提供商")
+    model_name: Optional[str] = Field(None, description="模型名称")
+    model_parameters: Optional[Dict[str, Any]] = Field(None, description="模型参数")
+    tools: Optional[List[str]] = Field(None, description="内置工具列表")
+    mcp_skills: Optional[Dict[str, Any]] = Field(None, description="MCP技能配置")
+    knowledge_databases: Optional[List[str]] = Field(None, description="知识库ID列表")
+    retrieval_params: Optional[Dict[str, Any]] = Field(None, description="检索参数")
 
     model_config = {
         "json_schema_extra": {
             "example": {
-                "model_config": {"temperature": 0.7},
-                "tools_config": {"web_search": {"top_k": 3}},
-                "knowledge_config": {"retrieval_params": {"top_k": 5}},
+                "provider": "openai",
+                "model_name": "gpt-4",
+                "model_parameters": {"temperature": 0.7},
+                "tools": ["web_search"],
+                "mcp_skills": {"file_manager": {"enabled": True}},
+                "knowledge_databases": ["kb_1"],
+                "retrieval_params": {"top_k": 3},
             }
         }
     }
 
 
-@agent_router.post("", summary="创建智能体")
-async def create_agent(request: AgentCreateRequest, current_user: User = Depends(get_required_user)):
-    """创建新的自定义智能体"""
-    with db_manager.get_session_context() as session:
-        # 检查名称是否重复（同一用户）
-        existing_agent = (
-            session.query(CustomAgent)
-            .filter(
-                and_(
-                    CustomAgent.name == request.name,
-                    CustomAgent.created_by == current_user.id,
-                    CustomAgent.deleted_at.is_(None),
-                )
-            )
-            .first()
-        )
+def _build_model_config(provider: str = None, model_name: str = None, model_parameters: Dict[str, Any] = None) -> Dict[str, Any]:
+    """构建模型配置字典"""
+    config = {}
+    if provider:
+        config["provider"] = provider
+    if model_name:
+        config["model_name"] = model_name
+    if model_parameters:
+        config["parameters"] = model_parameters
+    return config
 
-        if existing_agent:
-            raise HTTPException(status_code=400, detail="智能体名称已存在")
 
-        # 创建智能体
-        agent = CustomAgent(
-            agent_id=str(uuid.uuid4()),
-            name=request.name,
-            description=request.description,
-            agent_type=request.agent_type,
-            avatar=request.avatar,
-            system_prompt=request.system_prompt,
-            model_config=request.model_config,
-            tools_config=request.tools_config,
-            knowledge_config=request.knowledge_config,
-            tags=request.tags,
-            is_public=request.is_public,
-            created_by=current_user.id,
-        )
+def _build_tools_config(tools: List[str] = None, mcp_skills: Dict[str, Any] = None) -> Dict[str, Any]:
+    """构建工具配置字典"""
+    config = {}
+    if tools is not None:
+        config["builtin_tools"] = tools
+    if mcp_skills is not None:
+        config["mcp_skills"] = mcp_skills
+    return config
 
-        session.add(agent)
-        session.flush()  # 获取生成的ID
 
-        logger.info(f"用户 {current_user.username} 创建了智能体: {agent.name}")
-
-        return {"success": True, "message": "智能体创建成功", "data": agent.to_dict()}
+def _build_knowledge_config(knowledge_databases: List[str] = None, retrieval_params: Dict[str, Any] = None) -> Dict[str, Any]:
+    """构建知识库配置字典"""
+    config = {}
+    if knowledge_databases is not None:
+        config["databases"] = knowledge_databases
+    if retrieval_params is not None:
+        config["retrieval_params"] = retrieval_params
+    return config
 
 
 @agent_router.get("", summary="获取智能体列表")
@@ -170,9 +217,7 @@ async def get_agents(
         # 搜索过滤
         if search:
             search_pattern = f"%{search}%"
-            query = query.filter(
-                or_(CustomAgent.name.like(search_pattern), CustomAgent.description.like(search_pattern))
-            )
+            query = query.filter(or_(CustomAgent.name.like(search_pattern), CustomAgent.description.like(search_pattern)))
 
         # 类型过滤
         if agent_type:
@@ -205,9 +250,7 @@ async def get_agents(
 
             # 获取用户的实例信息（如果存在）
             instance = (
-                session.query(AgentInstance)
-                .filter(and_(AgentInstance.agent_id == agent.agent_id, AgentInstance.user_id == current_user.id))
-                .first()
+                session.query(AgentInstance).filter(and_(AgentInstance.agent_id == agent.agent_id, AgentInstance.user_id == current_user.id)).first()
             )
 
             if instance:
@@ -231,16 +274,63 @@ async def get_agents(
         }
 
 
+@agent_router.post("", summary="创建智能体")
+async def create_agent(request: AgentCreateRequest, current_user: User = Depends(get_required_user)):
+    """创建新的自定义智能体"""
+    with db_manager.get_session_context() as session:
+        # 检查名称是否重复（同一用户）
+        existing_agent = (
+            session.query(CustomAgent)
+            .filter(
+                and_(
+                    CustomAgent.name == request.name,
+                    CustomAgent.created_by == current_user.id,
+                    CustomAgent.deleted_at.is_(None),
+                )
+            )
+            .first()
+        )
+
+        if existing_agent:
+            raise HTTPException(status_code=400, detail="智能体名称已存在")
+
+        # 构建配置字典
+        model_config = _build_model_config(provider=request.provider, model_name=request.model_name, model_parameters=request.model_parameters)
+
+        tools_config = _build_tools_config(tools=request.tools, mcp_skills=request.mcp_skills)
+
+        knowledge_config = _build_knowledge_config(knowledge_databases=request.knowledge_databases, retrieval_params=request.retrieval_params)
+
+        # 创建智能体
+        agent = CustomAgent(
+            agent_id=str(uuid.uuid4()),
+            name=request.name,
+            description=request.description,
+            agent_type=request.agent_type,
+            avatar=request.avatar,
+            system_prompt=request.system_prompt,
+            model_config=model_config,
+            tools_config=tools_config,
+            knowledge_config=knowledge_config,
+            tags=request.tags,
+            is_public=request.is_public,
+            created_by=current_user.id,
+        )
+
+        session.add(agent)
+        session.flush()  # 获取生成的ID
+
+        logger.info(f"用户 {current_user.username} 创建了智能体: {agent.name}")
+
+        return {"success": True, "message": "智能体创建成功", "data": agent.to_dict()}
+
+
 @agent_router.get("/{agent_id}", summary="获取智能体详情")
 async def get_agent(agent_id: str, current_user: User = Depends(get_required_user)):
     """获取单个智能体的详细信息"""
     with db_manager.get_session_context() as session:
         # 查询智能体
-        agent = (
-            session.query(CustomAgent)
-            .filter(and_(CustomAgent.agent_id == agent_id, CustomAgent.deleted_at.is_(None)))
-            .first()
-        )
+        agent = session.query(CustomAgent).filter(and_(CustomAgent.agent_id == agent_id, CustomAgent.deleted_at.is_(None))).first()
 
         if not agent:
             raise HTTPException(status_code=404, detail="智能体不存在")
@@ -250,11 +340,7 @@ async def get_agent(agent_id: str, current_user: User = Depends(get_required_use
             raise HTTPException(status_code=403, detail="无权限访问此智能体")
 
         # 获取用户的实例信息
-        instance = (
-            session.query(AgentInstance)
-            .filter(and_(AgentInstance.agent_id == agent_id, AgentInstance.user_id == current_user.id))
-            .first()
-        )
+        instance = session.query(AgentInstance).filter(and_(AgentInstance.agent_id == agent_id, AgentInstance.user_id == current_user.id)).first()
 
         agent_dict = agent.to_dict()
         if instance:
@@ -270,11 +356,7 @@ async def update_agent(agent_id: str, request: AgentUpdateRequest, current_user:
     """更新智能体信息"""
     with db_manager.get_session_context() as session:
         # 查询智能体
-        agent = (
-            session.query(CustomAgent)
-            .filter(and_(CustomAgent.agent_id == agent_id, CustomAgent.deleted_at.is_(None)))
-            .first()
-        )
+        agent = session.query(CustomAgent).filter(and_(CustomAgent.agent_id == agent_id, CustomAgent.deleted_at.is_(None))).first()
 
         if not agent:
             raise HTTPException(status_code=404, detail="智能体不存在")
@@ -283,11 +365,42 @@ async def update_agent(agent_id: str, request: AgentUpdateRequest, current_user:
         if agent.created_by != current_user.id:
             raise HTTPException(status_code=403, detail="无权限修改此智能体")
 
-        # 更新字段
+        # 更新基础字段
         update_data = request.model_dump(exclude_unset=True)
-        for field, value in update_data.items():
-            if hasattr(agent, field):
-                setattr(agent, field, value)
+        basic_fields = ["name", "description", "agent_type", "avatar", "system_prompt", "tags", "is_public"]
+
+        for field in basic_fields:
+            if field in update_data:
+                setattr(agent, field, update_data[field])
+
+        # 更新模型配置
+        if any(field in update_data for field in ["provider", "model_name", "model_parameters"]):
+            current_model_config = agent.model_config or {}
+            if "provider" in update_data:
+                current_model_config["provider"] = update_data["provider"]
+            if "model_name" in update_data:
+                current_model_config["model_name"] = update_data["model_name"]
+            if "model_parameters" in update_data:
+                current_model_config["parameters"] = update_data["model_parameters"]
+            agent.model_config = current_model_config
+
+        # 更新工具配置
+        if any(field in update_data for field in ["tools", "mcp_skills"]):
+            current_tools_config = agent.tools_config or {}
+            if "tools" in update_data:
+                current_tools_config["builtin_tools"] = update_data["tools"]
+            if "mcp_skills" in update_data:
+                current_tools_config["mcp_skills"] = update_data["mcp_skills"]
+            agent.tools_config = current_tools_config
+
+        # 更新知识库配置
+        if any(field in update_data for field in ["knowledge_databases", "retrieval_params"]):
+            current_knowledge_config = agent.knowledge_config or {}
+            if "knowledge_databases" in update_data:
+                current_knowledge_config["databases"] = update_data["knowledge_databases"]
+            if "retrieval_params" in update_data:
+                current_knowledge_config["retrieval_params"] = update_data["retrieval_params"]
+            agent.knowledge_config = current_knowledge_config
 
         agent.updated_at = datetime.utcnow()
 
@@ -301,11 +414,7 @@ async def delete_agent(agent_id: str, current_user: User = Depends(get_required_
     """删除智能体（软删除）"""
     with db_manager.get_session_context() as session:
         # 查询智能体
-        agent = (
-            session.query(CustomAgent)
-            .filter(and_(CustomAgent.agent_id == agent_id, CustomAgent.deleted_at.is_(None)))
-            .first()
-        )
+        agent = session.query(CustomAgent).filter(and_(CustomAgent.agent_id == agent_id, CustomAgent.deleted_at.is_(None))).first()
 
         if not agent:
             raise HTTPException(status_code=404, detail="智能体不存在")
@@ -332,11 +441,7 @@ async def duplicate_agent(
     """复制现有智能体创建新的智能体"""
     with db_manager.get_session_context() as session:
         # 查询原智能体
-        original_agent = (
-            session.query(CustomAgent)
-            .filter(and_(CustomAgent.agent_id == agent_id, CustomAgent.deleted_at.is_(None)))
-            .first()
-        )
+        original_agent = session.query(CustomAgent).filter(and_(CustomAgent.agent_id == agent_id, CustomAgent.deleted_at.is_(None))).first()
 
         if not original_agent:
             raise HTTPException(status_code=404, detail="智能体不存在")
@@ -406,17 +511,13 @@ async def duplicate_agent(
 
 
 @agent_router.post("/{agent_id}/instance", summary="创建智能体实例")
-async def create_agent_instance(
-    agent_id: str, config_override: AgentConfigOverride = Body(...), current_user: User = Depends(get_required_user)
-):
+async def create_agent_instance(agent_id: str, config_override: AgentConfigOverride = Body(...), current_user: User = Depends(get_required_user)):
     """为用户创建智能体实例"""
     with db_manager.get_session_context() as session:
         # 检查智能体是否存在
         agent = (
             session.query(CustomAgent)
-            .filter(
-                and_(CustomAgent.agent_id == agent_id, CustomAgent.deleted_at.is_(None), CustomAgent.is_active == True)
-            )
+            .filter(and_(CustomAgent.agent_id == agent_id, CustomAgent.deleted_at.is_(None), CustomAgent.is_active == True))
             .first()
         )
 
@@ -429,9 +530,7 @@ async def create_agent_instance(
 
         # 检查是否已有实例
         existing_instance = (
-            session.query(AgentInstance)
-            .filter(and_(AgentInstance.agent_id == agent_id, AgentInstance.user_id == current_user.id))
-            .first()
+            session.query(AgentInstance).filter(and_(AgentInstance.agent_id == agent_id, AgentInstance.user_id == current_user.id)).first()
         )
 
         if existing_instance:
@@ -461,11 +560,7 @@ async def create_agent_instance(
 async def get_agent_instance(agent_id: str, current_user: User = Depends(get_required_user)):
     """获取用户的智能体实例信息"""
     with db_manager.get_session_context() as session:
-        instance = (
-            session.query(AgentInstance)
-            .filter(and_(AgentInstance.agent_id == agent_id, AgentInstance.user_id == current_user.id))
-            .first()
-        )
+        instance = session.query(AgentInstance).filter(and_(AgentInstance.agent_id == agent_id, AgentInstance.user_id == current_user.id)).first()
 
         if not instance:
             raise HTTPException(status_code=404, detail="智能体实例不存在")
@@ -477,11 +572,7 @@ async def get_agent_instance(agent_id: str, current_user: User = Depends(get_req
 async def delete_agent_instance(agent_id: str, current_user: User = Depends(get_required_user)):
     """删除用户的智能体实例"""
     with db_manager.get_session_context() as session:
-        instance = (
-            session.query(AgentInstance)
-            .filter(and_(AgentInstance.agent_id == agent_id, AgentInstance.user_id == current_user.id))
-            .first()
-        )
+        instance = session.query(AgentInstance).filter(and_(AgentInstance.agent_id == agent_id, AgentInstance.user_id == current_user.id)).first()
 
         if not instance:
             raise HTTPException(status_code=404, detail="智能体实例不存在")
@@ -489,3 +580,69 @@ async def delete_agent_instance(agent_id: str, current_user: User = Depends(get_
         session.delete(instance)
 
         return {"success": True, "message": "智能体实例删除成功"}
+
+
+@agent_router.post("/{agent_id}/create_chatbot", summary="创建ChatbotAgent实例")
+async def create_chatbot_agent(agent_id: str, current_user: User = Depends(get_required_user)):
+    """从数据库记录创建ChatbotAgent实例"""
+    with db_manager.get_session_context() as session:
+        # 查询智能体
+        agent = session.query(CustomAgent).filter(and_(CustomAgent.agent_id == agent_id, CustomAgent.deleted_at.is_(None))).first()
+
+        if not agent:
+            raise HTTPException(status_code=404, detail="智能体不存在")
+
+        # 权限检查：只能使用自己的或公开的智能体
+        if agent.created_by != current_user.id and not agent.is_public:
+            raise HTTPException(status_code=403, detail="无权限使用此智能体")
+
+        try:
+            # 导入ChatbotAgent
+            from server.src.agents.chatbot_agent import ChatbotAgent
+
+            # 直接从数据库记录创建ChatbotAgent实例
+            chatbot_agent = ChatbotAgent.from_db_record(agent)
+
+            # 获取智能体信息
+            agent_info = await chatbot_agent.get_info()
+
+            logger.info(f"用户 {current_user.username} 创建了ChatbotAgent实例: {agent.name}")
+
+            return {
+                "success": True,
+                "message": "ChatbotAgent实例创建成功",
+                "data": {"agent_info": agent_info, "agent_config": agent_info.get("config_schema", {})},
+            }
+
+        except Exception as e:
+            logger.error(f"创建ChatbotAgent实例失败: {e}")
+            raise HTTPException(status_code=500, detail=f"创建智能体实例失败: {str(e)}")
+
+
+@agent_router.get("/{agent_id}/config", summary="获取智能体配置")
+async def get_agent_config(agent_id: str, current_user: User = Depends(get_required_user)):
+    """获取智能体的ChatbotConfiguration兼容配置"""
+    with db_manager.get_session_context() as session:
+        # 查询智能体
+        agent = session.query(CustomAgent).filter(and_(CustomAgent.agent_id == agent_id, CustomAgent.deleted_at.is_(None))).first()
+
+        if not agent:
+            raise HTTPException(status_code=404, detail="智能体不存在")
+
+        # 权限检查：只能查看自己的或公开的智能体
+        if agent.created_by != current_user.id and not agent.is_public:
+            raise HTTPException(status_code=403, detail="无权限访问此智能体")
+
+        # 转换为ChatbotConfiguration兼容格式
+        config = agent.to_chatbot_config()
+
+        return {
+            "success": True,
+            "data": {
+                "agent_id": agent.agent_id,
+                "name": agent.name,
+                "description": agent.description,
+                "agent_type": agent.agent_type,
+                "config": config,
+            },
+        }

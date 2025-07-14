@@ -12,7 +12,7 @@ from pydantic import BaseModel
 
 from server.src import executor, config
 from server.src.core import HistoryManager
-from server.src.agents import agent_manager
+from server.src.agents.agent_manager import agent_manager
 from server.src.models import select_model
 from server.src.utils.logging_config import logger
 from server.src.agents.tools_factory import get_all_tools
@@ -179,8 +179,9 @@ async def get_tools(current_user: User = Depends(get_admin_user)):
 async def save_agent_config(agent_name: str, config: dict = Body(...), current_user: User = Depends(get_admin_user)):
     """保存智能体配置到YAML文件（需要管理员权限）"""
     # 获取Agent实例和配置类
-    agent = agent_manager.get_agent(agent_name)
-    if not agent:
+    try:
+        agent = agent_manager.get_agent_by_identifier(agent_name)
+    except ValueError as e:
         raise HTTPException(status_code=404, detail=f"智能体 {agent_name} 不存在")
 
     # 使用配置类的save_to_file方法保存配置
@@ -197,8 +198,9 @@ async def save_agent_config(agent_name: str, config: dict = Body(...), current_u
 async def get_agent_history(agent_name: str, thread_id: str, current_user: User = Depends(get_required_user)):
     """获取智能体历史消息（需要登录）"""
     # 获取Agent实例和配置类
-    agent = agent_manager.get_agent(agent_name)
-    if not agent:
+    try:
+        agent = agent_manager.get_agent_by_identifier(agent_name)
+    except ValueError as e:
         raise HTTPException(status_code=404, detail=f"智能体 {agent_name} 不存在")
 
     # 获取历史消息
@@ -210,8 +212,9 @@ async def get_agent_history(agent_name: str, thread_id: str, current_user: User 
 async def get_agent_config(agent_name: str, current_user: User = Depends(get_required_user)):
     """从YAML文件加载智能体配置（需要登录）"""
     # 检查智能体是否存在
-    agent = agent_manager.get_agent(agent_name)
-    if not agent:
+    try:
+        agent = agent_manager.get_agent_by_identifier(agent_name)
+    except ValueError as e:
         raise HTTPException(status_code=404, detail=f"智能体 {agent_name} 不存在")
 
     config_data = agent.config_schema.from_runnable_config(config={}, agent_name=agent_name)

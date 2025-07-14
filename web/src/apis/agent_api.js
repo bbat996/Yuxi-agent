@@ -3,6 +3,7 @@
  * 处理智能体的创建、查询、更新、删除等操作
  */
 import { apiRequest, apiGet, apiPost, apiPut, apiDelete } from './base'
+import { useUserStore } from '@/stores/user'
 
 /**
  * 获取智能体列表
@@ -189,6 +190,30 @@ export const unshareAgent = (agentId) => {
   return apiDelete(`/api/agents/${agentId}/share`, {}, true)
 }
 
+/**
+ * 上传智能体头像
+ * @param {FormData} formData - 包含头像文件的FormData
+ * @param {string} agentId - 智能体ID
+ * @returns {Promise} API响应
+ */
+export const uploadAgentAvatar = async (formData, agentId) => {
+  const userStore = useUserStore()
+  const authHeaders = userStore.getAuthHeaders()
+
+  return fetch(`/api/agents/${agentId}/avatar`, {
+    method: 'POST',
+    headers: {
+      ...authHeaders
+    },
+    body: formData
+  }).then(res => {
+    if (!res.ok) {
+      throw new Error(`头像上传失败: ${res.status} ${res.statusText}`)
+    }
+    return res.json()
+  })
+}
+
 // 智能体API对象，包含所有智能体相关的API方法
 export const agentAPI = {
   getAgents,
@@ -206,5 +231,6 @@ export const agentAPI = {
   exportAgent,
   importAgent,
   shareAgent,
-  unshareAgent
+  unshareAgent,
+  uploadAgentAvatar
 }

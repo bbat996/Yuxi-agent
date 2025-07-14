@@ -68,12 +68,7 @@
         </a-tooltip>
       </div> -->
 
-      <RouterLink class="nav-item setting" to="/setting" active-class="active">
-        <a-tooltip placement="right">
-          <template #title>设置</template>
-          <Settings />
-        </a-tooltip>
-      </RouterLink>
+
       <!-- 用户信息组件 -->
       <div class="nav-item user-info">
         <a-tooltip placement="right">
@@ -165,17 +160,23 @@ const mainList = [
     activeIcon: LibraryBig
     // hidden: !configStore.config.enable_knowledge_base,
   },
+  // {
+  //   name: '数字人',
+  //   path: '/digital-human',
+  //   icon: User2,
+  //   activeIcon: User2
+  // },
+  // {
+  //   name: '音色',
+  //   path: '/voice',
+  //   icon: Mic2,
+  //   activeIcon: Mic2
+  // },
   {
-    name: '数字人',
-    path: '/digital-human',
-    icon: User2,
-    activeIcon: User2
-  },
-  {
-    name: '音色',
-    path: '/voice',
-    icon: Mic2,
-    activeIcon: Mic2
+    name: '设置',
+    path: '/setting',
+    icon: Settings,
+    activeIcon: Settings
   },
   // {
   //   name: '图谱',
