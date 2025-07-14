@@ -7,37 +7,54 @@ from langchain_mcp_adapters.client import MultiServerMCPClient
 
 from server.src.utils import logger
 
-# 你可以在这里配置 MCP 服务器连接参数
-MCP_CONNECTIONS = {
-    # 示例：
-    # "math": {
-    #     "command": "python",
-    #     "args": ["/path/to/math_server.py"],
-    #     "transport": "stdio",
-    # },
-    # "weather": {
-    #     "url": "http://localhost:8000/mcp",
-    #     "transport": "streamable_http",
-    # },
+# 默认MCP连接配置
+DEFAULT_MCP_CONNECTIONS = {
+    # 配置将从配置文件中读取，这里保持为空
 }
 
 class MCPClient:
     """MCP技能集成类（langchain-mcp-adapters 版，推荐用法）"""
     def __init__(self, connections: Optional[dict] = None):
-        self.connections = connections or MCP_CONNECTIONS
+        self.connections = connections or DEFAULT_MCP_CONNECTIONS
         self.client = MultiServerMCPClient(self.connections)
         self._initialized = False
 
+    def update_connections(self, connections: dict):
+        """更新MCP连接配置"""
+        self.connections = connections
+        # 重新创建客户端
+        self.client = MultiServerMCPClient(self.connections)
+        self._initialized = False
+        logger.info(f"MCP连接配置已更新: {list(connections.keys())}")
+
     async def initialize(self):
-        self._initialized = True
-        logger.info("MCP集成初始化完成（MultiServerMCPClient）")
+        """初始化MCP客户端"""
+        if not self._initialized:
+            self._initialized = True
+            logger.info("MCP集成初始化完成（MultiServerMCPClient）")
 
     async def get_mcp_tools(self, server_name: str = None) -> List[BaseTool]:
+        """获取MCP工具"""
         if not self._initialized:
             await self.initialize()
-        tools = await self.client.get_tools(server_name=server_name)
-        logger.debug(f"获取MCP工具: {len(tools)} 个工具")
-        return tools
+        
+        # 检查是否有可用的连接
+        if not self.connections:
+            logger.warning("没有配置MCP连接，无法获取工具")
+            return []
+        
+        # 如果指定了服务器名称，检查该服务器是否存在
+        if server_name and server_name not in self.connections:
+            available_servers = list(self.connections.keys())
+            logger.error(f"找不到名为 '{server_name}' 的MCP服务器，可用的服务器: {available_servers}")
+            return []
+        
+        try:
+            tools = await self.client.get_tools(server_name=server_name)
+            return tools
+        except Exception as e:
+            logger.error(f"获取MCP工具失败: {e}")
+            return []
 
     async def get_available_mcp_tools(self) -> Dict[str, Any]:
         """获取所有可用的MCP工具信息（按服务器分组）"""
@@ -55,27 +72,76 @@ class MCPClient:
         return grouped
 
     async def refresh_skills(self):
+        """刷新MCP技能列表"""
         # 目前 MultiServerMCPClient 没有刷新方法，重建 client 即可
         self.client = MultiServerMCPClient(self.connections)
+        self._initialized = False
         logger.info("MCP技能列表已刷新（MultiServerMCPClient）")
 
     async def shutdown(self):
+        """关闭MCP集成"""
         self._initialized = False
         logger.info("MCP集成已关闭（MultiServerMCPClient）")
 
 # 全局MCP集成实例
 _mcp_integration = None
 
-def get_mcp_integration() -> MCPClient:
+def get_mcp_client() -> MCPClient:
     global _mcp_integration
     if _mcp_integration is None:
         _mcp_integration = MCPClient()
     return _mcp_integration
 
 async def initialize_mcp_integration():
-    integration = get_mcp_integration()
+    """初始化MCP集成"""
+    integration = get_mcp_client()
     await integration.initialize()
 
-async def get_mcp_tools_for_agent(server_name: str = None) -> List[BaseTool]:
-    integration = get_mcp_integration()
-    return await integration.get_mcp_tools(server_name=server_name)
+async def get_mcp_tools_for_agent(mcp_skills: List[str] = None) -> List[BaseTool]:
+    """为智能体获取MCP工具"""
+    mcp_client = get_mcp_client()
+    
+    # 如果指定了特定的MCP技能，只返回这些技能的工具
+    if mcp_skills:
+        all_tools = []
+        for skill_name in mcp_skills:
+            tools = await mcp_client.get_mcp_tools(server_name=skill_name)
+            if tools:
+                all_tools.extend(tools)
+                logger.info(f"成功加载MCP技能 '{skill_name}' 的 {len(tools)} 个工具，可用工具: {', '.join([getattr(tool, 'name', str(tool)) for tool in tools])}")
+            else:
+                logger.warning(f"无法加载MCP技能 '{skill_name}' 的工具")
+        return all_tools
+    
+    # 否则返回所有可用的MCP工具
+    return await mcp_client.get_mcp_tools()
+
+def load_mcp_connections_from_config(mcp_config: dict) -> dict:
+    """从配置文件加载MCP连接配置"""
+    connections = {}
+    
+    if not mcp_config:
+        return connections
+    
+    for skill_name, skill_config in mcp_config.items():
+        if isinstance(skill_config, dict):
+            # 验证必要的配置字段
+            if "transport" not in skill_config:
+                logger.warning(f"MCP技能 {skill_name} 缺少 transport 配置")
+                continue
+                
+            # 根据传输类型验证配置
+            transport = skill_config["transport"]
+            if transport == "stdio":
+                if "command" not in skill_config or "args" not in skill_config:
+                    logger.warning(f"MCP技能 {skill_name} (stdio) 缺少 command 或 args 配置")
+                    continue
+            elif transport == "streamable_http":
+                if "url" not in skill_config:
+                    logger.warning(f"MCP技能 {skill_name} (http) 缺少 url 配置")
+                    continue
+            
+            connections[skill_name] = skill_config
+            logger.info(f"加载MCP技能配置: {skill_name} ({transport})")
+    
+    return connections

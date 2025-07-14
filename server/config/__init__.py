@@ -3,10 +3,15 @@ import json
 import yaml
 from pathlib import Path
 from server.src.utils.logging_config import logger
+from dotenv import load_dotenv
 
 DEFAULT_MOCK_API = "this_is_mock_api_key_in_frontend"
 PROJECT_DIR = Path(__file__).parent.parent.parent
 CONFIG_PATH = PROJECT_DIR / "server/config"
+# 加载 .env 文件
+load_dotenv(f"{PROJECT_DIR}/server/.env")
+print(f"load_dotenv: {PROJECT_DIR}/server/.env")
+
 
 class SimpleConfig(dict):
 

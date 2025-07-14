@@ -1,8 +1,3 @@
-from dotenv import load_dotenv
-from server.config import PROJECT_DIR
-
-load_dotenv(f"{PROJECT_DIR}/server/.env")
-
 from concurrent.futures import ThreadPoolExecutor  # noqa: E402
 
 executor = ThreadPoolExecutor()

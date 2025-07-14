@@ -1,4 +1,4 @@
-from datetime import datetime, timezone, UTC
+from datetime import datetime, timezone
 import asyncio
 import os
 import traceback
@@ -13,11 +13,17 @@ from langchain_core.messages import AIMessageChunk, ToolMessage
 from pydantic import SecretStr
 
 
-def load_chat_model(fully_specified_name: str, **kwargs) -> BaseChatModel:
+def load_chat_model(provider: str, model: str, **kwargs) -> BaseChatModel:
     """
-    Load a chat model from a fully specified name.
+    Load a chat model from provider and model configuration.
+    
+    Args:
+        provider: 模型提供商 (如 "zhipu", "openai", "deepseek" 等)
+        model: 模型名称 (如 "glm-4-plus", "gpt-4", "deepseek-chat" 等)
+        **kwargs: 额外的配置参数，包括：
+            - model_parameters: 模型参数
     """
-    provider, model = fully_specified_name.split("/", maxsplit=1)
+    model_parameters = kwargs.get("model_parameters", {})
 
     if provider == "custom":
         from langchain_openai import ChatOpenAI
@@ -30,6 +36,7 @@ def load_chat_model(fully_specified_name: str, **kwargs) -> BaseChatModel:
             model=model_name,
             api_key=SecretStr(api_key),
             base_url=base_url,
+            **model_parameters
         )
 
     model_info = config.model_names.get(provider, {})
@@ -44,6 +51,7 @@ def load_chat_model(fully_specified_name: str, **kwargs) -> BaseChatModel:
             api_key=SecretStr(api_key),
             base_url=base_url,
             api_base=base_url,
+            **model_parameters
         )
 
     elif provider == "together":
@@ -53,6 +61,7 @@ def load_chat_model(fully_specified_name: str, **kwargs) -> BaseChatModel:
             model=model,
             api_key=SecretStr(api_key),
             base_url=base_url,
+            **model_parameters
         )
 
     else:
@@ -63,6 +72,7 @@ def load_chat_model(fully_specified_name: str, **kwargs) -> BaseChatModel:
                 model=model,
                 api_key=SecretStr(api_key),
                 base_url=base_url,
+                **model_parameters
             )
         except Exception as e:
             raise ValueError(f"Model provider {provider} load failed, {e} \n {traceback.format_exc()}")
@@ -103,4 +113,4 @@ async def agent_cli(agent: BaseAgent, config: RunnableConfig | None = None):
 
 
 def get_cur_time_with_utc():
-    return datetime.now(tz=UTC).isoformat()
+    return datetime.now(tz=timezone.utc).isoformat()

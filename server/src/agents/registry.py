@@ -6,7 +6,7 @@ import uuid
 from pathlib import Path
 from typing import Annotated, TypedDict
 from abc import abstractmethod
-from dataclasses import dataclass, fields, field
+from dataclasses import dataclass, fields, field, asdict
 
 from langchain_core.runnables import RunnableConfig
 from langchain_core.messages import BaseMessage
@@ -43,9 +43,14 @@ class Configuration(dict):
         Returns:
             Configuration instance with merged config values
         """
+        from dataclasses import is_dataclass
         # 获取类默认配置：创建一个实例获取所有默认值
         instance = cls()
-        _fields = {f.name for f in fields(cls) if f.init}
+        # 获取所有字段，包括子类和所有 dataclass 父类的字段
+        _fields = set()
+        for base in cls.__mro__:
+            if is_dataclass(base):
+                _fields.update({f.name for f in fields(base) if f.init})
 
         # 尝试加载文件配置(中等优先级)
         file_config = {}
@@ -62,28 +67,27 @@ class Configuration(dict):
             if hasattr(instance, config_field):
                 merged_config[config_field] = getattr(instance, config_field)
 
-            # 2. 如果文件配置中有此字段，则覆盖
+            # 2. 如果文件配置中有此字段，则覆盖（文件配置优先级高于类默认值）
             if config_field in file_config:
                 merged_config[config_field] = file_config[config_field]
 
-            # 3. 如果运行时配置中有此字段，则覆盖
+            # 3. 如果运行时配置中有此字段，则覆盖（运行时配置优先级最高）
             if config_field in configurable:
                 merged_config[config_field] = configurable[config_field]
 
         # 创建并返回配置实例
-        # logger.debug(f"合并配置: {merged_config}")
+        logger.debug(f"最终合并配置: {merged_config}")
         return cls(**merged_config)
 
     @classmethod
     def from_file(cls, agent_name: str) -> Configuration:
         """从文件加载配置"""
-        config_file_path = Path(f"{PROJECT_DIR}/server/config/{agent_name}.private.yaml")
+        config_file_path = Path(f"{PROJECT_DIR}/server/config/agents/{agent_name}.private.yaml")
         file_config = {}
         if os.path.exists(config_file_path):
             try:
                 with open(config_file_path, encoding="utf-8") as f:
                     file_config = yaml.safe_load(f) or {}
-                    # logger.info(f"从文件加载智能体 {agent_name} 配置: {file_config}")
             except Exception as e:
                 logger.error(f"加载智能体配置文件出错: {e}")
 
@@ -113,30 +117,8 @@ class Configuration(dict):
             logger.error(f"保存智能体配置文件出错: {e}")
             return False
 
-    @classmethod
-    def to_dict(cls):
-        # 创建一个实例来处理 default_factory
-        instance = cls()
-        confs = {}
-        configurable_items = {}
-        for f in fields(cls):
-            if f.init and not f.metadata.get("hide", False):
-                value = getattr(instance, f.name)
-                if callable(value) and hasattr(value, "__call__"):
-                    confs[f.name] = value()
-                else:
-                    confs[f.name] = value
-
-                if f.metadata.get("configurable"):
-                    configurable_items[f.name] = {
-                        "type": f.type.__name__,
-                        "name": f.metadata.get("name", f.name),
-                        "options": f.metadata.get("options", []),
-                        "default": f.default,
-                        "description": f.metadata.get("description", ""),
-                    }
-        confs["configurable_items"] = configurable_items
-        return confs
+    def to_dict(self):
+        return asdict(self)
 
     thread_id: str = field(
         default_factory=lambda: str(uuid.uuid4()),

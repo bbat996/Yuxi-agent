@@ -1,6 +1,9 @@
 import os
+import traceback
 from typing import Any, Dict, List
 from pathlib import Path
+import yaml
+from dataclasses import dataclass, field
 
 from langchain_core.runnables import RunnableConfig
 from langgraph.graph import StateGraph, START, END
@@ -16,26 +19,35 @@ from server.db_manager import DBManager
 from server.models.agent_models import CustomAgent as CustomAgentModel
 
 
-class ChatbotAgentConfiguration(Configuration):
+@dataclass(kw_only=True)
+class ChatbotConfiguration(Configuration):
     """自定义智能体配置类"""
 
+    # 基础信息
+    name: str = field(default="智能助手", metadata={"name": "智能体名称", "configurable": True})
+    description: str = field(default="一个功能强大的智能助手", metadata={"name": "智能体描述", "configurable": True})
+    agent_type: str = field(default="chatbot", metadata={"name": "智能体类型", "configurable": False})
+
     # 核心配置
-    system_prompt: str = "You are a helpful assistant."
-    model: str = "zhipu/glm-4-plus"
+    system_prompt: str = field(default="You are a helpful assistant.", metadata={"name": "系统提示词", "configurable": True})
+    
+    # 模型配置 - 分开配置
+    provider: str = field(default="zhipu", metadata={"name": "模型提供商", "configurable": True})
+    model_name: str = field(default="glm-4-plus", metadata={"name": "模型名称", "configurable": True})
 
     # 工具配置
-    tools: List[str] = []
-    mcp_skills: List[str] = []
+    tools: List[str] = field(default_factory=list, metadata={"name": "内置工具", "configurable": True})
+    mcp_skills: Dict[str, Any] = field(default_factory=dict, metadata={"name": "MCP技能", "configurable": True})
 
     # 知识库配置
-    knowledge_databases: List[str] = []
-    retrieval_params: Dict[str, Any] = {}
+    knowledge_databases: List[str] = field(default_factory=list, metadata={"name": "知识库", "configurable": True})
+    retrieval_params: Dict[str, Any] = field(default_factory=dict, metadata={"name": "检索参数", "configurable": True})
 
     # 模型参数
-    model_parameters: Dict[str, Any] = {}
+    model_parameters: Dict[str, Any] = field(default_factory=dict, metadata={"name": "模型参数", "configurable": True})
 
     @classmethod
-    def from_db_record(cls, db_record: CustomAgentModel) -> "ChatbotAgentConfiguration":
+    def from_db_record(cls, db_record: CustomAgentModel) -> "ChatbotConfiguration":
         """从数据库记录创建配置"""
         config_data = {}
 
@@ -53,7 +65,8 @@ class ChatbotAgentConfiguration(Configuration):
         if db_record.model_config:
             model_config = db_record.model_config
             if "provider" in model_config and "model_name" in model_config:
-                config_data["model"] = f"{model_config['provider']}/{model_config['model_name']}"
+                config_data["provider"] = model_config["provider"]
+                config_data["model_name"] = model_config["model_name"]
             if "parameters" in model_config:
                 config_data["model_parameters"] = model_config["parameters"]
 
@@ -85,7 +98,6 @@ class ChatbotAgent(BaseAgent):
     agent_type: str = "chatbot"
 
     def __init__(self, agent_id: str = None, config: dict = None, **kwargs):
-        # agent_id 仅用于区分工作目录和日志
         self.agent_id = agent_id or "chatbot"
         self.description = (
             kwargs.get("description")
@@ -93,19 +105,43 @@ class ChatbotAgent(BaseAgent):
         )
         # 合并 YAML、外部 config、默认值
         if config is not None:
-            self.config_schema = ChatbotAgentConfiguration.from_runnable_config(config, agent_name=self.agent_id)
+            self.config_schema = ChatbotConfiguration.from_runnable_config(config, agent_name=self.agent_id)
         else:
-            self.config_schema = ChatbotAgentConfiguration.from_runnable_config(agent_name=self.agent_id)
+            self.config_schema = ChatbotConfiguration.from_runnable_config(agent_name=self.agent_id)
+        # 初始化MCP连接配置
+        self._init_mcp_connections()
         self.requirements = ["TAVILY_API_KEY", "ZHIPUAI_API_KEY"]
         self.workdir = Path(sys_config.storage_dir) / "agents" / self.name
         self.workdir.mkdir(parents=True, exist_ok=True)
         self.graph = None
         logger.info(f"ChatbotAgent 初始化完成: {self.name}")
 
+    def _init_mcp_connections(self):
+        """初始化MCP连接配置"""
+        from server.src.agents.mcp_client import get_mcp_client, load_mcp_connections_from_config
+        
+        # 从配置中获取MCP技能配置
+        mcp_config = getattr(self.config_schema, "mcp_skills", {})
+        if isinstance(mcp_config, dict) and mcp_config:
+            connections = load_mcp_connections_from_config(mcp_config)
+            if connections:
+                # 更新全局MCP集成实例的连接配置
+                mcp_integration = get_mcp_client()
+                mcp_integration.update_connections(connections)
+                logger.info(f"智能体 {self.name} 加载了 {len(connections)} 个MCP技能配置")
+        elif isinstance(mcp_config, list):
+            logger.info(f"mcp_skills 为 list（{mcp_config}），使用默认MCP连接配置")
+            # 当 mcp_skills 是列表时，使用默认配置，不更新连接
+            # 这样可以支持预定义的MCP技能名称
+        else:
+            logger.info(f"mcp_skills 类型未知（{type(mcp_config)}），跳过 MCP 连接初始化: {mcp_config}")
+
     def reload_config(self):
         """重新加载配置"""
         # 清除图缓存，强制重新构建
         self.graph = None
+        # 重新初始化MCP连接配置
+        self._init_mcp_connections()
         logger.info(f"智能体配置重新加载完成: {self.name}")
 
     def _get_tools(self, tools: List[str], mcp_skills: List[str] = None) -> List:
@@ -137,38 +173,46 @@ class ChatbotAgent(BaseAgent):
                     logger.debug(f"添加知识库工具: {tool_name}")
 
         # 添加MCP技能工具（langchain-mcp-adapters 版）
-        if mcp_skills and isinstance(mcp_skills, list):
+        if mcp_skills and isinstance(mcp_skills, dict):
             from server.src.agents.mcp_client import get_mcp_tools_for_agent
             import asyncio
 
-            # 兼容异步环境
+            # 获取MCP技能名称列表
+            mcp_skill_names = list(mcp_skills.keys())
+            
+            # 修复异步事件循环问题
             try:
+                # 尝试获取当前运行的事件循环
                 loop = asyncio.get_running_loop()
-                mcp_tools = loop.run_until_complete(get_mcp_tools_for_agent(mcp_skills))
+                # 如果已经在事件循环中，创建一个新的事件循环来运行
+                import concurrent.futures
+                with concurrent.futures.ThreadPoolExecutor() as executor:
+                    future = executor.submit(asyncio.run, get_mcp_tools_for_agent(mcp_skill_names))
+                    mcp_tools = future.result()
             except RuntimeError:
-                mcp_tools = asyncio.run(get_mcp_tools_for_agent(mcp_skills))
+                # 如果没有运行的事件循环，直接使用 asyncio.run
+                mcp_tools = asyncio.run(get_mcp_tools_for_agent(mcp_skill_names))
 
             if isinstance(mcp_tools, list):
                 result_tools.extend(mcp_tools)
                 logger.debug(f"添加MCP工具: {len(mcp_tools)} 个")
-
-        logger.info(f"智能体 {self.name} 加载了 {len(result_tools)} 个工具")
         return result_tools
 
     def _get_model_config(self) -> Dict[str, Any]:
-        """获取模型配置（仅从 config_schema）"""
+        """获取模型配置"""
         model_config = {}
-        model_str = getattr(self.config_schema, "model", "zhipu/glm-4-plus")
-        if "/" in model_str:
-            provider, model_name = model_str.split("/", 1)
-            model_config["provider"] = provider
-            model_config["model_name"] = model_name
-        else:
-            model_config["provider"] = "zhipu"
-            model_config["model_name"] = model_str
+        
+        # 使用分开配置方式
+        provider = getattr(self.config_schema, "provider", "zhipu")
+        model_name = getattr(self.config_schema, "model_name", "glm-4-plus")
+        
+        model_config["provider"] = provider
+        model_config["model_name"] = model_name
+        
         # 额外参数
         if hasattr(self.config_schema, "model_parameters"):
             model_config["parameters"] = getattr(self.config_schema, "model_parameters")
+        
         return model_config
 
     async def llm_call(self, state: State, config: RunnableConfig = None) -> Dict[str, Any]:
@@ -177,29 +221,74 @@ class ChatbotAgent(BaseAgent):
         final_config = self.config_schema.to_dict()
         if config and "configurable" in config:
             final_config.update(config["configurable"])
-
+        
         # 构建系统提示词
         system_prompt = final_config.get("system_prompt", self.config_schema.system_prompt)
         system_prompt = f"{system_prompt} Now is {get_cur_time_with_utc()}"
 
+        # 获取模型配置
+        model_config = self._get_model_config()
+        model_parameters = final_config.get("model_parameters", {})
+
+        # 检查环境变量
+        provider = model_config.get("provider")
         # 加载模型
-        model_str = final_config.get("model", self.config_schema.model)
-        model = load_chat_model(model_str)
+        logger.info(f"开始加载模型: {provider}/{model_config.get('model_name')}")
+        try:
+            model = load_chat_model(
+                provider=model_config.get("provider"),
+                model=model_config.get("model_name"),
+                model_parameters=model_parameters
+            )
+            logger.info("模型加载成功")
+        except Exception as e:
+            logger.error(f"模型加载失败: {e}")
+            raise
 
         # 获取工具
         tools = self._get_tools(
             final_config.get("tools", self.config_schema.tools),
             final_config.get("mcp_skills", self.config_schema.mcp_skills),
         )
-
+        logger.info(f"=== 工具配置 ===")
         if tools:
+            tool_names = []
+            for tool in tools:
+                tool_name = getattr(tool, 'name', str(tool))
+                tool_names.append(tool_name)
+            logger.info(f"可用工具: {', '.join(tool_names)}")
             model = model.bind_tools(tools)
 
         # 异步调用模型
         messages = [{"role": "system", "content": system_prompt}] + state["messages"]
-        result = await model.ainvoke(messages)
-
-        return {"messages": [result]}
+        from pprint import pprint
+        pprint(messages)
+        try:
+            result = await model.ainvoke(messages)
+            
+            # 格式化打印结果
+            logger.info("=== 模型调用成功 ===")
+            logger.info(f"返回类型: {type(result).__name__}")
+            
+            # 检查是否有工具调用
+            if hasattr(result, 'tool_calls') and result.tool_calls:
+                logger.info(f"工具调用数量: {len(result.tool_calls)}")
+                logger.info(f"工具调用: {result.tool_calls}")
+            else:
+                logger.info("无工具调用")
+                if hasattr(result, 'content') and result.content:
+                    logger.info(f"回复内容: {result.content[:200]}{'...' if len(result.content) > 200 else ''}")
+            
+            # 打印token使用情况
+            if hasattr(result, 'response_metadata') and result.response_metadata:
+                token_usage = result.response_metadata.get('token_usage', {})
+                if token_usage:
+                    logger.info(f"Token使用: {token_usage}")
+            return {"messages": [result]}
+        except Exception as e:
+            logger.error(f"模型调用失败: {e}")
+            logger.error(f"错误详情: {traceback.format_exc()}")
+            raise
 
     async def get_graph(self, config_schema: RunnableConfig = None, **kwargs):
         """构建执行图"""
@@ -213,8 +302,35 @@ class ChatbotAgent(BaseAgent):
         # 添加节点
         workflow.add_node("llm", self.llm_call)
 
-        # 获取所有可用工具用于工具节点
+        # 获取所有可用工具用于工具节点（包括内置工具、知识库工具和MCP工具）
         all_tools = list(get_all_tools().values())
+        
+        # 添加MCP工具到工具节点
+        mcp_skills = getattr(self.config_schema, "mcp_skills", {})
+        if mcp_skills and isinstance(mcp_skills, dict):
+            from server.src.agents.mcp_client import get_mcp_tools_for_agent
+            import asyncio
+
+            # 获取MCP技能名称列表
+            mcp_skill_names = list(mcp_skills.keys())
+            
+            # 修复异步事件循环问题
+            try:
+                # 尝试获取当前运行的事件循环
+                loop = asyncio.get_running_loop()
+                # 如果已经在事件循环中，创建一个新的事件循环来运行
+                import concurrent.futures
+                with concurrent.futures.ThreadPoolExecutor() as executor:
+                    future = executor.submit(asyncio.run, get_mcp_tools_for_agent(mcp_skill_names))
+                    mcp_tools = future.result()
+            except RuntimeError:
+                # 如果没有运行的事件循环，直接使用 asyncio.run
+                mcp_tools = asyncio.run(get_mcp_tools_for_agent(mcp_skill_names))
+
+            if isinstance(mcp_tools, list):
+                all_tools.extend(mcp_tools)
+                logger.info(f"工具节点添加了 {len(mcp_tools)} 个MCP工具")
+        
         if all_tools:
             workflow.add_node("tools", ToolNode(tools=all_tools))
 

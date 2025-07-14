@@ -4,10 +4,11 @@
 
 import asyncio
 import uuid
-from server.src.agents.chatbot.graph import ChatbotAgent
+from server.src.agents.chatbot_agent import ChatbotAgent, ChatbotConfiguration
 
 
 def main():
+    
     agent = ChatbotAgent()
 
     thread_id = str(uuid.uuid4())
