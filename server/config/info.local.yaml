@@ -2,10 +2,12 @@
 # 用于配置网站的基本信息、品牌信息等
 # 修改后需要重启服务生效
 
-# 组织信息
+siteName: "超级个体"
+siteDescription: "超级个体，让个体更强大"
+
 organization:
-  name: "江南语析"           # 完整组织名称
-  short_name: "语析"         # 简短名称
+  name: "通智（天津）智能科技有限公司"           # 完整组织名称
+  short_name: "通智"         # 简短名称
   logo: "/favicon.svg"       # Logo文件路径
   avatar: "/avatar.jpg"      # 头像文件路径
 
@@ -23,4 +25,4 @@ features:
 
 # 页脚信息
 footer:
-  copyright: "© 江南语析 2025 [WIP] v0.12.138"
+  copyright: "© 2025 v0.12.138"

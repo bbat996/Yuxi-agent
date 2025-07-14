@@ -2,10 +2,115 @@
   <div class="home-container">
     <header class="glass-header">
       <div class="logo">
-        <img :src="configStore.siteLogo" :alt="configStore.siteName" class="logo-img" />
+        <img src="/avatar.png" alt="Logo" class="logo-img" />
         <span>{{ configStore.siteName }}</span>
       </div>
     </header>
+
+    <!-- 原理流程展示区（移到最上方） -->
+    <section class="react-section">
+      <div class="section-header">
+        <h2>智能体原理</h2>
+        <div class="divider"></div>
+        <p class="react-desc">推理（Reasoning）与行动（Acting）结合，驱动智能体高效完成复杂任务</p>
+      </div>
+      <div class="react-flow">
+        <div class="react-step">
+          <div class="step-icon">📝</div>
+          <div class="step-title">用户提问</div>
+          <div class="step-desc">输入问题或需求</div>
+        </div>
+        <div class="react-arrow">→</div>
+        <div class="react-step">
+          <div class="step-icon">💡</div>
+          <div class="step-title">推理</div>
+          <div class="step-desc">智能体分析问题，生成思路</div>
+        </div>
+        <div class="react-arrow">→</div>
+        <div class="react-step">
+          <div class="step-icon">🛠️</div>
+          <div class="step-title">行动</div>
+          <div class="step-desc">调用工具/知识库/外部API</div>
+        </div>
+        <div class="react-arrow">→</div>
+        <div class="react-step">
+          <div class="step-icon">🔄</div>
+          <div class="step-title">反馈</div>
+          <div class="step-desc">获取结果，继续推理与行动</div>
+        </div>
+        <div class="react-arrow">→</div>
+        <div class="react-step">
+          <div class="step-icon">✅</div>
+          <div class="step-title">输出答案</div>
+          <div class="step-desc">最终输出高质量答案</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- MCP工具调用原理流程展示区 -->
+    <div class="mcp-flow-header">
+      <span class="mcp-title">MCP工具调用原理</span>
+      <div class="divider small"></div>
+    </div>
+    <div class="mcp-flow">
+      <div class="mcp-step">
+        <div class="mcp-icon">🤔</div>
+        <div class="mcp-label">识别需求</div>
+        <div class="mcp-desc">智能体判断需调用外部工具</div>
+      </div>
+      <div class="mcp-arrow">→</div>
+      <div class="mcp-step">
+        <div class="mcp-icon">🧩</div>
+        <div class="mcp-label">选择MCP</div>
+        <div class="mcp-desc">匹配合适的MCP工具</div>
+      </div>
+      <div class="mcp-arrow">→</div>
+      <div class="mcp-step">
+        <div class="mcp-icon">📤</div>
+        <div class="mcp-label">发送请求</div>
+        <div class="mcp-desc">带参数调用MCP</div>
+      </div>
+      <div class="mcp-arrow">→</div>
+      <div class="mcp-step">
+        <div class="mcp-icon">📥</div>
+        <div class="mcp-label">获取结果</div>
+        <div class="mcp-desc">MCP返回处理结果</div>
+      </div>
+      <div class="mcp-arrow">→</div>
+      <div class="mcp-step">
+        <div class="mcp-icon">🔁</div>
+        <div class="mcp-label">继续推理</div>
+        <div class="mcp-desc">智能体利用结果继续推理</div>
+      </div>
+    </div>
+
+    <!-- 平台智能能力卡片区 -->
+    <div class="ability-header">
+      <span class="ability-title">平台智能能力</span>
+      <div class="divider small"></div>
+    </div>
+    <div class="ability-grid">
+      <div class="ability-card">
+        <div class="ability-icon">📂</div>
+        <div class="ability-title">读取文件</div>
+        <div class="ability-desc">智能体可自动读取本地或云端文件，提取关键信息。</div>
+      </div>
+      <div class="ability-card">
+        <div class="ability-icon">🔍</div>
+        <div class="ability-title">RAG</div>
+        <div class="ability-desc">检索增强生成，结合外部知识库，提升答案准确性。</div>
+      </div>
+      <div class="ability-card">
+        <div class="ability-icon">💻</div>
+        <div class="ability-title">编写执行代码</div>
+        <div class="ability-desc">自动生成并运行代码，完成复杂任务。</div>
+      </div>
+      <div class="ability-card">
+        <div class="ability-icon">🌐</div>
+        <div class="ability-title">浏览器操作</div>
+        <div class="ability-desc">自动打开网页，抓取和分析互联网信息。</div>
+      </div>
+    </div>
 
     <section class="hero-section">
       <div class="hero-content">
@@ -14,33 +119,6 @@
         
         <div class="cta-container">
           <button class="start-button" @click="goToChat">开始体验</button>
-        </div>
-      </div>
-    </section>
-
-    <section class="features-section">
-      <div class="section-header">
-        <h2>核心功能</h2>
-        <div class="divider"></div>
-      </div>
-      
-      <div class="features-grid">
-        <div class="feature-card">
-          <div class="feature-icon">📚</div>
-          <h3>灵活知识库</h3>
-          <p>轻松导入和管理各类知识资源，支持多种格式文档，实现智能检索与更新</p>
-        </div>
-        
-        <div class="feature-card">
-          <div class="feature-icon">🕸️</div>
-          <h3>知识图谱集成</h3>
-          <p>构建结构化知识网络，捕捉概念间关系，提供更深入的上下文理解与推理能力</p>
-        </div>
-        
-        <div class="feature-card">
-          <div class="feature-icon">🤖</div>
-          <h3>多模型支持</h3>
-          <p>兼容多种大语言模型，灵活切换不同AI能力，满足多样化场景需求</p>
         </div>
       </div>
     </section>
@@ -112,6 +190,7 @@ const goToChat = async () => {
   background-image: 
     radial-gradient(circle at 25% 25%, rgba(40, 40, 40, 0.2) 0%, transparent 50%),
     radial-gradient(circle at 75% 75%, rgba(40, 40, 40, 0.2) 0%, transparent 50%);
+  padding-top: 4.5rem;
 }
 
 /* 添加RGB变量，用于透明度调整 */
@@ -143,13 +222,15 @@ const goToChat = async () => {
   color: #ffffff;
 
   .logo-img {
-    height: 2rem;
-    margin-right: 0.6rem;
+    height: 2.8rem;
+    margin-right: 1rem;
+    border-radius: 0.5rem;
+    box-shadow: 0 0 12px #1890ff55;
   }
 }
 
 .hero-section {
-  height: 100vh;
+  min-height: 60vh;
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -360,6 +441,222 @@ footer {
   font-size: 0.9rem;
   background-color: #0a0a0a;
   border-top: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+/* ReAct 原理流程区样式 */
+.react-section {
+  padding: 2.5rem 2rem 3rem 2rem;
+  background: linear-gradient(120deg, #10131a 80%, #181c2a 100%);
+  box-shadow: 0 8px 32px 0 rgba(24, 144, 255, 0.08);
+  position: relative;
+  z-index: 1;
+  margin-bottom: -2rem;
+}
+
+.react-desc {
+  color: #7ecfff;
+  font-size: 1.1rem;
+  margin-top: 0.5rem;
+  margin-bottom: 2.5rem;
+  letter-spacing: 0.5px;
+}
+
+.react-flow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+  position: relative;
+  z-index: 2;
+}
+
+.react-step {
+  background: rgba(24, 144, 255, 0.10);
+  border: 1.5px solid rgba(24, 144, 255, 0.25);
+  border-radius: 1.2rem;
+  box-shadow: 0 2px 16px 0 rgba(24, 144, 255, 0.10);
+  padding: 2rem 1.5rem 1.5rem 1.5rem;
+  min-width: 140px;
+  max-width: 180px;
+  text-align: center;
+  transition: box-shadow 0.3s, transform 0.3s;
+  position: relative;
+  color: #e0f7ff;
+  backdrop-filter: blur(2px);
+  margin-bottom: 1rem;
+  flex: 1 1 160px;
+  
+  &:hover {
+    box-shadow: 0 6px 32px 0 rgba(24, 144, 255, 0.18);
+    transform: translateY(-4px) scale(1.04);
+    border-color: #40a9ff;
+  }
+  .step-icon {
+    font-size: 2.2rem;
+    margin-bottom: 0.7rem;
+    filter: drop-shadow(0 0 8px #1890ff88);
+  }
+  .step-title {
+    font-size: 1.15rem;
+    font-weight: 600;
+    margin-bottom: 0.3rem;
+    color: #fff;
+    letter-spacing: 0.5px;
+  }
+  .step-desc {
+    font-size: 0.98rem;
+    color: #b0e0ff;
+    opacity: 0.92;
+  }
+}
+
+.react-arrow {
+  font-size: 2.2rem;
+  color: #40a9ff;
+  text-shadow: 0 0 8px #1890ff88;
+  margin: 0 0.2rem;
+  user-select: none;
+}
+
+/* MCP工具调用原理流程区样式 */
+.mcp-flow-header {
+  text-align: center;
+  margin: 2.5rem 0 1.2rem 0;
+}
+.mcp-title {
+  font-size: 1.35rem;
+  font-weight: 600;
+  color: #40a9ff;
+  letter-spacing: 1px;
+}
+.divider.small {
+  width: 48px;
+  height: 3px;
+  background: linear-gradient(90deg, transparent, #40a9ff, transparent);
+  margin: 0.5rem auto 0 auto;
+}
+.mcp-flow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1.1rem;
+  flex-wrap: wrap;
+  margin-bottom: 2.5rem;
+}
+.mcp-step {
+  background: rgba(64, 169, 255, 0.13);
+  border: 1.2px solid rgba(64, 169, 255, 0.22);
+  border-radius: 1rem;
+  box-shadow: 0 2px 12px 0 rgba(64, 169, 255, 0.10);
+  padding: 1.2rem 1.1rem 1rem 1.1rem;
+  min-width: 110px;
+  max-width: 140px;
+  text-align: center;
+  color: #e0f7ff;
+  transition: box-shadow 0.3s, transform 0.3s;
+  flex: 1 1 120px;
+  margin-bottom: 0.5rem;
+  backdrop-filter: blur(1.5px);
+  &:hover {
+    box-shadow: 0 4px 18px 0 #40a9ff55;
+    border-color: #1890ff;
+    transform: translateY(-3px) scale(1.03);
+  }
+  .mcp-icon {
+    font-size: 1.7rem;
+    margin-bottom: 0.5rem;
+    filter: drop-shadow(0 0 6px #40a9ff88);
+  }
+  .mcp-label {
+    font-size: 1.05rem;
+    font-weight: 600;
+    color: #fff;
+    margin-bottom: 0.2rem;
+  }
+  .mcp-desc {
+    font-size: 0.92rem;
+    color: #b0e0ff;
+    opacity: 0.92;
+  }
+}
+.mcp-arrow {
+  font-size: 1.5rem;
+  color: #40a9ff;
+  text-shadow: 0 0 6px #40a9ff88;
+  margin: 0 0.1rem;
+  user-select: none;
+}
+
+/* 平台智能能力卡片区样式 */
+.ability-header {
+  text-align: center;
+  margin: 2.5rem 0 1.2rem 0;
+}
+.ability-title {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #7ecfff;
+  letter-spacing: 1px;
+}
+.ability-grid {
+  display: flex;
+  align-items: stretch;
+  justify-content: center;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+  margin-bottom: 2.5rem;
+}
+.ability-card {
+  background: rgba(24, 144, 255, 0.09);
+  border: 1.2px solid rgba(24, 144, 255, 0.18);
+  border-radius: 1rem;
+  box-shadow: 0 2px 12px 0 rgba(24, 144, 255, 0.08);
+  padding: 1.5rem 1.2rem 1.2rem 1.2rem;
+  min-width: 140px;
+  max-width: 200px;
+  text-align: center;
+  color: #e0f7ff;
+  transition: box-shadow 0.3s, transform 0.3s;
+  flex: 1 1 160px;
+  margin-bottom: 0.5rem;
+  backdrop-filter: blur(1.5px);
+  &:hover {
+    box-shadow: 0 4px 18px 0 #1890ff55;
+    border-color: #40a9ff;
+    transform: translateY(-3px) scale(1.03);
+  }
+  .ability-icon {
+    font-size: 2rem;
+    margin-bottom: 0.6rem;
+    filter: drop-shadow(0 0 8px #1890ff88);
+  }
+  .ability-title {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: #fff;
+    margin-bottom: 0.2rem;
+  }
+  .ability-desc {
+    font-size: 0.95rem;
+    color: #b0e0ff;
+    opacity: 0.92;
+  }
+}
+
+@media (max-width: 900px) {
+  .react-flow {
+    flex-wrap: wrap;
+    gap: 0.7rem;
+  }
+  .react-step {
+    min-width: 120px;
+    max-width: 150px;
+    padding: 1.2rem 0.7rem 1rem 0.7rem;
+  }
+  .react-arrow {
+    font-size: 1.5rem;
+  }
 }
 
 @media (max-width: 768px) {
