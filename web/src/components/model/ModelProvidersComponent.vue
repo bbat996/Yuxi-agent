@@ -157,9 +157,17 @@
             </div>
           </div>
           <div class="header-actions">
+            <a-button type="default" @click="openProviderSettings(selectedProvider)" style="margin-right: 8px;">
+              <template #icon><SettingOutlined /></template>
+              连接配置
+            </a-button>
             <a-button type="primary" @click="openProviderConfig(selectedProvider)">
               <template #icon><SettingOutlined /></template>
               配置模型
+            </a-button>
+            <a-button type="default" @click="openAddModelModal(selectedProvider)" style="margin-left: 8px;">
+              <template #icon><EditOutlined /></template>
+              添加模型
             </a-button>
           </div>
         </div>
@@ -171,7 +179,20 @@
             class="model-card provider-model-card"
           >
             <div class="model-name">{{ model }}</div>
-            <div class="model-status">可用</div>
+            <div class="model-actions">
+              <div class="model-status">可用</div>
+              <a-popconfirm
+                title="确认删除该模型?"
+                @confirm="handleDeleteModel(model)"
+                okText="确认删除"
+                cancelText="取消"
+                ok-type="danger"
+              >
+                <a-button type="text" size="small" danger>
+                  <template #icon><DeleteOutlined /></template>
+                </a-button>
+              </a-popconfirm>
+            </div>
           </div>
         </div>
 
@@ -314,6 +335,114 @@
         </div>
       </div>
     </a-modal>
+
+    <!-- 模型提供商配置管理弹窗 -->
+    <a-modal
+      class="provider-settings-modal"
+      :open="providerSettings.visible"
+      :title="`配置${providerSettings.providerName}连接`"
+      @ok="saveProviderSettings"
+      @cancel="cancelProviderSettings"
+      @update:open="(val) => providerSettings.visible = val"
+      :okText="'保存配置'"
+      :cancelText="'取消'"
+      :ok-type="'primary'"
+      :width="600"
+    >
+      <div v-if="providerSettings.loading" class="modal-loading-container">
+        <a-spin
+          :indicator="
+            h(LoadingOutlined, { style: { fontSize: '32px', color: 'var(--main-color)' } })
+          "
+        />
+        <div class="loading-text">正在加载配置...</div>
+      </div>
+      <div v-else class="modal-settings-content">
+        <div class="modal-settings-header">
+          <h3>配置 {{ providerSettings.providerName }} 连接参数</h3>
+          <p class="description">
+            配置API连接参数，这些参数将用于连接到模型提供商的服务。
+          </p>
+        </div>
+
+        <a-form :model="providerSettings.form" layout="vertical">
+          <a-form-item
+            label="API Base URL"
+            name="base_url"
+            :rules="[{ required: true, message: '请输入API Base URL' }]"
+          >
+            <a-input 
+              :value="providerSettings.form.base_url" 
+              @update:value="(val) => providerSettings.form.base_url = val"
+              placeholder="例如: https://api.openai.com/v1"
+            />
+          </a-form-item>
+          
+          <a-form-item
+            label="API Key"
+            name="api_key"
+            :rules="[{ required: true, message: '请输入API Key' }]"
+          >
+            <a-input-password
+              :value="providerSettings.form.api_key"
+              @update:value="(val) => providerSettings.form.api_key = val"
+              :visibilityToggle="true"
+              placeholder="请输入API Key"
+              autocomplete="new-password"
+            />
+          </a-form-item>
+        </a-form>
+
+        <div class="modal-settings-actions">
+          <a-button 
+            type="default" 
+            @click="testProviderConnection"
+            :loading="providerSettings.testing"
+          >
+            测试连接
+          </a-button>
+        </div>
+
+        <div v-if="providerSettings.testResult" class="test-result">
+          <a-alert
+            :type="providerSettings.testResult.success ? 'success' : 'error'"
+            :message="providerSettings.testResult.message"
+            show-icon
+          />
+        </div>
+      </div>
+    </a-modal>
+
+    <!-- 添加模型弹窗 -->
+    <a-modal
+      class="add-model-modal"
+      :open="addModel.visible"
+      :title="`为${addModel.providerName}添加模型`"
+      @ok="handleAddModel"
+      @cancel="cancelAddModel"
+      @update:open="(val) => addModel.visible = val"
+      :okText="'添加模型'"
+      :cancelText="'取消'"
+      :ok-type="'primary'"
+      :okButtonProps="{ disabled: !addModel.modelName }"
+    >
+      <div class="add-model-content">
+        <p>请输入要添加的模型名称：</p>
+        <a-form layout="vertical">
+          <a-form-item
+            label="模型名称"
+            name="modelName"
+            :rules="[{ required: true, message: '请输入模型名称' }]"
+          >
+            <a-input 
+              :value="addModel.modelName" 
+              @update:value="(val) => addModel.modelName = val"
+              placeholder="例如: gpt-4, glm-4-plus"
+            />
+          </a-form-item>
+        </a-form>
+      </div>
+    </a-modal>
   </div>
 </template>
 
@@ -363,6 +492,27 @@ const providerConfig = reactive({
   selectedModels: [], // 用户选择的模型
   loading: false,
   searchQuery: ''
+})
+
+// 提供商配置管理状态
+const providerSettings = reactive({
+  visible: false,
+  provider: '',
+  providerName: '',
+  form: {
+    base_url: '',
+    api_key: ''
+  },
+  loading: false,
+  testing: false,
+  testResult: null
+})
+
+// 添加模型状态
+const addModel = reactive({
+  visible: false,
+  providerName: '',
+  modelName: ''
 })
 
 // 筛选 modelStatus 中为真的key
@@ -602,6 +752,165 @@ const filteredModels = computed(() => {
   const searchQuery = providerConfig.searchQuery.toLowerCase()
   return allModels.filter((model) => model.id.toLowerCase().includes(searchQuery))
 })
+
+// 打开提供商配置管理弹窗
+const openProviderSettings = async (provider) => {
+  providerSettings.provider = provider
+  providerSettings.providerName = modelNames.value[provider].name
+  providerSettings.form.base_url = ''
+  providerSettings.form.api_key = ''
+  providerSettings.visible = true
+  providerSettings.loading = true
+  providerSettings.testResult = null
+
+  try {
+    // 获取当前提供商配置
+    const config = await chatApi.getProviderConfig(provider)
+    if (config.base_url) {
+      providerSettings.form.base_url = config.base_url
+    }
+    // API Key 不会从后端返回，需要用户重新输入
+  } catch (error) {
+    console.error('获取提供商配置失败:', error)
+  } finally {
+    providerSettings.loading = false
+  }
+}
+
+// 保存提供商配置管理
+const saveProviderSettings = async () => {
+  if (!providerSettings.form.base_url || !providerSettings.form.api_key) {
+    message.error('请填写完整的API Base URL和API Key。')
+    return
+  }
+
+  message.loading({ content: '保存配置中...', key: 'save-settings', duration: 0 })
+
+  try {
+    // 发送连接参数到后端
+    const data = await chatApi.updateProviderConfig(
+      providerSettings.provider,
+      providerSettings.form
+    )
+    console.log('更新后的提供商配置:', data)
+
+    message.success({ content: '提供商配置已保存!', key: 'save-settings', duration: 2 })
+
+    // 关闭弹窗
+    providerSettings.visible = false
+
+    // 刷新配置
+    configStore.refreshConfig()
+  } catch (error) {
+    console.error('保存提供商配置失败:', error)
+    message.error({ content: '保存提供商配置失败: ' + error.message, key: 'save-settings', duration: 2 })
+  }
+}
+
+// 取消提供商配置管理
+const cancelProviderSettings = () => {
+  providerSettings.visible = false
+}
+
+// 测试提供商连接
+const testProviderConnection = async () => {
+  if (!providerSettings.form.base_url || !providerSettings.form.api_key) {
+    message.error('请先填写API Base URL和API Key。')
+    return
+  }
+
+  providerSettings.testing = true
+  providerSettings.testResult = null
+
+  try {
+    const response = await chatApi.testProviderConnection(
+      providerSettings.provider,
+      {
+        base_url: providerSettings.form.base_url,
+        api_key: providerSettings.form.api_key
+      }
+    )
+    console.log('提供商连接测试成功:', response)
+    providerSettings.testResult = {
+      success: response.success,
+      message: response.message
+    }
+  } catch (error) {
+    console.error('提供商连接测试失败:', error)
+    providerSettings.testResult = {
+      success: false,
+      message: `提供商连接测试失败: ${error.message}`
+    }
+  } finally {
+    providerSettings.testing = false
+  }
+}
+
+// 打开添加模型弹窗
+const openAddModelModal = (provider) => {
+  addModel.providerName = modelNames.value[provider].name
+  addModel.modelName = ''
+  addModel.visible = true
+}
+
+// 添加模型
+const handleAddModel = async () => {
+  if (!addModel.modelName) {
+    message.error('请输入模型名称。')
+    return
+  }
+
+  message.loading({ content: '添加模型中...', key: 'add-model', duration: 0 })
+
+  try {
+    const data = await chatApi.addProviderModel(
+      selectedProvider.value,
+      addModel.modelName
+    )
+    console.log('添加模型成功:', data)
+
+    message.success({ content: '模型添加成功!', key: 'add-model', duration: 2 })
+
+    // 刷新配置
+    configStore.refreshConfig()
+
+    // 关闭弹窗
+    addModel.visible = false
+  } catch (error) {
+    console.error('添加模型失败:', error)
+    message.error({ content: '添加模型失败: ' + error.message, key: 'add-model', duration: 2 })
+  } finally {
+    message.destroy('add-model')
+  }
+}
+
+// 取消添加模型
+const cancelAddModel = () => {
+  addModel.visible = false
+}
+
+// 删除模型
+const handleDeleteModel = async (modelName) => {
+  message.loading({ content: '删除模型中...', key: 'delete-model', duration: 0 })
+
+  try {
+    const data = await chatApi.removeProviderModel(
+      selectedProvider.value,
+      modelName
+    )
+    console.log('删除模型成功:', data)
+
+    message.success({ content: '模型删除成功!', key: 'delete-model', duration: 2 })
+
+    // 刷新配置
+    configStore.refreshConfig()
+  } catch (error) {
+    console.error('删除模型失败:', error)
+    message.error({ content: '删除模型失败: ' + error.message, key: 'delete-model', duration: 2 })
+  } finally {
+    message.destroy('delete-model')
+  }
+}
 </script>
 
 <style lang="less" scoped>
@@ -850,6 +1159,13 @@ const filteredModels = computed(() => {
         color: var(--gray-600);
       }
     }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
   }
 
   .models-grid {
@@ -926,14 +1242,22 @@ const filteredModels = computed(() => {
           font-size: 14px;
           font-weight: 500;
           color: var(--gray-900);
+          flex: 1;
+          margin-right: 8px;
         }
 
-        .model-status {
-          font-size: 12px;
-          color: #059669;
-          background: #d1fae5;
-          padding: 2px 8px;
-          border-radius: 12px;
+        .model-actions {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+
+          .model-status {
+            font-size: 12px;
+            color: #059669;
+            background: #d1fae5;
+            padding: 2px 8px;
+            border-radius: 12px;
+          }
         }
       }
     }
@@ -1067,6 +1391,63 @@ const filteredModels = computed(() => {
             }
           }
         }
+      }
+    }
+  }
+}
+
+.provider-settings-modal {
+  .ant-modal-body {
+    padding: 16px 0 !important;
+    .modal-loading-container {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      height: 200px;
+
+      .loading-text {
+        margin-top: 20px;
+        color: var(--gray-700);
+        font-size: 14px;
+      }
+    }
+
+    .modal-settings-content {
+      max-height: 70vh;
+      overflow-y: auto;
+
+      .modal-settings-header {
+        margin-bottom: 20px;
+
+        .description {
+          font-size: 14px;
+          color: var(--gray-600);
+          margin: 0;
+        }
+      }
+
+      .modal-settings-actions {
+        margin-top: 20px;
+        display: flex;
+        justify-content: flex-end;
+      }
+
+      .test-result {
+        margin-top: 20px;
+      }
+    }
+  }
+}
+
+.add-model-modal {
+  .ant-modal-body {
+    padding: 16px 0 !important;
+    .add-model-content {
+      p {
+        font-size: 14px;
+        color: var(--gray-700);
+        margin-bottom: 16px;
       }
     }
   }

@@ -1,0 +1,33 @@
+
+
+name: "智能助手"
+description: "一个功能强大的智能助手"
+system_prompt: "你是一个有用的AI助手，可以帮助用户解决各种问题。"
+
+# 模型配置 - 分开配置
+provider: "deepseek"  # 模型提供商
+model_name: "deepseek-chat"  # 模型名称
+model_parameters:  # 模型参数
+  temperature: 0.7
+  max_tokens: 2048
+  
+# 工具配置
+tools:
+  - "web_search"
+  - "calculator"
+
+# MCP技能配置 - 字典格式
+mcp_skills:
+  system_server:
+    transport: "stdio"
+    command: "python"
+    args: ["server/src/agents/mcp_server/system_server.py"]
+  
+# 知识库配置
+knowledge_databases:
+  - "kb_001"
+  - "kb_002"
+retrieval_params:
+  top_k: 5
+  similarity_threshold: 0.8
+

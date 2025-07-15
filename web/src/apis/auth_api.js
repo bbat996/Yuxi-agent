@@ -128,6 +128,85 @@ export const chatApi = {
       },
       body: JSON.stringify(models)
     }).then(response => response.json())
+  },
+
+  /**
+   * 获取模型提供商配置
+   * @param {string} provider - 模型提供商
+   * @returns {Promise} - 提供商配置
+   */
+  getProviderConfig: (provider) => {
+    return fetch(`/api/chat/provider/${provider}/config`, {
+      headers: {
+        ...useUserStore().getAuthHeaders()
+      }
+    }).then(response => response.json())
+  },
+
+  /**
+   * 更新模型提供商配置
+   * @param {string} provider - 模型提供商
+   * @param {Object} config - 配置信息 {base_url, api_key}
+   * @returns {Promise} - 更新结果
+   */
+  updateProviderConfig: (provider, config) => {
+    return fetch(`/api/chat/provider/${provider}/config`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...useUserStore().getAuthHeaders()
+      },
+      body: JSON.stringify(config)
+    }).then(response => response.json())
+  },
+
+  /**
+   * 为模型提供商添加模型
+   * @param {string} provider - 模型提供商
+   * @param {string} modelName - 模型名称
+   * @returns {Promise} - 添加结果
+   */
+  addProviderModel: (provider, modelName) => {
+    return fetch(`/api/chat/provider/${provider}/models/add`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...useUserStore().getAuthHeaders()
+      },
+      body: JSON.stringify(modelName)
+    }).then(response => response.json())
+  },
+
+  /**
+   * 从模型提供商删除模型
+   * @param {string} provider - 模型提供商
+   * @param {string} modelName - 模型名称
+   * @returns {Promise} - 删除结果
+   */
+  removeProviderModel: (provider, modelName) => {
+    return fetch(`/api/chat/provider/${provider}/models/${modelName}`, {
+      method: 'DELETE',
+      headers: {
+        ...useUserStore().getAuthHeaders()
+      }
+    }).then(response => response.json())
+  },
+
+  /**
+   * 测试模型提供商连接
+   * @param {string} provider - 模型提供商
+   * @param {Object} config - 配置信息 {base_url, api_key}
+   * @returns {Promise} - 测试结果
+   */
+  testProviderConnection: (provider, config) => {
+    return fetch(`/api/chat/provider/${provider}/test`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...useUserStore().getAuthHeaders()
+      },
+      body: JSON.stringify(config)
+    }).then(response => response.json())
   }
 }
 

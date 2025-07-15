@@ -169,6 +169,115 @@ async def update_chat_models(model_provider: str, model_names: list[str], curren
     return {"models": config.model_names[model_provider]["models"]}
 
 
+@chat.get("/provider/{provider}/config")
+async def get_provider_config(provider: str, current_user: User = Depends(get_admin_user)):
+    """获取指定模型提供商的配置信息（仅管理员）"""
+    try:
+        provider_config = config.get_provider_config(provider)
+        return provider_config
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+
+@chat.post("/provider/{provider}/config")
+async def update_provider_config(
+    provider: str, 
+    config_data: dict = Body(...), 
+    current_user: User = Depends(get_admin_user)
+):
+    """更新指定模型提供商的配置信息（仅管理员）"""
+    try:
+        config.update_provider_config(provider, config_data)
+        return {
+            "success": True,
+            "message": f"模型提供商 {provider} 配置已更新",
+            "config": config.get_provider_config(provider)
+        }
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        logger.error(f"更新模型提供商配置失败: {e}")
+        raise HTTPException(status_code=500, detail=f"更新配置失败: {str(e)}")
+
+
+@chat.post("/provider/{provider}/models/add")
+async def add_provider_model(
+    provider: str, 
+    model_name: str = Body(...), 
+    current_user: User = Depends(get_admin_user)
+):
+    """为指定模型提供商添加模型（仅管理员）"""
+    try:
+        config.add_provider_model(provider, model_name)
+        return {
+            "success": True,
+            "message": f"模型 {model_name} 已添加到 {provider}",
+            "models": config.model_names[provider]["models"]
+        }
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@chat.delete("/provider/{provider}/models/{model_name}")
+async def remove_provider_model(
+    provider: str, 
+    model_name: str, 
+    current_user: User = Depends(get_admin_user)
+):
+    """从指定模型提供商删除模型（仅管理员）"""
+    try:
+        config.remove_provider_model(provider, model_name)
+        return {
+            "success": True,
+            "message": f"模型 {model_name} 已从 {provider} 中删除",
+            "models": config.model_names[provider]["models"]
+        }
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+
+@chat.post("/provider/{provider}/test")
+async def test_provider_connection(
+    provider: str, 
+    config_data: dict = Body(...), 
+    current_user: User = Depends(get_admin_user)
+):
+    """测试模型提供商连接（仅管理员）"""
+    if provider not in config.model_names:
+        raise HTTPException(status_code=404, detail=f"模型提供商 {provider} 不存在")
+    
+    try:
+        # 临时设置配置进行测试
+        test_base_url = config_data.get("base_url", config.model_names[provider].get("base_url", ""))
+        test_api_key = config_data.get("api_key", "")
+        
+        if not test_base_url or not test_api_key:
+            raise HTTPException(status_code=400, detail="base_url 和 api_key 不能为空")
+        
+        # 创建临时模型实例进行测试
+        from server.src.models.chat_model import OpenAIBase
+        test_model = OpenAIBase(
+            api_key=test_api_key,
+            base_url=test_base_url,
+            model_name="test-model"
+        )
+        
+        # 尝试获取模型列表
+        models = test_model.get_models()
+        
+        return {
+            "success": True,
+            "message": "连接测试成功",
+            "models_count": len(models) if models else 0
+        }
+    except Exception as e:
+        logger.error(f"测试模型提供商连接失败: {e}")
+        return {
+            "success": False,
+            "message": f"连接测试失败: {str(e)}"
+        }
+
+
 @chat.get("/tools")
 async def get_tools(current_user: User = Depends(get_admin_user)):
     """获取所有可用工具（需要登录）"""

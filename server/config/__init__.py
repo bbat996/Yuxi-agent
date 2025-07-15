@@ -122,6 +122,78 @@ class Config(SimpleConfig):
         with open(Path(f"{CONFIG_PATH}/models.private.yml"), "w", encoding="utf-8") as f:
             yaml.dump(_models, f, indent=2, allow_unicode=True)
 
+    def update_provider_config(self, provider: str, config_data: dict):
+        """更新模型提供商配置"""
+        if provider not in self.model_names:
+            raise ValueError(f"模型提供商 {provider} 不存在")
+        
+        # 更新配置
+        if "base_url" in config_data:
+            self.model_names[provider]["base_url"] = config_data["base_url"]
+        if "api_key" in config_data:
+            # 将API key保存到环境变量
+            env_key = self.model_names[provider].get("env", [None])[0]
+            if env_key:
+                os.environ[env_key] = config_data["api_key"]
+        
+        # 保存到配置文件
+        self._save_models_to_file()
+        logger.info(f"模型提供商 {provider} 配置已更新")
+
+    def add_provider_model(self, provider: str, model_name: str):
+        """为模型提供商添加模型"""
+        if provider not in self.model_names:
+            raise ValueError(f"模型提供商 {provider} 不存在")
+        
+        if "models" not in self.model_names[provider]:
+            self.model_names[provider]["models"] = []
+        
+        if model_name not in self.model_names[provider]["models"]:
+            self.model_names[provider]["models"].append(model_name)
+            self._save_models_to_file()
+            logger.info(f"模型 {model_name} 已添加到 {provider}")
+            return True
+        else:
+            raise ValueError(f"模型 {model_name} 已存在于 {provider} 中")
+
+    def remove_provider_model(self, provider: str, model_name: str):
+        """从模型提供商删除模型"""
+        if provider not in self.model_names:
+            raise ValueError(f"模型提供商 {provider} 不存在")
+        
+        if "models" not in self.model_names[provider]:
+            raise ValueError(f"模型提供商 {provider} 没有配置模型列表")
+        
+        if model_name in self.model_names[provider]["models"]:
+            self.model_names[provider]["models"].remove(model_name)
+            self._save_models_to_file()
+            logger.info(f"模型 {model_name} 已从 {provider} 中删除")
+            return True
+        else:
+            raise ValueError(f"模型 {model_name} 不存在于 {provider} 中")
+
+    def reload_models_config(self):
+        """重新加载模型配置"""
+        self._update_models_from_file()
+        self.handle_self()
+        logger.info("模型配置已重新加载")
+
+    def get_provider_config(self, provider: str):
+        """获取模型提供商配置"""
+        if provider not in self.model_names:
+            raise ValueError(f"模型提供商 {provider} 不存在")
+        
+        provider_config = self.model_names[provider]
+        return {
+            "provider": provider,
+            "name": provider_config.get("name", ""),
+            "base_url": provider_config.get("base_url", ""),
+            "default": provider_config.get("default", ""),
+            "env": provider_config.get("env", []),
+            "models": provider_config.get("models", []),
+            "url": provider_config.get("url", "")
+        }
+
     def handle_self(self):
         """
         处理配置
