@@ -79,10 +79,9 @@ async def call(query: str = Body(...), meta: dict = Body(None), current_user: Us
 
 @chat.get("/agent")
 async def get_agent(current_user: User = Depends(get_required_user)):
-    """获取所有可用智能体（需要登录）"""
-    agents = await agent_manager.get_all_agents_info()
-    # logger.debug(f"agents: {agents}")
-    return {"agents": agents}
+    """获取当前用户可用的所有智能体（自己创建的+公开的）"""
+    agent_list = agent_manager.get_agents_by_user(current_user.id)
+    return {"agents": agent_list}
 
 
 @chat.post("/agent/{agent_name}")

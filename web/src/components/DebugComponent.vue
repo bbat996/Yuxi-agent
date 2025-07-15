@@ -392,10 +392,6 @@ const printAgentConfig = async () => {
     const agentsData = await chatApi.getAgents();
     console.log('智能体列表:', JSON.stringify(agentsData.agents, null, 2));
 
-    // 获取默认智能体
-    const defaultAgent = await chatApi.getDefaultAgent();
-    console.log('默认智能体:', JSON.stringify(defaultAgent, null, 2));
-
     // 获取每个智能体的配置
     for (const agent of agentsData.agents) {
       try {

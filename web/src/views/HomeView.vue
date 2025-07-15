@@ -156,22 +156,15 @@ const goToChat = async () => {
     return;
   }
 
-  // 普通用户跳转到默认智能体
+  // 普通用户跳转到第一个可用智能体
   try {
-    // 获取默认智能体
-    const data = await chatApi.getDefaultAgent();
-    if (data.default_agent_id) {
-      // 使用后端设置的默认智能体
-      router.push(`/agent/${data.default_agent_id}`);
+    // 获取智能体列表选择第一个
+    const agentData = await chatApi.getAgents();
+    if (agentData.agents && agentData.agents.length > 0) {
+      router.push(`/agent/${agentData.agents[0].name}`);
     } else {
-      // 如果没有设置默认智能体，则获取智能体列表选择第一个
-      const agentData = await chatApi.getAgents();
-      if (agentData.agents && agentData.agents.length > 0) {
-        router.push(`/agent/${agentData.agents[0].name}`);
-      } else {
-        // 没有可用智能体，回退到chat页面
-        router.push("/agent");
-      }
+      // 没有可用智能体，回退到chat页面
+      router.push("/agent");
     }
   } catch (error) {
     console.error('跳转到智能体页面失败:', error);

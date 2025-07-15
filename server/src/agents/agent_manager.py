@@ -64,9 +64,19 @@ class AgentManager:
         agents = self.get_agents()
         return await asyncio.gather(*[a.get_info() for a in agents])
 
-    async def get_all_agents_info(self):
-        """获取所有已缓存智能体的详细信息（异步，兼容旧接口）"""
-        return await self.get_agents_info()
+    def get_agents_by_user(self, user_id, include_public=True):
+        """获取指定用户的所有智能体（自己创建的+公开的），返回dict列表，避免DetachedInstanceError"""
+        from sqlalchemy import or_
+        from server.models.agent_models import CustomAgent as CustomAgentModel
+        with self.db_manager.get_session_context() as session:
+            query = session.query(CustomAgentModel).filter(CustomAgentModel.deleted_at.is_(None))
+            if include_public:
+                query = query.filter(or_(CustomAgentModel.created_by == user_id, CustomAgentModel.is_public == True))
+            else:
+                query = query.filter(CustomAgentModel.created_by == user_id)
+            query = query.order_by(CustomAgentModel.created_at.desc())
+            agents = query.all()
+            return [agent.to_dict(include_config=False) for agent in agents]
 
     def clear_cache(self):
         self._instances.clear()

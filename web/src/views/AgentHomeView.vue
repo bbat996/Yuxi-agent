@@ -195,11 +195,12 @@ const fetchAgents = async () => {
     if (response.success) {
       agents.value = response.data.agents
     } else {
-      message.error('获取智能体列表失败')
+      message.error(response.message || '获取智能体列表失败')
     }
   } catch (error) {
     console.error('获取智能体列表失败:', error)
-    message.error('获取智能体列表失败')
+    const errorMessage = error.message || '获取智能体列表失败'
+    message.error(errorMessage)
   } finally {
     loading.value = false
   }
@@ -298,7 +299,9 @@ const addAgent = async () => {
     }
   } catch (e) {
     console.error('创建智能体异常:', e)
-    message.error('新增智能体异常')
+    // 使用接口返回的具体错误信息
+    const errorMessage = e.message || '新增智能体失败'
+    message.error(errorMessage)
   } finally {
     addingAgent.value = false
   }
@@ -325,12 +328,13 @@ const handleDelete = (agent) => {
         if (response.success) {
           message.success('智能体删除成功')
           fetchAgents()
-        } else {
-          message.error('删除失败')
-        }
+            } else {
+      message.error(response.message || '删除失败')
+    }
       } catch (error) {
         console.error('删除智能体失败:', error)
-        message.error('删除失败')
+        const errorMessage = error.message || '删除失败'
+        message.error(errorMessage)
       }
     }
   })
@@ -346,11 +350,12 @@ const handleDuplicate = async (agent) => {
       message.success('智能体复制成功')
       fetchAgents()
     } else {
-      message.error('复制失败')
+      message.error(response.message || '复制失败')
     }
   } catch (error) {
     console.error('复制智能体失败:', error)
-    message.error('复制失败')
+    const errorMessage = error.message || '复制失败'
+    message.error(errorMessage)
   }
 }
 

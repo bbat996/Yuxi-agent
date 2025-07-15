@@ -131,20 +131,9 @@ router.beforeEach(async (to, from, next) => {
 
   // 如果路由需要管理员权限但用户不是管理员
   if (requiresAdmin && !isAdmin) {
-    // 如果是普通用户，跳转到默认智能体页面
+    // 如果是普通用户，跳转到第一个可用智能体页面
     try {
-      // 先尝试获取默认智能体
-      const response = await fetch('/api/chat/default_agent');
-      if (response.ok) {
-        const data = await response.json();
-        if (data.default_agent_id) {
-          // 如果存在默认智能体，直接跳转
-          next(`/agent/${data.default_agent_id}`);
-          return;
-        }
-      }
-
-      // 如果没有默认智能体，则获取第一个可用智能体
+      // 获取第一个可用智能体
       const agentResponse = await fetch('/api/chat/agent');
       if (agentResponse.ok) {
         const agentData = await agentResponse.json();

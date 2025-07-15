@@ -235,17 +235,9 @@ const handleLogin = async () => {
         return;
       }
 
-      // 普通用户跳转到默认智能体
+      // 普通用户跳转到第一个可用智能体
       try {
-        // 尝试获取默认智能体
-        const data = await chatApi.getDefaultAgent();
-        if (data.default_agent_id) {
-          // 如果存在默认智能体，直接跳转
-          router.push(`/agent/${data.default_agent_id}`);
-          return;
-        }
-
-        // 没有默认智能体，获取第一个可用智能体
+        // 获取第一个可用智能体
         const agentData = await chatApi.getAgents();
         if (agentData.agents && agentData.agents.length > 0) {
           router.push(`/agent/${agentData.agents[0].name}`);

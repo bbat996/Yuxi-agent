@@ -7,9 +7,6 @@ from contextlib import contextmanager
 from server.src import config
 from server.models import Base
 from server.models.user_model import User
-from server.models.thread_model import Thread
-from server.models.kb_models import KnowledgeDatabase, KnowledgeFile, KnowledgeNode
-from server.models.agent_models import CustomAgent, PromptTemplate, MCPSkill, AgentInstance, AgentShare
 from server.src.utils import logger
 
 
