@@ -120,13 +120,8 @@ async def chat_agent(
         # 代表服务端已经收到了请求
         yield make_chunk(status="init", meta=meta, msg=HumanMessage(content=query).model_dump())
 
-        try:
-            # 尝试获取智能体（预定义或自定义）
-            agent = agent_manager.get_agent_by_identifier(agent_name)
-        except Exception as e:
-            logger.error(f"Error getting agent {agent_name}: {e}, {traceback.format_exc()}")
-            yield make_chunk(message=f"Error getting agent {agent_name}: {e}", status="error")
-            return
+        # 尝试获取智能体（预定义或自定义）
+        agent = agent_manager.get_agent_by_identifier(agent_name)
 
         messages = [{"role": "user", "content": query}]
 
@@ -138,18 +133,14 @@ async def chat_agent(
 
         runnable_config = {"configurable": {**config}}
 
-        try:
-            async for msg, metadata in agent.stream_messages(messages, config_schema=runnable_config):
-                # logger.debug(f"msg: {msg.model_dump()}, metadata: {metadata}")
-                if isinstance(msg, AIMessageChunk):
-                    yield make_chunk(content=msg.content, msg=msg.model_dump(), metadata=metadata, status="loading")
-                else:
-                    yield make_chunk(msg=msg.model_dump(), metadata=metadata, status="loading")
+        async for msg, metadata in agent.stream_messages(messages, config_schema=runnable_config):
+            # logger.debug(f"msg: {msg.model_dump()}, metadata: {metadata}")
+            if isinstance(msg, AIMessageChunk):
+                yield make_chunk(content=msg.content, msg=msg.model_dump(), metadata=metadata, status="loading")
+            else:
+                yield make_chunk(msg=msg.model_dump(), metadata=metadata, status="loading")
 
-            yield make_chunk(status="finished", meta=meta)
-        except Exception as e:
-            logger.error(f"Error streaming messages: {e}, {traceback.format_exc()}")
-            yield make_chunk(message=f"Error streaming messages: {e}", status="error")
+        yield make_chunk(status="finished", meta=meta)
 
     return StreamingResponse(stream_messages(), media_type="application/json")
 
@@ -172,11 +163,8 @@ async def update_chat_models(model_provider: str, model_names: list[str], curren
 @chat.get("/provider/{provider}/config")
 async def get_provider_config(provider: str, current_user: User = Depends(get_admin_user)):
     """获取指定模型提供商的配置信息（仅管理员）"""
-    try:
-        provider_config = config.get_provider_config(provider)
-        return provider_config
-    except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e))
+    provider_config = config.get_provider_config(provider)
+    return provider_config
 
 
 @chat.post("/provider/{provider}/config")
@@ -186,18 +174,12 @@ async def update_provider_config(
     current_user: User = Depends(get_admin_user)
 ):
     """更新指定模型提供商的配置信息（仅管理员）"""
-    try:
-        config.update_provider_config(provider, config_data)
-        return {
-            "success": True,
-            "message": f"模型提供商 {provider} 配置已更新",
-            "config": config.get_provider_config(provider)
-        }
-    except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e))
-    except Exception as e:
-        logger.error(f"更新模型提供商配置失败: {e}")
-        raise HTTPException(status_code=500, detail=f"更新配置失败: {str(e)}")
+    config.update_provider_config(provider, config_data)
+    return {
+        "success": True,
+        "message": f"模型提供商 {provider} 配置已更新",
+        "config": config.get_provider_config(provider)
+    }
 
 
 @chat.post("/provider/{provider}/models/add")
@@ -207,15 +189,12 @@ async def add_provider_model(
     current_user: User = Depends(get_admin_user)
 ):
     """为指定模型提供商添加模型（仅管理员）"""
-    try:
-        config.add_provider_model(provider, model_name)
-        return {
-            "success": True,
-            "message": f"模型 {model_name} 已添加到 {provider}",
-            "models": config.model_names[provider]["models"]
-        }
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+    config.add_provider_model(provider, model_name)
+    return {
+        "success": True,
+        "message": f"模型 {model_name} 已添加到 {provider}",
+        "models": config.model_names[provider]["models"]
+    }
 
 
 @chat.delete("/provider/{provider}/models/{model_name}")
@@ -225,15 +204,12 @@ async def remove_provider_model(
     current_user: User = Depends(get_admin_user)
 ):
     """从指定模型提供商删除模型（仅管理员）"""
-    try:
-        config.remove_provider_model(provider, model_name)
-        return {
-            "success": True,
-            "message": f"模型 {model_name} 已从 {provider} 中删除",
-            "models": config.model_names[provider]["models"]
-        }
-    except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e))
+    config.remove_provider_model(provider, model_name)
+    return {
+        "success": True,
+        "message": f"模型 {model_name} 已从 {provider} 中删除",
+        "models": config.model_names[provider]["models"]
+    }
 
 
 @chat.post("/provider/{provider}/test")
@@ -246,36 +222,29 @@ async def test_provider_connection(
     if provider not in config.model_names:
         raise HTTPException(status_code=404, detail=f"模型提供商 {provider} 不存在")
     
-    try:
-        # 临时设置配置进行测试
-        test_base_url = config_data.get("base_url", config.model_names[provider].get("base_url", ""))
-        test_api_key = config_data.get("api_key", "")
-        
-        if not test_base_url or not test_api_key:
-            raise HTTPException(status_code=400, detail="base_url 和 api_key 不能为空")
-        
-        # 创建临时模型实例进行测试
-        from server.src.models.chat_model import OpenAIBase
-        test_model = OpenAIBase(
-            api_key=test_api_key,
-            base_url=test_base_url,
-            model_name="test-model"
-        )
-        
-        # 尝试获取模型列表
-        models = test_model.get_models()
-        
-        return {
-            "success": True,
-            "message": "连接测试成功",
-            "models_count": len(models) if models else 0
-        }
-    except Exception as e:
-        logger.error(f"测试模型提供商连接失败: {e}")
-        return {
-            "success": False,
-            "message": f"连接测试失败: {str(e)}"
-        }
+    # 临时设置配置进行测试
+    test_base_url = config_data.get("base_url", config.model_names[provider].get("base_url", ""))
+    test_api_key = config_data.get("api_key", "")
+    
+    if not test_base_url or not test_api_key:
+        raise HTTPException(status_code=400, detail="base_url 和 api_key 不能为空")
+    
+    # 创建临时模型实例进行测试
+    from server.src.models.chat_model import OpenAIBase
+    test_model = OpenAIBase(
+        api_key=test_api_key,
+        base_url=test_base_url,
+        model_name="test-model"
+    )
+    
+    # 尝试获取模型列表
+    models = test_model.get_models()
+    
+    return {
+        "success": True,
+        "message": "连接测试成功",
+        "models_count": len(models) if models else 0
+    }
 
 
 @chat.get("/tools")
@@ -288,9 +257,8 @@ async def get_tools(current_user: User = Depends(get_admin_user)):
 async def save_agent_config(agent_name: str, config: dict = Body(...), current_user: User = Depends(get_admin_user)):
     """保存智能体配置到YAML文件（需要管理员权限）"""
     # 获取Agent实例和配置类
-    try:
-        agent = agent_manager.get_agent_by_identifier(agent_name)
-    except ValueError as e:
+    agent = agent_manager.get_agent_by_identifier(agent_name)
+    if agent is None:
         raise HTTPException(status_code=404, detail=f"智能体 {agent_name} 不存在")
 
     # 使用配置类的save_to_file方法保存配置
@@ -307,11 +275,7 @@ async def save_agent_config(agent_name: str, config: dict = Body(...), current_u
 async def get_agent_history(agent_name: str, thread_id: str, current_user: User = Depends(get_required_user)):
     """获取智能体历史消息（需要登录）"""
     # 获取Agent实例和配置类
-    try:
-        agent = agent_manager.get_agent_by_identifier(agent_name)
-    except ValueError as e:
-        raise HTTPException(status_code=404, detail=f"智能体 {agent_name} 不存在")
-
+    agent = agent_manager.get_agent_by_identifier(agent_name)
     # 获取历史消息
     history = await agent.get_history(user_id=current_user.id, thread_id=thread_id)
     return {"history": history}
@@ -321,10 +285,7 @@ async def get_agent_history(agent_name: str, thread_id: str, current_user: User 
 async def get_agent_config(agent_name: str, current_user: User = Depends(get_required_user)):
     """从YAML文件加载智能体配置（需要登录）"""
     # 检查智能体是否存在
-    try:
-        agent = agent_manager.get_agent_by_identifier(agent_name)
-    except ValueError as e:
-        raise HTTPException(status_code=404, detail=f"智能体 {agent_name} 不存在")
+    agent = agent_manager.get_agent_by_identifier(agent_name)
 
     config_data = agent.config_schema.from_runnable_config(config={}, agent_name=agent_name)
     return {"success": True, "config": config_data}

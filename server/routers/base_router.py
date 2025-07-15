@@ -4,7 +4,7 @@ from pathlib import Path
 from fastapi import Request, Body, Depends, HTTPException
 from fastapi import APIRouter
 
-from server.config import CONFIG_PATH
+from server.config import SITE_INFO_PATH
 from server.src import config, knowledge_base, graph_base
 from server.utils.auth_middleware import get_admin_user, get_superadmin_user
 from server.models.user_model import User
@@ -17,7 +17,7 @@ base = APIRouter(tags=["base"])
 def load_info_config():
     """加载信息配置文件"""
     # 配置文件路径
-    config_path = Path(f"{CONFIG_PATH}/info.local.yaml")
+    config_path = Path(SITE_INFO_PATH)
     # 读取配置文件
     with open(config_path, encoding="utf-8") as file:
         config = yaml.safe_load(file)

@@ -28,7 +28,7 @@ class CustomAgent(Base):
     tags = Column(JSON, nullable=True)  # 标签列表
     
     # 用户关联
-    created_by = Column(String, nullable=False, index=True)  # 创建者用户ID
+    created_by = Column(Integer, nullable=False, index=True)  # 创建者用户ID
     created_at = Column(DateTime, default=func.now())  # 创建时间
     updated_at = Column(DateTime, default=func.now(), onupdate=func.now())  # 更新时间
     deleted_at = Column(DateTime, nullable=True)  # 软删除时间

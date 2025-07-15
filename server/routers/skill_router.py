@@ -14,7 +14,7 @@ from server.utils.auth_middleware import get_required_user, get_admin_user
 from server.src.utils import logger
 
 # 创建路由器
-template_router = APIRouter(prefix="/templates", tags=["templates"])
+skill_router = APIRouter(prefix="/skills", tags=["skills"])
 db_manager = DBManager()
 
 # Pydantic模型用于API参数验证
@@ -61,7 +61,7 @@ class MCPSkillUpdateRequest(BaseModel):
 # 提示词模板相关接口
 # =============================================================================
 
-@template_router.get("/prompts", summary="获取提示词模板列表")
+@skill_router.get("/prompts", summary="获取提示词模板列表")
 async def get_prompt_templates(
     page: int = Query(1, ge=1, description="页码"),
     page_size: int = Query(20, ge=1, le=100, description="每页数量"),
@@ -136,7 +136,7 @@ async def get_prompt_templates(
             }
         }
 
-@template_router.post("/prompts", summary="创建提示词模板")
+@skill_router.post("/prompts", summary="创建提示词模板")
 async def create_prompt_template(
     request: PromptTemplateCreateRequest,
     current_user: User = Depends(get_required_user)
@@ -177,7 +177,7 @@ async def create_prompt_template(
             "data": template.to_dict()
         }
 
-@template_router.get("/prompts/{template_id}", summary="获取提示词模板详情")
+@skill_router.get("/prompts/{template_id}", summary="获取提示词模板详情")
 async def get_prompt_template(
     template_id: str,
     current_user: User = Depends(get_required_user)
@@ -200,107 +200,11 @@ async def get_prompt_template(
             "data": template.to_dict()
         }
 
-@template_router.put("/prompts/{template_id}", summary="更新提示词模板")
-async def update_prompt_template(
-    template_id: str,
-    request: PromptTemplateUpdateRequest,
-    current_user: User = Depends(get_required_user)
-):
-    """更新提示词模板信息"""
-    with db_manager.get_session_context() as session:
-        template = session.query(PromptTemplate).filter(
-            PromptTemplate.template_id == template_id
-        ).first()
-        
-        if not template:
-            raise HTTPException(status_code=404, detail="模板不存在")
-        
-        # 权限检查：只能修改自己的模板，或管理员可以修改系统模板
-        if template.created_by != current_user.id:
-            if not template.is_system or current_user.role != "admin":
-                raise HTTPException(status_code=403, detail="无权限修改此模板")
-        
-        # 更新字段
-        update_data = request.model_dump(exclude_unset=True)
-        for field, value in update_data.items():
-            if hasattr(template, field):
-                setattr(template, field, value)
-        
-        template.updated_at = datetime.utcnow()
-        
-        # 更新使用次数统计
-        if request.name or request.content:  # 如果修改了内容，重置使用统计
-            template.usage_count = 0
-        
-        logger.info(f"用户 {current_user.username} 更新了提示词模板: {template.name}")
-        
-        return {
-            "success": True,
-            "message": "提示词模板更新成功",
-            "data": template.to_dict()
-        }
-
-@template_router.delete("/prompts/{template_id}", summary="删除提示词模板")
-async def delete_prompt_template(
-    template_id: str,
-    current_user: User = Depends(get_required_user)
-):
-    """删除提示词模板"""
-    with db_manager.get_session_context() as session:
-        template = session.query(PromptTemplate).filter(
-            PromptTemplate.template_id == template_id
-        ).first()
-        
-        if not template:
-            raise HTTPException(status_code=404, detail="模板不存在")
-        
-        # 权限检查：只能删除自己的模板，系统模板不能删除
-        if template.is_system:
-            raise HTTPException(status_code=403, detail="系统模板不能删除")
-        
-        if template.created_by != current_user.id:
-            raise HTTPException(status_code=403, detail="无权限删除此模板")
-        
-        session.delete(template)
-        
-        logger.info(f"用户 {current_user.username} 删除了提示词模板: {template.name}")
-        
-        return {
-            "success": True,
-            "message": "提示词模板删除成功"
-        }
-
-@template_router.post("/prompts/{template_id}/use", summary="标记模板使用")
-async def use_prompt_template(
-    template_id: str,
-    current_user: User = Depends(get_required_user)
-):
-    """标记模板被使用，更新使用统计"""
-    with db_manager.get_session_context() as session:
-        template = session.query(PromptTemplate).filter(
-            PromptTemplate.template_id == template_id
-        ).first()
-        
-        if not template:
-            raise HTTPException(status_code=404, detail="模板不存在")
-        
-        # 权限检查：只能使用自己的或系统模板
-        if template.created_by != current_user.id and not template.is_system:
-            raise HTTPException(status_code=403, detail="无权限使用此模板")
-        
-        template.usage_count += 1
-        template.updated_at = datetime.utcnow()
-        
-        return {
-            "success": True,
-            "message": "模板使用统计已更新"
-        }
-
 # =============================================================================
 # MCP技能模板相关接口
 # =============================================================================
 
-@template_router.get("/mcp-skills", summary="获取MCP技能列表")
+@skill_router.get("/mcp-skills", summary="获取MCP技能列表")
 async def get_mcp_skills(
     page: int = Query(1, ge=1, description="页码"),
     page_size: int = Query(20, ge=1, le=100, description="每页数量"),
@@ -368,7 +272,7 @@ async def get_mcp_skills(
             }
         }
 
-@template_router.post("/mcp-skills", summary="注册MCP技能")
+@skill_router.post("/mcp-skills", summary="注册MCP技能")
 async def create_mcp_skill(
     request: MCPSkillCreateRequest,
     current_user: User = Depends(get_required_user)
@@ -408,7 +312,7 @@ async def create_mcp_skill(
             "data": skill.to_dict()
         }
 
-@template_router.get("/mcp-skills/{skill_id}", summary="获取MCP技能详情")
+@skill_router.get("/mcp-skills/{skill_id}", summary="获取MCP技能详情")
 async def get_mcp_skill(
     skill_id: str,
     current_user: User = Depends(get_required_user)
@@ -427,7 +331,7 @@ async def get_mcp_skill(
             "data": skill.to_dict()
         }
 
-@template_router.put("/mcp-skills/{skill_id}", summary="更新MCP技能")
+@skill_router.put("/mcp-skills/{skill_id}", summary="更新MCP技能")
 async def update_mcp_skill(
     skill_id: str,
     request: MCPSkillUpdateRequest,
@@ -462,7 +366,7 @@ async def update_mcp_skill(
             "data": skill.to_dict()
         }
 
-@template_router.delete("/mcp-skills/{skill_id}", summary="删除MCP技能")
+@skill_router.delete("/mcp-skills/{skill_id}", summary="删除MCP技能")
 async def delete_mcp_skill(
     skill_id: str,
     current_user: User = Depends(get_required_user)
@@ -489,7 +393,7 @@ async def delete_mcp_skill(
             "message": "MCP技能删除成功"
         }
 
-@template_router.post("/mcp-skills/{skill_id}/test", summary="测试MCP技能")
+@skill_router.post("/mcp-skills/{skill_id}/test", summary="测试MCP技能")
 async def test_mcp_skill(
     skill_id: str,
     test_params: Dict[str, Any] = Body(..., description="测试参数"),
@@ -545,7 +449,7 @@ async def test_mcp_skill(
 # 统计和分类接口
 # =============================================================================
 
-@template_router.get("/categories", summary="获取分类列表")
+@skill_router.get("/categories", summary="获取分类列表")
 async def get_categories(
     template_type: str = Query("prompt", description="模板类型 (prompt, mcp)"),
     current_user: User = Depends(get_required_user)
@@ -582,7 +486,7 @@ async def get_categories(
             }
         }
 
-@template_router.get("/stats", summary="获取模板统计信息")
+@skill_router.get("/stats", summary="获取模板统计信息")
 async def get_template_stats(
     current_user: User = Depends(get_required_user)
 ):

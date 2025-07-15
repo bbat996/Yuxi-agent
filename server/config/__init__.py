@@ -4,13 +4,12 @@ import yaml
 from pathlib import Path
 from server.src.utils.logging_config import logger
 from dotenv import load_dotenv
+from .constant import CONFIG_PATH, MODELS_PATH, MODELS_PRIVATE_PATH, PROJECT_DIR, SELECTED_CONFIG_PATH, SITE_INFO_PATH
 
 DEFAULT_MOCK_API = "this_is_mock_api_key_in_frontend"
-PROJECT_DIR = Path(__file__).parent.parent.parent
-CONFIG_PATH = PROJECT_DIR / "server/config"
 # 加载 .env 文件
-load_dotenv(f"{PROJECT_DIR}/server/.env")
-print(f"load_dotenv: {PROJECT_DIR}/server/.env")
+load_dotenv(str(Path(PROJECT_DIR) / "server" / ".env"))
+print(f"load_dotenv: {Path(PROJECT_DIR) / 'server' / '.env'}")
 
 
 class SimpleConfig(dict):
@@ -47,7 +46,7 @@ class Config(SimpleConfig):
         super().__init__()
         self._config_items = {}
         self.storage_dir = os.getenv("SAVE_DIR", "storage")
-        self.config_file = str(Path(f"{CONFIG_PATH}/base.yaml"))
+        self.config_file = str(Path(SELECTED_CONFIG_PATH))
         os.makedirs(os.path.dirname(self.config_file), exist_ok=True)
 
         self._update_models_from_file()
@@ -96,18 +95,15 @@ class Config(SimpleConfig):
         从 models.yaml 和 models.private.yml 中更新 MODEL_NAMES
         """
 
-        with open(Path(f"{CONFIG_PATH}/models.yaml"), encoding="utf-8") as f:
+        with open(Path(MODELS_PATH), encoding="utf-8") as f:
             _models = yaml.safe_load(f)
 
         # 尝试打开一个 models.private.yml 文件，用来覆盖 models.yaml 中的配置
         try:
-            with open(Path(f"{CONFIG_PATH}/models.private.yml"), encoding="utf-8") as f:
+            with open(Path(MODELS_PRIVATE_PATH), encoding="utf-8") as f:
                 _models_private = yaml.safe_load(f)
         except FileNotFoundError:
             _models_private = {}
-
-        # 修改为按照子元素合并
-        # _models = {**_models, **_models_private}
 
         self.model_names = {**_models["MODEL_NAMES"], **_models_private.get("MODEL_NAMES", {})}
         self.embed_model_names = {**_models["EMBED_MODEL_INFO"], **_models_private.get("EMBED_MODEL_INFO", {})}
@@ -119,7 +115,7 @@ class Config(SimpleConfig):
             "EMBED_MODEL_INFO": self.embed_model_names,
             "RERANKER_LIST": self.reranker_names,
         }
-        with open(Path(f"{CONFIG_PATH}/models.private.yml"), "w", encoding="utf-8") as f:
+        with open(Path(MODELS_PRIVATE_PATH), "w", encoding="utf-8") as f:
             yaml.dump(_models, f, indent=2, allow_unicode=True)
 
     def update_provider_config(self, provider: str, config_data: dict):
@@ -135,6 +131,8 @@ class Config(SimpleConfig):
             env_key = self.model_names[provider].get("env", [None])[0]
             if env_key:
                 os.environ[env_key] = config_data["api_key"]
+            # 同步写入到配置，保证保存到文件
+            self.model_names[provider]["api_key"] = config_data["api_key"]
         
         # 保存到配置文件
         self._save_models_to_file()
@@ -227,17 +225,7 @@ class Config(SimpleConfig):
         """根据传入的文件覆盖掉默认配置"""
         logger.info(f"Loading config from {self.config_file}")
         if self.config_file is not None and os.path.exists(self.config_file):
-
-            if self.config_file.endswith(".json"):
-                with open(self.config_file) as f:
-                    content = f.read()
-                    if content:
-                        local_config = json.loads(content)
-                        self.update(local_config)
-                    else:
-                        print(f"{self.config_file} is empty.")
-
-            elif self.config_file.endswith(".yaml"):
+            if self.config_file.endswith(".yaml"):
                 with open(self.config_file) as f:
                     content = f.read()
                     if content:
@@ -250,17 +238,13 @@ class Config(SimpleConfig):
 
     def save(self):
         logger.info(f"Saving config to {self.config_file}")
-        if self.config_file.endswith(".json"):
-            with open(self.config_file, "w+") as f:
-                json.dump(self.__dict__(), f, indent=4, ensure_ascii=False)
-        elif self.config_file.endswith(".yaml"):
+        if self.config_file.endswith(".yaml"):
             with open(self.config_file, "w+") as f:
                 yaml.dump(self.__dict__(), f, indent=2, allow_unicode=True)
         else:
-            logger.warning(f"Unknown config file type {self.config_file}, save as json")
+            logger.warning(f"Unknown config file type {self.config_file}, save as yaml")
             with open(self.config_file, "w+") as f:
-                json.dump(self, f, indent=4)
-
+                yaml.dump(self.__dict__(), f, indent=2, allow_unicode=True)
         logger.info(f"Config file {self.config_file} saved")
 
     def dump_config(self):

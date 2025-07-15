@@ -16,29 +16,6 @@ agent_router = APIRouter(prefix="/agents", tags=["agents"])
 db_manager = DBManager()
 
 
-# Pydantic模型用于API参数验证 - 匹配ChatbotConfiguration结构
-class ModelConfig(BaseModel):
-    """模型配置"""
-
-    provider: str = Field(default="zhipu", description="模型提供商")
-    model_name: str = Field(default="glm-4-plus", description="模型名称")
-    parameters: Optional[Dict[str, Any]] = Field(default_factory=dict, description="模型参数")
-
-
-class ToolsConfig(BaseModel):
-    """工具配置"""
-
-    builtin_tools: Optional[List[str]] = Field(default_factory=list, description="内置工具列表")
-    mcp_skills: Optional[Dict[str, Any]] = Field(default_factory=dict, description="MCP技能配置")
-
-
-class KnowledgeConfig(BaseModel):
-    """知识库配置"""
-
-    databases: Optional[List[str]] = Field(default_factory=list, description="知识库ID列表")
-    retrieval_params: Optional[Dict[str, Any]] = Field(default_factory=dict, description="检索参数")
-
-
 class AgentCreateRequest(BaseModel):
     name: str = Field(..., min_length=1, max_length=100, description="智能体名称")
     description: Optional[str] = Field(None, max_length=500, description="智能体描述")
@@ -646,3 +623,26 @@ async def get_agent_config(agent_id: str, current_user: User = Depends(get_requi
                 "config": config,
             },
         }
+
+
+@agent_router.get("/{agent_id}/stats", summary="获取智能体统计信息")
+async def get_agent_stats(agent_id: str, current_user: User = Depends(get_required_user)):
+    """获取智能体的统计信息（如实例数量、创建时间、最后更新时间）"""
+    with db_manager.get_session_context() as session:
+        agent = session.query(CustomAgent).filter(
+            and_(CustomAgent.agent_id == agent_id, CustomAgent.deleted_at.is_(None))
+        ).first()
+        if not agent:
+            raise HTTPException(status_code=404, detail="智能体不存在")
+
+        # 统计该 agent 的实例数量
+        instance_count = session.query(AgentInstance).filter(AgentInstance.agent_id == agent_id).count()
+
+        stats = {
+            "agent_id": agent.agent_id,
+            "name": agent.name,
+            "created_at": agent.created_at,
+            "updated_at": agent.updated_at,
+            "instance_count": instance_count,
+        }
+        return {"success": True, "data": stats}

@@ -13,7 +13,7 @@ organization:
 
 # 品牌信息
 branding:
-  title: "Yuxi-Know"                           # 系统标题
+  title: "超级个体"                           # 系统标题
   subtitle: "大模型驱动的知识库管理工具"          # 副标题
   description: "结合知识库与知识图谱，提供更准确、更全面的回答"  # 描述信息
 

@@ -3,7 +3,7 @@ default_agent_id: ''
 embed_model: ollama/nomic-embed-text
 enable_reranker: false
 enable_web_search: true
-model_dir: D:/Huggingface
+model_dir: ./Huggingface
 model_name: doubao-1-5-pro-32k-250115
 model_provider: ark
 reranker: siliconflow/BAAI/bge-reranker-v2-m3
