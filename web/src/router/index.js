@@ -14,7 +14,7 @@ const router = createRouter({
         {
           path: '',
           name: 'Home',
-          component: () => import('../views/HomeView.vue'),
+          component: () => import('@/views/HomeView.vue'),
           meta: { keepAlive: true, requiresAuth: false }
         }
       ]
@@ -22,7 +22,7 @@ const router = createRouter({
     {
       path: '/login',
       name: 'login',
-      component: () => import('../views/LoginView.vue'),
+      component: () => import('@/views/LoginView.vue'),
       meta: { requiresAuth: false }
     },
     {
@@ -34,19 +34,19 @@ const router = createRouter({
         {
           path: '',
           name: 'AgentHome',
-          component: () => import('../views/AgentHomeView.vue'),
+          component: () => import('@/views/AgentHomeView.vue'),
           meta: { keepAlive: true, requiresAuth: true, requiresAdmin: true }
         },
         {
           path: 'chat',
           name: 'AgentChat',
-          component: () => import('../views/AgentView.vue'),
+          component: () => import('@/views/AgentView.vue'),
           meta: { keepAlive: true, requiresAuth: true, requiresAdmin: true }
         },
         {
           path: 'edit/:agent_id',
           name: 'AgentEdit',
-          component: () => import('../views/AgentEditView.vue'),
+          component: () => import('@/views/AgentEditView.vue'),
           meta: { keepAlive: false, requiresAuth: true, requiresAdmin: true }
         }
       ]
@@ -54,7 +54,7 @@ const router = createRouter({
     {
       path: '/agent/:agent_id',
       name: 'AgentSinglePage',
-      component: () => import('../views/AgentSingleView.vue'),
+      component: () => import('@/views/AgentSingleView.vue'),
       meta: { requiresAuth: true }
     },
     {
@@ -65,7 +65,7 @@ const router = createRouter({
         {
           path: '',
           name: 'GraphComp',
-          component: () => import('../views/GraphView.vue'),
+          component: () => import('@/views/GraphView.vue'),
           meta: { keepAlive: false, requiresAuth: true, requiresAdmin: true }
         }
       ]
@@ -78,13 +78,13 @@ const router = createRouter({
         {
           path: '',
           name: 'DatabaseComp',
-          component: () => import('../views/DataBaseView.vue'),
+          component: () => import('@/views/DataBaseView.vue'),
           meta: { keepAlive: true, requiresAuth: true, requiresAdmin: true }
         },
         {
           path: ':database_id',
           name: 'DatabaseInfoComp',
-          component: () => import('../views/DataBaseInfoView.vue'),
+          component: () => import('@/views/DataBaseInfoView.vue'),
           meta: { keepAlive: false, requiresAuth: true, requiresAdmin: true }
         }
       ]
@@ -97,7 +97,7 @@ const router = createRouter({
         {
           path: '',
           name: 'SettingComp',
-          component: () => import('../views/SettingView.vue'),
+          component: () => import('@/views/SettingView.vue'),
           meta: { keepAlive: true, requiresAuth: true, requiresAdmin: true }
         }
       ]
@@ -105,7 +105,7 @@ const router = createRouter({
     {
       path: '/:pathMatch(.*)*',
       name: 'NotFound',
-      component: () => import('../views/EmptyView.vue'),
+      component: () => import('@/views/EmptyView.vue'),
       meta: { requiresAuth: false }
     },
   ]

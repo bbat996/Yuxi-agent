@@ -33,21 +33,6 @@
         <span>正在加载历史记录...</span>
       </div>
 
-      <div v-else-if="convs.length === 0 && !onGoingConv.messages.length" class="chat-examples">
-        <!-- 智能体信息面板 -->
-        <AgentInfoPanel
-          :agent="currentAgent"
-          :config="props.config"
-          :mcp-logs="mcpLogs"
-          :stats="chatStats"
-          :default-collapsed="false"
-          @panel-toggle="handleInfoPanelToggle"
-        />
-
-        <h1>{{ currentAgent ? currentAgent.name : '请选择一个智能体开始对话' }}</h1>
-        <p>{{ currentAgent ? currentAgent.description : '不同的智能体有不同的专长和能力' }}</p>
-      </div>
-
       <div class="chat-box" ref="messagesContainer">
         <div class="conv-box" v-for="(conv, index) in convs" :key="index">
           <AgentMessageComponent
@@ -118,15 +103,11 @@
 
 <script setup>
 import { ref, reactive, onMounted, watch, nextTick, computed, onUnmounted, toRaw } from 'vue'
-import { ShareAltOutlined, LoadingOutlined } from '@ant-design/icons-vue'
 import { message } from 'ant-design-vue'
 import MessageInputComponent from '@/components/message/MessageInputComponent.vue'
 import AgentMessageComponent from '@/components/agent/AgentMessageComponent.vue'
-import ChatSidebarComponent from '@/components/chat/ChatSidebarComponent.vue'
 import RefsComponent from '@/components/message/RefsComponent.vue'
-import AgentInfoPanel from '@/components/agent/AgentInfoPanel.vue'
 import { chatApi, threadApi } from '@/apis/auth_api'
-import { PanelLeftOpen, MessageSquarePlus } from 'lucide-vue-next'
 
 // 新增props属性，允许父组件传入agentId
 const props = defineProps({
