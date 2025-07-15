@@ -5,7 +5,7 @@
 import { apiRequest, apiGet, apiPost, apiPut, apiDelete } from './base'
 
 // =============================================================================
-// 提示词模板相关API
+// 提示词模板相关API（只保留查询接口）
 // =============================================================================
 
 /**
@@ -22,7 +22,7 @@ import { apiRequest, apiGet, apiPost, apiPut, apiDelete } from './base'
  * @returns {Promise} API响应
  */
 export const getPromptTemplates = (params = {}) => {
-  return apiGet('/api/templates/prompts', params, true)
+  return apiGet('/api/skills/prompts', params, true)
 }
 
 /**
@@ -31,49 +31,7 @@ export const getPromptTemplates = (params = {}) => {
  * @returns {Promise} API响应
  */
 export const getPromptTemplate = (templateId) => {
-  return apiGet(`/api/templates/prompts/${templateId}`, {}, true)
-}
-
-/**
- * 创建提示词模板
- * @param {Object} data - 模板数据
- * @param {string} data.name - 模板名称
- * @param {string} data.content - 模板内容
- * @param {string} data.category - 分类
- * @param {string} data.description - 描述
- * @param {Array} data.variables - 变量定义
- * @returns {Promise} API响应
- */
-export const createPromptTemplate = (data) => {
-  return apiPost('/api/templates/prompts', data, {}, true)
-}
-
-/**
- * 更新提示词模板
- * @param {string} templateId - 模板ID
- * @param {Object} data - 更新数据
- * @returns {Promise} API响应
- */
-export const updatePromptTemplate = (templateId, data) => {
-  return apiPut(`/api/templates/prompts/${templateId}`, data, {}, true)
-}
-
-/**
- * 删除提示词模板
- * @param {string} templateId - 模板ID
- * @returns {Promise} API响应
- */
-export const deletePromptTemplate = (templateId) => {
-  return apiDelete(`/api/templates/prompts/${templateId}`, {}, true)
-}
-
-/**
- * 标记模板使用
- * @param {string} templateId - 模板ID
- * @returns {Promise} API响应
- */
-export const usePromptTemplate = (templateId) => {
-  return apiPost(`/api/templates/prompts/${templateId}/use`, {}, {}, true)
+  return apiGet(`/api/skills/prompts/${templateId}`, {}, true)
 }
 
 // =============================================================================
@@ -94,7 +52,7 @@ export const usePromptTemplate = (templateId) => {
  * @returns {Promise} API响应
  */
 export const getMCPSkills = (params = {}) => {
-  return apiGet('/api/templates/mcp-skills', params, true)
+  return apiGet('/api/skills/mcp-skills', params, true)
 }
 
 /**
@@ -103,7 +61,7 @@ export const getMCPSkills = (params = {}) => {
  * @returns {Promise} API响应
  */
 export const getMCPSkill = (skillId) => {
-  return apiGet(`/api/templates/mcp-skills/${skillId}`, {}, true)
+  return apiGet(`/api/skills/mcp-skills/${skillId}`, {}, true)
 }
 
 /**
@@ -120,7 +78,7 @@ export const getMCPSkill = (skillId) => {
  * @returns {Promise} API响应
  */
 export const createMCPSkill = (data) => {
-  return apiPost('/api/templates/mcp-skills', data, {}, true)
+  return apiPost('/api/skills/mcp-skills', data, {}, true)
 }
 
 /**
@@ -130,7 +88,7 @@ export const createMCPSkill = (data) => {
  * @returns {Promise} API响应
  */
 export const updateMCPSkill = (skillId, data) => {
-  return apiPut(`/api/templates/mcp-skills/${skillId}`, data, {}, true)
+  return apiPut(`/api/skills/mcp-skills/${skillId}`, data, {}, true)
 }
 
 /**
@@ -139,7 +97,7 @@ export const updateMCPSkill = (skillId, data) => {
  * @returns {Promise} API响应
  */
 export const deleteMCPSkill = (skillId) => {
-  return apiDelete(`/api/templates/mcp-skills/${skillId}`, {}, true)
+  return apiDelete(`/api/skills/mcp-skills/${skillId}`, {}, true)
 }
 
 /**
@@ -149,7 +107,7 @@ export const deleteMCPSkill = (skillId) => {
  * @returns {Promise} API响应
  */
 export const testMCPSkill = (skillId, testParams) => {
-  return apiPost(`/api/templates/mcp-skills/${skillId}/test`, testParams, {}, true)
+  return apiPost(`/api/skills/mcp-skills/${skillId}/test`, testParams, {}, true)
 }
 
 // =============================================================================
@@ -162,7 +120,7 @@ export const testMCPSkill = (skillId, testParams) => {
  * @returns {Promise} API响应
  */
 export const getCategories = (templateType = 'prompt') => {
-  return apiGet('/api/templates/categories', { template_type: templateType }, true)
+  return apiGet('/api/skills/categories', { template_type: templateType }, true)
 }
 
 /**
@@ -170,19 +128,15 @@ export const getCategories = (templateType = 'prompt') => {
  * @returns {Promise} API响应
  */
 export const getTemplateStats = () => {
-  return apiGet('/api/templates/stats', {}, true)
+  return apiGet('/api/skills/stats', {}, true)
 }
 
 // 模板API对象，包含所有模板相关的API方法
 export const templateAPI = {
-  // 提示词模板
+  // 提示词模板（只保留查询）
   getPromptTemplates,
   getPromptTemplate,
-  createPromptTemplate,
-  updatePromptTemplate,
-  deletePromptTemplate,
-  usePromptTemplate,
-  
+
   // MCP技能
   getMCPSkills,
   getMCPSkill,

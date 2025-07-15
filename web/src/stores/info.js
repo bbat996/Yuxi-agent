@@ -9,31 +9,16 @@ export const useInfoStore = defineStore('info', () => {
   const isLoaded = ref(false)
 
   // 计算属性 - 组织信息
-  const organization = computed(() => infoConfig.value.organization || {
-    name: "江南语析",
-    short_name: "语析",
-    logo: "/favicon.svg",
-    avatar: "/avatar.jpg"
-  })
+  const organization = computed(() => infoConfig.value.organization )
 
   // 计算属性 - 品牌信息
-  const branding = computed(() => infoConfig.value.branding || {
-    title: "Yuxi-Know",
-    subtitle: "大模型驱动的知识库管理工具",
-    description: "结合知识库与知识图谱，提供更准确、更全面的回答"
-  })
+  const branding = computed(() => infoConfig.value.branding)
 
   // 计算属性 - 功能特性
-  const features = computed(() => infoConfig.value.features || [
-    "📚 灵活知识库",
-    "🕸️ 知识图谱集成",
-    "🤖 多模型支持"
-  ])
+  const features = computed(() => infoConfig.value.features)
 
   // 计算属性 - 页脚信息
-  const footer = computed(() => infoConfig.value.footer || {
-    copyright: "© 江南语析 2025 [WIP] v0.12.138"
-  })
+  const footer = computed(() => infoConfig.value.footer)
 
   // 动作方法
   function setInfoConfig(newConfig) {

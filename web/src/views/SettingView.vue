@@ -10,9 +10,7 @@
     <div class="setting-container layout-container">
       <div class="sider" v-if="state.windowWidth > 520">
         <a-button type="text" v-if="userStore.isSuperAdmin" :class="{ activesec: state.section === 'base'}" @click="state.section='base'" :icon="h(SettingOutlined)"> 基本设置 </a-button>
-        <a-button type="text" :class="{ activesec: state.section === 'agent'}" @click="state.section='agent'" :icon="h(TeamOutlined)"> 智能体 </a-button>
         <a-button type="text" v-if="userStore.isSuperAdmin" :class="{ activesec: state.section === 'model'}" @click="state.section='model'" :icon="h(CodeOutlined)"> 模型配置 </a-button>
-        <a-button type="text" :class="{ activesec: state.section === 'templates'}" @click="state.section='templates'" :icon="h(FileTextOutlined)"> 提示词模板 </a-button>
         <a-button type="text" :class="{ activesec: state.section === 'mcp-skills'}" @click="state.section='mcp-skills'" :icon="h(ToolOutlined)"> MCP技能 </a-button>
         <a-button type="text" :class="{ activesec: state.section === 'user'}" @click="state.section='user'" :icon="h(UserOutlined)" v-if="userStore.isAdmin"> 用户管理 </a-button>
       </div>
@@ -55,13 +53,7 @@
       </div>
       <div class="setting" v-if="(state.windowWidth <= 520 || state.section === 'model') && userStore.isSuperAdmin">
         <h3>模型配置</h3>
-        <p>请在 <code>src/.env</code> 文件中配置对应的 APIKEY，并重新启动服务</p>
         <ModelProvidersComponent />
-      </div>
-      
-      <!-- 提示词模板管理 -->
-      <div class="setting" v-if="state.windowWidth <= 520 || state.section === 'templates'">
-        <PromptTemplateManagement />
       </div>
       
       <!-- MCP技能管理 -->
@@ -72,12 +64,6 @@
       <!-- 用户管理 -->
       <div class="setting" v-if="state.section === 'user' && userStore.isAdmin">
          <UserManagementComponent />
-      </div>
-
-      <!-- 智能体管理 -->
-      <div class="setting" v-if="state.windowWidth <= 520 || state.section === 'agent'">
-        <AgentManagementComponent v-if="currentView === 'list'" @edit-agent="toEdit" />
-        <AgentEditPanel v-else :agentId="editingAgentId" @back="toList" />
       </div>
     </div>
   </div>
@@ -93,20 +79,15 @@ import {
   SettingOutlined,
   CodeOutlined,
   UserOutlined,
-  FileTextOutlined,
-  ToolOutlined,
-  TeamOutlined
+  ToolOutlined
 } from '@ant-design/icons-vue';
 import HeaderComponent from '@/components/HeaderComponent.vue';
 import ModelProvidersComponent from '@/components/model/ModelProvidersComponent.vue';
 import UserManagementComponent from '@/components/user/UserManagementComponent.vue';
-import PromptTemplateManagement from '@/components/prompt_templates/PromptTemplateManagement.vue';
 import MCPSkillManagement from '@/components/mcp_skill/MCPSkillManagement.vue';
 import { notification, Button } from 'ant-design-vue';
 import { systemConfigApi } from '@/apis/admin_api'
 import ModelSelectorComponent from '@/components/model/ModelSelectorComponent.vue';
-import AgentManagementComponent from '@/components/agent/AgentManagementComponent.vue';
-import AgentEditPanel from '@/components/agent/AgentEditPanel.vue'
 
 const configStore = useConfigStore()
 const userStore = useUserStore()
@@ -166,21 +147,10 @@ const handleChatModelSelect = ({ provider, name }) => {
   })
 }
 
-const currentView = ref('list')
-const editingAgentId = ref(null)
-
-function toEdit(agentId) {
-  editingAgentId.value = agentId
-  currentView.value = 'edit'
-}
-function toList() {
-  currentView.value = 'list'
-}
-
 onMounted(() => {
   updateWindowWidth()
   window.addEventListener('resize', updateWindowWidth)
-  state.section = userStore.isSuperAdmin ? 'base' : (userStore.isAdmin ? 'user' : 'templates')
+  state.section = userStore.isSuperAdmin ? 'base' : (userStore.isAdmin ? 'user' : 'mcp-skills')
 })
 
 onUnmounted(() => {
@@ -265,7 +235,7 @@ const sendRestart = () => {
 .setting {
   width: 100%;
   flex: 1;
-  margin: 0 auto;
+  margin: 10px auto;
   height: 100%;
   padding: 0 20px;
   margin-bottom: 40px;

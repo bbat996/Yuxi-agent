@@ -33,15 +33,21 @@ const router = createRouter({
       children: [
         {
           path: '',
-          name: 'AgentComp',
+          name: 'AgentHome',
+          component: () => import('../views/AgentHomeView.vue'),
+          meta: { keepAlive: true, requiresAuth: true, requiresAdmin: true }
+        },
+        {
+          path: 'chat',
+          name: 'AgentChat',
           component: () => import('../views/AgentView.vue'),
           meta: { keepAlive: true, requiresAuth: true, requiresAdmin: true }
         },
         {
-          path: 'management',
-          name: 'AgentManagement',
-          component: () => import('../views/AgentManagementView.vue'),
-          meta: { keepAlive: true, requiresAuth: true, requiresAdmin: true }
+          path: 'edit/:agent_id',
+          name: 'AgentEdit',
+          component: () => import('../views/AgentEditView.vue'),
+          meta: { keepAlive: false, requiresAuth: true, requiresAdmin: true }
         }
       ]
     },

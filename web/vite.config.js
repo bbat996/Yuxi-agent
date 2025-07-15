@@ -11,7 +11,7 @@ export default defineConfig(({ mode }) => {
       Inspector({
         toggleButtonVisibility: 'always',
         toggleComboKey: 'control-shift', // 在 macOS 上使用 'meta-shift'
-        
+        toggleButtonPos: 'bottom-right'
       })
     ],
     resolve: {

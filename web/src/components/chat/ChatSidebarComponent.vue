@@ -212,7 +212,7 @@ const toggleCollapse = () => {
       padding: 8px 16px;
       height: fit-content;
       border-radius: 8px;
-      background-color: var(--gray-200);
+      background-color: var(--gray-300);
       color: var(--main-color);
       border: none;
       transition: all 0.2s ease;

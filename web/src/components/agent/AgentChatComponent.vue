@@ -62,21 +62,6 @@
         <span>正在加载历史记录...</span>
       </div>
 
-      <div v-else-if="convs.length === 0 && !onGoingConv.messages.length" class="chat-examples">
-        <!-- 智能体信息面板 -->
-        <AgentInfoPanel
-          :agent="currentAgent"
-          :config="props.config"
-          :mcp-logs="mcpLogs"
-          :stats="chatStats"
-          :default-collapsed="false"
-          @panel-toggle="handleInfoPanelToggle"
-        />
-
-        <h1>{{ currentAgent ? currentAgent.name : '请选择一个智能体开始对话' }}</h1>
-        <p>{{ currentAgent ? currentAgent.description : '不同的智能体有不同的专长和能力' }}</p>
-      </div>
-
       <div class="chat-box" ref="messagesContainer">
         <div class="conv-box" v-for="(conv, index) in convs" :key="index">
           <AgentMessageComponent
@@ -153,7 +138,6 @@ import MessageInputComponent from '@/components/message/MessageInputComponent.vu
 import AgentMessageComponent from '@/components/agent/AgentMessageComponent.vue'
 import ChatSidebarComponent from '@/components/chat/ChatSidebarComponent.vue'
 import RefsComponent from '@/components/message/RefsComponent.vue'
-import AgentInfoPanel from '@/components/agent/AgentInfoPanel.vue'
 import { chatApi, threadApi } from '@/apis/auth_api'
 import { PanelLeftOpen, MessageSquarePlus } from 'lucide-vue-next';
 
@@ -1515,7 +1499,7 @@ const mergeMessageChunk = (chunks) => {
   padding: 0 50px;
   text-align: center;
   position: absolute;
-  top: 20%;
+  top: 200px;
   width: 100%;
   z-index: 9;
   animation: slideInUp 0.5s ease-out;

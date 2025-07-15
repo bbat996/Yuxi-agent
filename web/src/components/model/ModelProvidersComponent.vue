@@ -45,9 +45,9 @@
             </div>
           </div>
           <div class="provider-actions">
-            <a-button type="text" size="small" @click.stop="openProviderConfig(item)">
+            <!-- <a-button type="text" size="small" @click.stop="openProviderConfig(item)">
               <template #icon><SettingOutlined /></template>
-            </a-button>
+            </a-button> -->
           </div>
         </div>
       </div>
@@ -74,9 +74,9 @@
             </div>
           </div>
           <div class="provider-actions">
-            <a-button type="text" size="small" @click.stop="openProviderConfig(item)">
+            <!-- <a-button type="text" size="small" @click.stop="openProviderConfig(item)">
               <template #icon><SettingOutlined /></template>
-            </a-button>
+            </a-button> -->
             <a :href="modelNames[item].url" target="_blank" class="info-link">
               <InfoCircleOutlined />
             </a>
@@ -161,11 +161,7 @@
               <template #icon><SettingOutlined /></template>
               连接配置
             </a-button>
-            <a-button type="primary" @click="openProviderConfig(selectedProvider)">
-              <template #icon><SettingOutlined /></template>
-              配置模型
-            </a-button>
-            <a-button type="default" @click="openAddModelModal(selectedProvider)" style="margin-left: 8px;">
+            <a-button type="primary" @click="openAddModelModal(selectedProvider)" style="margin-left: 8px;">
               <template #icon><EditOutlined /></template>
               添加模型
             </a-button>
@@ -401,6 +397,14 @@
           >
             测试连接
           </a-button>
+          <a-button 
+            type="text" 
+            danger
+            @click="clearLocalProviderConfig"
+            style="margin-left: 8px;"
+          >
+            清除本地配置
+          </a-button>
         </div>
 
         <div v-if="providerSettings.testResult" class="test-result">
@@ -507,6 +511,41 @@ const providerSettings = reactive({
   testing: false,
   testResult: null
 })
+
+// 本地存储提供商配置的键名
+const getProviderConfigKey = (provider) => `provider_config_${provider}`
+
+// 从本地存储获取提供商配置
+const getLocalProviderConfig = (provider) => {
+  try {
+    const stored = localStorage.getItem(getProviderConfigKey(provider))
+    return stored ? JSON.parse(stored) : null
+  } catch (error) {
+    console.error('获取本地提供商配置失败:', error)
+    return null
+  }
+}
+
+// 保存提供商配置到本地存储
+const saveLocalProviderConfig = (provider, config) => {
+  try {
+    localStorage.setItem(getProviderConfigKey(provider), JSON.stringify(config))
+  } catch (error) {
+    console.error('保存本地提供商配置失败:', error)
+  }
+}
+
+// 清除本地存储的提供商配置
+const clearLocalProviderConfig = () => {
+  try {
+    localStorage.removeItem(getProviderConfigKey(providerSettings.provider))
+    providerSettings.form.api_key = ''
+    message.success('本地配置已清除')
+  } catch (error) {
+    console.error('清除本地提供商配置失败:', error)
+    message.error('清除本地配置失败')
+  }
+}
 
 // 添加模型状态
 const addModel = reactive({
@@ -769,9 +808,21 @@ const openProviderSettings = async (provider) => {
     if (config.base_url) {
       providerSettings.form.base_url = config.base_url
     }
-    // API Key 不会从后端返回，需要用户重新输入
+    
+    // 从本地存储获取API Key
+    const localConfig = getLocalProviderConfig(provider)
+    if (localConfig && localConfig.api_key) {
+      providerSettings.form.api_key = localConfig.api_key
+    }
   } catch (error) {
     console.error('获取提供商配置失败:', error)
+    
+    // 如果后端获取失败，尝试从本地存储获取完整配置
+    const localConfig = getLocalProviderConfig(provider)
+    if (localConfig) {
+      providerSettings.form.base_url = localConfig.base_url || ''
+      providerSettings.form.api_key = localConfig.api_key || ''
+    }
   } finally {
     providerSettings.loading = false
   }
@@ -794,6 +845,12 @@ const saveProviderSettings = async () => {
     )
     console.log('更新后的提供商配置:', data)
 
+    // 保存到本地存储
+    saveLocalProviderConfig(providerSettings.provider, {
+      base_url: providerSettings.form.base_url,
+      api_key: providerSettings.form.api_key
+    })
+
     message.success({ content: '提供商配置已保存!', key: 'save-settings', duration: 2 })
 
     // 关闭弹窗
@@ -804,6 +861,8 @@ const saveProviderSettings = async () => {
   } catch (error) {
     console.error('保存提供商配置失败:', error)
     message.error({ content: '保存提供商配置失败: ' + error.message, key: 'save-settings', duration: 2 })
+  } finally {
+    message.destroy('save-settings')
   }
 }
 
@@ -834,6 +893,14 @@ const testProviderConnection = async () => {
     providerSettings.testResult = {
       success: response.success,
       message: response.message
+    }
+    
+    // 测试成功后，保存到本地存储
+    if (response.success) {
+      saveLocalProviderConfig(providerSettings.provider, {
+        base_url: providerSettings.form.base_url,
+        api_key: providerSettings.form.api_key
+      })
     }
   } catch (error) {
     console.error('提供商连接测试失败:', error)

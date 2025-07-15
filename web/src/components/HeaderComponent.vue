@@ -6,9 +6,6 @@
       </div>
       <div class="header-title">
         <h1>{{ title }}</h1>
-        <slot name="description">
-          <p v-if="description">{{ description }}</p>
-        </slot>
       </div>
       <div class="header-actions" v-if="$slots.actions">
         <loading-outlined v-if="loading" />
@@ -38,7 +35,7 @@ const props = defineProps({
 
 <style scoped lang="less">
 .header-container {
-  background-color: F5F5F5;
+  background-color: var(--gray-200);
   backdrop-filter: blur(10px);
   padding: 16px 24px;
   border-bottom: 1px solid #f0f0f0;

@@ -1,7 +1,7 @@
 <template>
   <div class="agent-edit-view">
     <div class="left-panel">
-      <a-button @click="$emit('back')" style="margin-bottom: 16px;" type="text" shape="circle" title="返回">
+      <a-button @click="goBack" style="margin-bottom: 16px;" type="text" shape="circle" title="返回">
         <template #icon>
           <template v-if="$antIcons && $antIcons.ArrowLeftOutlined">
             <ArrowLeftOutlined />
@@ -83,7 +83,7 @@
         </a-step>
       </a-steps>
       <a-form-item style="margin-top: 24px;">
-        <a-button type="primary" html-type="submit" :loading="saving">保存</a-button>
+        <a-button type="primary" html-type="submit" :loading="saving" @click="onSave">保存</a-button>
       </a-form-item>
     </div>
     <div class="right-panel">
@@ -94,10 +94,17 @@
 
 <script setup>
 import { ref, onMounted, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { message } from 'ant-design-vue'
-import AgentChatComponent from '@/components/agent/AgentChatComponent.vue'
-import SimpleAgentChat from './SimpleAgentChat.vue'
-const props = defineProps({ agentId: String })
+import { ArrowLeftOutlined } from '@ant-design/icons-vue'
+import SimpleAgentChat from '@/components/agent/SimpleAgentChat.vue'
+
+const route = useRoute()
+const router = useRouter()
+
+// 从路由参数获取agentId
+const agentId = ref(route.params.agent_id)
+
 const form = ref({
   name: '',
   description: '',
@@ -112,27 +119,77 @@ const form = ref({
   skills: [],
   visual: false
 })
+
 const knowledgeList = ref([])
 const mcpList = ref([])
 const skillList = ref([])
 const saving = ref(false)
 
-watch(() => props.agentId, async (newId) => {
+// 监听路由参数变化
+watch(() => route.params.agent_id, (newId) => {
+  agentId.value = newId
   if (newId) {
-    // TODO: 拉取agent详情，填充form
+    loadAgentData()
   }
 }, { immediate: true })
 
+// 返回上一页
+const goBack = () => {
+  router.back()
+}
+
+// 加载智能体数据
+const loadAgentData = async () => {
+  if (!agentId.value) return
+  
+  try {
+    // TODO: 拉取agent详情，填充form
+    // const response = await getAgentDetail(agentId.value)
+    // if (response.success) {
+    //   form.value = { ...form.value, ...response.data }
+    // }
+  } catch (error) {
+    console.error('加载智能体数据失败:', error)
+    message.error('加载智能体数据失败')
+  }
+}
+
 onMounted(async () => {
   // TODO: 拉取知识库、MCP服务、技能列表
+  // try {
+  //   const [knowledgeResponse, mcpResponse, skillResponse] = await Promise.all([
+  //     getKnowledgeList(),
+  //     getMCPList(),
+  //     getSkillList()
+  //   ])
+  //   
+  //   if (knowledgeResponse.success) {
+  //     knowledgeList.value = knowledgeResponse.data
+  //   }
+  //   if (mcpResponse.success) {
+  //     mcpList.value = mcpResponse.data
+  //   }
+  //   if (skillResponse.success) {
+  //     skillList.value = skillResponse.data
+  //   }
+  // } catch (error) {
+  //   console.error('加载配置数据失败:', error)
+  // }
 })
 
 const onSave = async () => {
   saving.value = true
   try {
     // TODO: 保存API
+    // const response = await saveAgent(agentId.value, form.value)
+    // if (response.success) {
+    //   message.success('保存成功')
+    // } else {
+    //   message.error(response.message || '保存失败')
+    // }
     message.success('保存成功')
   } catch (e) {
+    console.error('保存失败:', e)
     message.error('保存失败')
   } finally {
     saving.value = false

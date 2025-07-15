@@ -43,12 +43,19 @@ export const useConfigStore = defineStore('config', () => {
   }
 
   function refreshConfig() {
-    systemConfigApi.getSystemConfig()
+    return systemConfigApi.getSystemConfig()
       .then(data => {
         console.log("config", data)
         setConfig(data)
+        return data
       })
   }
 
-  return { config, setConfig, setConfigValue, refreshConfig, setConfigValues }
+  return { 
+    config, 
+    setConfig, 
+    setConfigValue, 
+    refreshConfig, 
+    setConfigValues
+  }
 })

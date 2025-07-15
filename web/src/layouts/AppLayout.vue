@@ -154,6 +154,13 @@ const mainList = [
     activeIcon: Bot
   },
   {
+    name: '智能体管理',
+    path: '/agent/management',
+    icon: Settings,
+    activeIcon: Settings,
+    hidden: !configStore.config.enable_agent_management
+  },
+  {
     name: '知识库',
     path: '/database',
     icon: LibraryBig,
