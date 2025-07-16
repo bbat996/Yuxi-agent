@@ -10,11 +10,10 @@ export default defineConfig(({ mode }) => {
       vue(),
       Inspector({
         toggleButtonVisibility: 'always',
-        toggleComboKey: 'control-shift', // 在 macOS 上使用 'meta-shift'
+        toggleComboKey: 'control-shift',
         toggleButtonPos: 'bottom-right',
-        enabled: false,
         launchEditor: 'cursor'
-      })
+      } )
     ],
     resolve: {
       alias: {

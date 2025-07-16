@@ -5,11 +5,14 @@ from typing import Dict, List, Optional
 from pydantic import BaseModel, Field
 from pydantic_settings import BaseSettings
 
+# 项目路径常量
+PROJECT_DIR = Path(__file__).parent.parent.parent
+
 # 配置文件路径常量
 CONFIG_PATH = Path(__file__).parent / "base_config.yaml"
 MODELS_PATH = Path(__file__).parent / "model_provider.yaml"
 MODELS_PRIVATE_PATH = Path(__file__).parent / "model_provider.private.yml"
-SITE_INFO_PATH = CONFIG_PATH / "site_info.yaml"  # 网站信息配置文件
+SITE_INFO_PATH = Path(__file__).parent / "site_info.yaml"  # 网站信息配置文件
 
 # 模型提供商配置模型
 class ModelProvider(BaseModel):
@@ -19,6 +22,7 @@ class ModelProvider(BaseModel):
     default: str
     env: List[str]
     models: List[str]
+    api_key: Optional[str] = None
 
 # Embedding 模型配置模型
 class EmbedModel(BaseModel):
@@ -49,6 +53,8 @@ class AppConfig(BaseSettings):
     # 功能开关
     enable_reranker: bool = Field(default=False, description="是否开启重排序")
     enable_web_search: bool = Field(default=False, description="是否开启网页搜索")
+    enable_knowledge_base: bool = Field(default=True, description="是否开启知识库")
+    enable_agent_management: bool = Field(default=True, description="是否开启智能体管理")
     
     # Web搜索配置
     tavily_api_key: str = Field(default="", description="Tavily API Key")
@@ -63,6 +69,9 @@ class AppConfig(BaseSettings):
     # 提供商状态
     provider_enabled_status: Dict[str, bool] = Field(default_factory=dict)
     valuable_model_provider: List[str] = Field(default_factory=list)
+    
+    # 自定义模型
+    custom_models: List[dict] = Field(default_factory=list)
 
     class Config:
         env_file = str(Path(__file__).parent.parent / ".env")
@@ -97,12 +106,42 @@ class Config:
             with open(self.models_private_path, "r", encoding="utf-8") as f:
                 private_config = yaml.safe_load(f) or {}
         
-        # 合并配置
+        # 合并配置：以公共配置为基础，私有配置只覆盖API key等敏感信息
         merged_config = {
-            "MODEL_NAMES": {**public_config["MODEL_NAMES"], **private_config.get("MODEL_NAMES", {})},
-            "EMBED_MODEL_INFO": {**public_config["EMBED_MODEL_INFO"], **private_config.get("EMBED_MODEL_INFO", {})},
-            "RERANKER_LIST": {**public_config["RERANKER_LIST"], **private_config.get("RERANKER_LIST", {})}
+            "MODEL_NAMES": {},
+            "EMBED_MODEL_INFO": {},
+            "RERANKER_LIST": {}
         }
+        
+        # 处理 MODEL_NAMES：以公共配置为准，只从私有配置获取API key
+        for provider_name, provider_config in public_config["MODEL_NAMES"].items():
+            merged_provider = provider_config.copy()
+            if provider_name in private_config.get("MODEL_NAMES", {}):
+                private_provider = private_config["MODEL_NAMES"][provider_name]
+                # 只覆盖API key，保持其他配置与公共配置一致
+                if "api_key" in private_provider:
+                    merged_provider["api_key"] = private_provider["api_key"]
+            merged_config["MODEL_NAMES"][provider_name] = merged_provider
+        
+        # 处理 EMBED_MODEL_INFO：以公共配置为准，只从私有配置获取API key
+        for model_name, model_config in public_config["EMBED_MODEL_INFO"].items():
+            merged_model = model_config.copy()
+            if model_name in private_config.get("EMBED_MODEL_INFO", {}):
+                private_model = private_config["EMBED_MODEL_INFO"][model_name]
+                # 只覆盖API key，保持其他配置与公共配置一致
+                if "api_key" in private_model:
+                    merged_model["api_key"] = private_model["api_key"]
+            merged_config["EMBED_MODEL_INFO"][model_name] = merged_model
+        
+        # 处理 RERANKER_LIST：以公共配置为准，只从私有配置获取API key
+        for reranker_name, reranker_config in public_config["RERANKER_LIST"].items():
+            merged_reranker = reranker_config.copy()
+            if reranker_name in private_config.get("RERANKER_LIST", {}):
+                private_reranker = private_config["RERANKER_LIST"][reranker_name]
+                # 只覆盖API key，保持其他配置与公共配置一致
+                if "api_key" in private_reranker:
+                    merged_reranker["api_key"] = private_reranker["api_key"]
+            merged_config["RERANKER_LIST"][reranker_name] = merged_reranker
         
         return ModelConfigs(**merged_config)
     
@@ -111,6 +150,11 @@ class Config:
         if self.config_path.exists():
             with open(self.config_path, "r", encoding="utf-8") as f:
                 data = yaml.safe_load(f) or {}
+            # 处理 tavily_api_key 和 tavily_base_url
+            if "tavily_api_key" in data and (data["tavily_api_key"] is None or str(data["tavily_api_key"]).strip() == ""):
+                data["tavily_api_key"] = None
+            if "tavily_base_url" in data and (data["tavily_base_url"] is None or str(data["tavily_base_url"]).strip() == ""):
+                data["tavily_base_url"] = None
             return AppConfig(**data)
         else:
             return AppConfig()
@@ -132,13 +176,40 @@ class Config:
     
     def save_models(self):
         """保存模型配置到私有文件"""
+        # 只保存API key等敏感信息到私有配置文件
         data = {
-            "MODEL_NAMES": self.model_configs.MODEL_NAMES,
-            "EMBED_MODEL_INFO": self.model_configs.EMBED_MODEL_INFO,
-            "RERANKER_LIST": self.model_configs.RERANKER_LIST
+            "MODEL_NAMES": {},
+            "EMBED_MODEL_INFO": {},
+            "RERANKER_LIST": {}
         }
+        
+        # 保存模型提供商的API key
+        for provider_name, provider_config in self.model_configs.MODEL_NAMES.items():
+            if hasattr(provider_config, 'api_key') and provider_config.api_key:
+                data["MODEL_NAMES"][provider_name] = {
+                    "api_key": provider_config.api_key
+                }
+        
+        # 保存embedding模型的API key
+        for model_name, model_config in self.model_configs.EMBED_MODEL_INFO.items():
+            if hasattr(model_config, 'api_key') and model_config.api_key:
+                data["EMBED_MODEL_INFO"][model_name] = {
+                    "api_key": model_config.api_key
+                }
+        
+        # 保存reranker模型的API key
+        for reranker_name, reranker_config in self.model_configs.RERANKER_LIST.items():
+            if hasattr(reranker_config, 'api_key') and reranker_config.api_key:
+                data["RERANKER_LIST"][reranker_name] = {
+                    "api_key": reranker_config.api_key
+                }
+        
         with open(self.models_private_path, "w", encoding="utf-8") as f:
             yaml.dump(data, f, allow_unicode=True, indent=2)
+    
+    def _save_models_to_file(self):
+        """保存模型配置到私有文件（向后兼容别名）"""
+        self.save_models()
     
     def get_provider_config(self, provider: str) -> Optional[ModelProvider]:
         """获取模型提供商配置"""
@@ -163,11 +234,10 @@ class Config:
         if "base_url" in config_data:
             provider_config.base_url = config_data["base_url"]
         if "api_key" in config_data:
-            # 将API key保存到环境变量
-            env_key = provider_config.env[0] if provider_config.env else None
-            if env_key:
-                os.environ[env_key] = config_data["api_key"]
+            # 将API key保存到配置文件中
+            provider_config.api_key = config_data["api_key"]
         
+        # 保存到私有配置文件
         self.save_models()
     
     def set_provider_enabled_status(self, provider: str, enabled: bool):
@@ -177,6 +247,28 @@ class Config:
         
         self.app_config.provider_enabled_status[provider] = enabled
         self.save()
+    
+    def add_provider_model(self, provider: str, model_name: str):
+        """为模型提供商添加模型"""
+        if provider not in self.model_configs.MODEL_NAMES:
+            raise ValueError(f"模型提供商 {provider} 不存在")
+        
+        if model_name not in self.model_configs.MODEL_NAMES[provider].models:
+            self.model_configs.MODEL_NAMES[provider].models.append(model_name)
+            self.save_models()
+    
+    def remove_provider_model(self, provider: str, model_name: str):
+        """从模型提供商删除模型"""
+        if provider not in self.model_configs.MODEL_NAMES:
+            raise ValueError(f"模型提供商 {provider} 不存在")
+        
+        if model_name in self.model_configs.MODEL_NAMES[provider].models:
+            self.model_configs.MODEL_NAMES[provider].models.remove(model_name)
+            self.save_models()
+    
+    def toggle_provider_status(self, provider: str, enabled: bool):
+        """切换模型提供商启用状态"""
+        self.set_provider_enabled_status(provider, enabled)
     
     # 属性访问器，保持向后兼容
     @property
@@ -204,6 +296,84 @@ class Config:
             setattr(self.app_config, name, value)
         else:
             super().__setattr__(name, value)
+    
+    def dump_config(self):
+        """导出配置信息，包含配置项元数据"""
+        config_data = self.app_config.dict()
+        
+        # 添加模型配置数据，兼容前端需求
+        config_data["model_names"] = self.model_configs.MODEL_NAMES
+        config_data["embed_model_names"] = self.model_configs.EMBED_MODEL_INFO
+        config_data["reranker_names"] = self.model_configs.RERANKER_LIST
+        
+        # 添加模型提供商状态信息
+        model_provider_status = {}
+        for provider in self.model_configs.MODEL_NAMES.keys():
+            provider_config = self.model_configs.MODEL_NAMES[provider]
+            
+            # 优先检查配置文件中是否已配置 api_key
+            if hasattr(provider_config, 'api_key') and provider_config.api_key:
+                model_provider_status[provider] = True
+            else:
+                # 如果没有配置文件中的 api_key，则检查环境变量
+                env_key = provider_config.env[0] if provider_config.env else None
+                if env_key:
+                    model_provider_status[provider] = bool(os.getenv(env_key))
+                else:
+                    model_provider_status[provider] = True  # 如果没有环境变量要求，默认可用
+        
+        config_data["model_provider_status"] = model_provider_status
+        
+        # 添加配置项元数据
+        config_data["_config_items"] = {
+            "model_provider": {
+                "des": "模型提供商",
+                "choices": list(self.model_configs.MODEL_NAMES.keys())
+            },
+            "model_name": {
+                "des": "模型名称",
+                "choices": []
+            },
+            "embed_model": {
+                "des": "Embedding 模型",
+                "choices": list(self.model_configs.EMBED_MODEL_INFO.keys())
+            },
+            "reranker": {
+                "des": "Re-Ranker 模型",
+                "choices": list(self.model_configs.RERANKER_LIST.keys())
+            },
+            "enable_reranker": {
+                "des": "是否开启重排序"
+            },
+            "enable_web_search": {
+                "des": "是否开启网页搜索"
+            },
+            "tavily_api_key": {
+                "des": "Tavily API Key"
+            },
+            "tavily_base_url": {
+                "des": "Tavily API基础URL"
+            },
+            "storage_dir": {
+                "des": "存储目录"
+            },
+            "model_dir": {
+                "des": "模型目录"
+            }
+        }
+        
+        # 根据当前选择的模型提供商更新模型名称选项
+        current_provider = config_data.get("model_provider", "openai")
+        if current_provider in self.model_configs.MODEL_NAMES:
+            config_data["_config_items"]["model_name"]["choices"] = self.model_configs.MODEL_NAMES[current_provider].models
+        
+        return config_data
+    
+    def update(self, items: dict):
+        """批量更新配置"""
+        for key, value in items.items():
+            if hasattr(self.app_config, key):
+                setattr(self.app_config, key, value)
 
 # 创建全局配置实例
 config = Config()

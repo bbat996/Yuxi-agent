@@ -8,7 +8,7 @@
       </template>
     </HeaderComponent>
     <div class="setting-container layout-container">
-      <div class="sider" v-if="state.windowWidth > 520">
+      <div class="sider">
         <a-button type="text" v-if="userStore.isSuperAdmin" :class="{ activesec: state.section === 'base' }"
           @click="state.section = 'base'" :icon="h(SettingOutlined)"> 基本设置 </a-button>
         <a-button type="text" v-if="userStore.isSuperAdmin" :class="{ activesec: state.section === 'model' }"
@@ -18,7 +18,7 @@
         <a-button type="text" :class="{ activesec: state.section === 'user' }" @click="state.section = 'user'"
           :icon="h(UserOutlined)" v-if="userStore.isAdmin"> 用户管理 </a-button>
       </div>
-      <div class="setting" v-if="(state.windowWidth <= 520 || state.section === 'base') && userStore.isSuperAdmin">
+      <div class="setting" v-if="state.section === 'base' && userStore.isSuperAdmin">
         <h3>检索配置</h3>
         <div class="section">
           <div class="card card-select">
@@ -73,26 +73,26 @@
 
         </div>
       </div>
-      <div class="setting" v-if="(state.windowWidth <= 520 || state.section === 'model') && userStore.isSuperAdmin">
-        <ModelProvidersComponent />
+      <div class="setting" v-if="state.section === 'model' && userStore.isSuperAdmin">
+        <ModelProvidersComponent :key="'model'" />
       </div>
 
       <!-- MCP配置管理 -->
       <div class="setting"
-        v-if="(state.windowWidth <= 520 || state.section === 'mcp-config') && userStore.isSuperAdmin">
-        <MCPConfigManagement />
+        v-if="state.section === 'mcp-config' && userStore.isSuperAdmin">
+        <MCPConfigManagement :key="'mcp-config'" />
       </div>
 
       <!-- 用户管理 -->
       <div class="setting" v-if="state.section === 'user' && userStore.isAdmin">
-        <UserManagementComponent />
+        <UserManagementComponent :key="'user'" />
       </div>
     </div>
   </div>
 </template>
 
 <script setup>
-import { computed, reactive, ref, h, onMounted, onUnmounted } from 'vue'
+import { computed, reactive, ref, h, onMounted } from 'vue'
 import { useConfigStore } from '@/stores/config';
 import { useUserStore } from '@/stores/user'
 import {
@@ -114,8 +114,7 @@ const items = computed(() => configStore.config._config_items)
 const isNeedRestart = ref(false)
 const state = reactive({
   loading: false,
-  section: 'base',
-  windowWidth: window?.innerWidth || 0
+  section: 'base'
 })
 
 const handleModelLocalPathsUpdate = (config) => {
@@ -151,9 +150,7 @@ const handleChanges = (items) => {
   configStore.setConfigValues(items)
 }
 
-const updateWindowWidth = () => {
-  state.windowWidth = window?.innerWidth || 0
-}
+
 
 const handleChatModelSelect = ({ provider, name }) => {
   configStore.setConfigValues({
@@ -163,13 +160,7 @@ const handleChatModelSelect = ({ provider, name }) => {
 }
 
 onMounted(() => {
-  updateWindowWidth()
-  window.addEventListener('resize', updateWindowWidth)
   state.section = userStore.isSuperAdmin ? 'base' : (userStore.isAdmin ? 'user' : 'mcp-config')
-})
-
-onUnmounted(() => {
-  window.removeEventListener('resize', updateWindowWidth)
 })
 
 const sendRestart = () => {

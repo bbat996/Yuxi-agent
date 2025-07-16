@@ -111,14 +111,10 @@
               <h3>{{ modelNames[item].name }}</h3>
               <div class="missing-keys">
                 需配置
-                <span v-for="(envKey, idx) in modelNames[item].env" :key="idx">{{ envKey }}</span>
               </div>
             </div>
           </div>
           <div class="provider-actions">
-            <!-- <a-button type="text" size="small" @click.stop="openProviderConfig(item)">
-              <template #icon><SettingOutlined /></template>
-            </a-button> -->
             <a :href="modelNames[item].url" target="_blank" class="info-link">
               <InfoCircleOutlined />
             </a>
@@ -260,14 +256,9 @@
         <div v-else class="unconfigured-state">
           <div class="warning-icon">⚠️</div>
           <h3>模型提供商未配置</h3>
-          <p>请配置以下环境变量后重启服务：</p>
-          <div class="env-keys">
-            <code v-for="(envKey, idx) in modelNames[selectedProvider]?.env" :key="idx">{{
-              envKey
-            }}</code>
-          </div>
-          <a-button type="primary" @click="openProviderConfig(selectedProvider)">
-            立即配置
+          <p>请点击"连接配置"按钮来配置该模型提供商的连接参数。</p>
+          <a-button type="primary" @click="openProviderSettings(selectedProvider)">
+            连接配置
           </a-button>
         </div>
       </div>
@@ -379,7 +370,7 @@
             <a-alert
               v-if="!modelStatus[providerConfig.provider]"
               type="warning"
-              message="请在 src/.env 中配置对应的 APIKEY，并重新启动服务"
+              message="请先配置该模型提供商的连接参数，然后重新获取模型列表"
             />
             <div v-else>
               <a-alert
@@ -855,7 +846,7 @@ const fetchProviderModels = (provider) => {
 // 保存提供商配置
 const saveProviderConfig = async () => {
   if (!modelStatus.value[providerConfig.provider]) {
-    message.error('请在 src/.env 中配置对应的 APIKEY，并重新启动服务')
+    message.error('请先配置该模型提供商的连接参数，然后重新获取模型列表')
     return
   }
 
@@ -1491,24 +1482,6 @@ const toggleProviderStatus = async (provider, enabled) => {
     p {
       margin: 0 0 16px 0;
       font-size: 14px;
-    }
-
-    .env-keys {
-      display: flex;
-      gap: 8px;
-      margin-bottom: 24px;
-      flex-wrap: wrap;
-      justify-content: center;
-
-      code {
-        background: #f3f4f6;
-        padding: 4px 8px;
-        border-radius: 4px;
-        font-family: monospace;
-        font-size: 12px;
-        color: var(--gray-700);
-        border: 1px solid var(--gray-300);
-      }
     }
   }
 

@@ -158,6 +158,59 @@ MODEL_NAMES:
       - yi-small
       - yi-small-turbo
 
+  ollama:
+    name: Ollama
+    url: https://ollama.ai/library
+    base_url: http://localhost:11434/v1
+    default: llama3.2
+    env:
+      - OLLAMA_API_KEY
+    models:
+      - llama3.2
+      - llama3.2:3b
+      - llama3.2:7b
+      - llama3.2:70b
+      - llama3.1
+      - llama3.1:8b
+      - llama3.1:70b
+      - llama2
+      - llama2:7b
+      - llama2:13b
+      - llama2:70b
+      - qwen2.5
+      - qwen2.5:7b
+      - qwen2.5:32b
+      - qwen2.5:72b
+      - qwen2
+      - qwen2:7b
+      - qwen2:14b
+      - qwen2:72b
+      - mistral
+      - mistral:7b
+      - mistral:8x7b
+      - codellama
+      - codellama:7b
+      - codellama:13b
+      - codellama:34b
+      - phi3
+      - phi3:mini
+      - phi3:medium
+      - phi3:large
+      - gemma2
+      - gemma2:2b
+      - gemma2:9b
+      - gemma2:27b
+      - neural-chat
+      - neural-chat:3b
+      - neural-chat:7b
+      - neural-chat:20b
+      - deepseek-coder
+      - deepseek-coder:6.7b
+      - deepseek-coder:33b
+      - deepseek-llm
+      - deepseek-llm:7b
+      - deepseek-llm:67b
+
 EMBED_MODEL_INFO:
   ollama/nomic-embed-text:
     name: nomic-embed-text
@@ -168,6 +221,26 @@ EMBED_MODEL_INFO:
     name: bge-m3
     base_url: http://localhost:11434/api/embed
     dimension: 1024
+
+  ollama/bge-large-zh-v1.5:
+    name: bge-large-zh-v1.5
+    base_url: http://localhost:11434/api/embed
+    dimension: 1024
+
+  ollama/bge-large-en-v1.5:
+    name: bge-large-en-v1.5
+    base_url: http://localhost:11434/api/embed
+    dimension: 1024
+
+  ollama/bge-base-en-v1.5:
+    name: bge-base-en-v1.5
+    base_url: http://localhost:11434/api/embed
+    dimension: 768
+
+  ollama/bge-small-en-v1.5:
+    name: bge-small-en-v1.5
+    base_url: http://localhost:11434/api/embed
+    dimension: 384
 
   siliconflow/BAAI/bge-m3:
     name: BAAI/bge-m3
@@ -188,6 +261,14 @@ EMBED_MODEL_INFO:
     api_key: no_api_key
 
 RERANKER_LIST:
+  ollama/bge-reranker-large:
+    name: bge-reranker-large
+    base_url: http://localhost:11434/api/rerank
+
+  ollama/bge-reranker-base:
+    name: bge-reranker-base
+    base_url: http://localhost:11434/api/rerank
+
   siliconflow/BAAI/bge-reranker-v2-m3:
     name: BAAI/bge-reranker-v2-m3
     base_url: https://api.siliconflow.cn/v1/rerank
