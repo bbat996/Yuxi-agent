@@ -1,10 +1,19 @@
 import os
 import json
-from fastapi import logger
-import yaml
+from typing import Dict, List, Optional, Any
 from pathlib import Path
+from pydantic import BaseModel, Field, validator
+from pydantic_settings import BaseSettings
+import yaml
 from dotenv import load_dotenv
-from .constant import CONFIG_PATH, MODELS_PATH, MODELS_PRIVATE_PATH, PROJECT_DIR, SELECTED_CONFIG_PATH, SITE_INFO_PATH
+
+PROJECT_DIR = Path(__file__).parent.parent.parent
+CONFIG_PATH = PROJECT_DIR / "server/config"
+
+SELECTED_CONFIG_PATH = CONFIG_PATH / "base_config.yaml"  # 当前选中的配置文件
+SITE_INFO_PATH = CONFIG_PATH / "site_info.yaml"  # 网站信息配置文件
+MODELS_PATH = CONFIG_PATH / "model_provider.yaml"  # 模型配置文件
+MODELS_PRIVATE_PATH = CONFIG_PATH / "model_provider.private.yml"  # 模型私有配置文件
 
 # 延迟导入logger以避免循环导入
 def get_logger():
@@ -12,157 +21,136 @@ def get_logger():
     return logger
 
 DEFAULT_MOCK_API = "this_is_mock_api_key_in_frontend"
+
 # 加载 .env 文件
 load_dotenv(str(Path(PROJECT_DIR) / "server" / ".env"))
 print(f"load_dotenv: {Path(PROJECT_DIR) / 'server' / '.env'}")
 
 
-class SimpleConfig(dict):
+class ModelProviderConfig(BaseModel):
+    """模型提供商配置"""
+    name: str = ""
+    base_url: str = ""
+    api_key: str = ""
+    env: List[str] = Field(default_factory=list)
+    models: List[str] = Field(default_factory=list)
+    url: str = ""
+    default: str = ""
 
-    def __key(self, key):
-        return "" if key is None else key  # 目前忘记了这里为什么要 lower 了，只能说配置项最好不要有大写的
 
-    def __str__(self):
-        return json.dumps(self)
-
-    def __setattr__(self, key, value):
-        self[self.__key(key)] = value
-
-    def __getattr__(self, key):
-        return self.get(self.__key(key))
-
-    def __getitem__(self, key):
-        return self.get(self.__key(key))
-
-    def __setitem__(self, key, value):
-        key = self.__key(key)
-        super().__setitem__(key, value)
-        
-        # 特殊处理tavily配置
-        if key == 'tavily_api_key' and value:
-            os.environ["TAVILY_API_KEY"] = value
+class AppConfig(BaseSettings):
+    """应用配置类"""
+    
+    # 功能选项
+    enable_reranker: bool = Field(default=False, description="是否开启重排序")
+    enable_web_search: bool = Field(default=False, description="是否开启网页搜索")
+    
+    # Web搜索配置
+    tavily_api_key: str = Field(default="", description="Tavily API Key")
+    tavily_base_url: str = Field(default="https://api.tavily.com", description="Tavily API基础URL")
+    
+    # 模型配置
+    model_provider: str = Field(default="openai", description="模型提供商")
+    model_name: str = Field(default="gpt-4o-mini", description="模型名称")
+    embed_model: str = Field(default="siliconflow/BAAI/bge-m3", description="Embedding 模型")
+    reranker: str = Field(default="siliconflow/BAAI/bge-reranker-v2-m3", description="Re-Ranker 模型")
+    
+    # 提供商启用状态
+    provider_enabled_status: Dict[str, bool] = Field(default_factory=dict)
+    
+    # 存储配置
+    storage_dir: str = Field(default="storage", description="存储目录")
+    model_dir: str = Field(default="", description="模型目录")
+    
+    # 内部状态（不保存到文件）
+    model_provider_status: Dict[str, bool] = Field(default_factory=dict)
+    valuable_model_provider: List[str] = Field(default_factory=list)
+    
+    # 配置项元数据
+    _config_items: Dict[str, Dict] = Field(default_factory=dict)
+    
+    class Config:
+        env_file = str(Path(PROJECT_DIR) / "server" / ".env")
+        env_file_encoding = 'utf-8'
+    
+    @validator('tavily_api_key')
+    def sync_tavily_env(cls, v):
+        """同步Tavily API Key到环境变量"""
+        if v:
+            os.environ["TAVILY_API_KEY"] = v
             get_logger().info("Tavily API Key已同步到环境变量")
-        elif key == 'enable_web_search' and value:
-            # 如果启用了web_search但没有API key，尝试从环境变量获取
-            if not hasattr(self, 'tavily_api_key') or not self.tavily_api_key:
-                env_api_key = os.getenv("TAVILY_API_KEY")
-                if env_api_key:
-                    self.tavily_api_key = env_api_key
-                    get_logger().info("从环境变量获取Tavily API Key")
-        
-        return value
+        return v
+    
+    @validator('enable_web_search')
+    def auto_enable_web_search(cls, v, values):
+        """如果检测到Tavily API Key，自动启用网页搜索"""
+        if not v and os.getenv("TAVILY_API_KEY"):
+            get_logger().info("检测到TAVILY_API_KEY环境变量，自动启用网页搜索功能")
+            return True
+        return v
+    
+    def add_item(self, key: str, default: Any, des: str = None, choices: List = None):
+        """添加配置项"""
+        setattr(self, key, default)
+        self._config_items[key] = {"default": default, "des": des, "choices": choices}
+    
+    def to_dict(self) -> Dict[str, Any]:
+        """转换为字典，排除内部状态"""
+        exclude_fields = {
+            'model_provider_status', 'valuable_model_provider', 'model_dir', '_config_items'
+        }
+        return {k: v for k, v in self.dict().items() if k not in exclude_fields}
 
-    def __dict__(self):
-        return {k: v for k, v in self.items()}
 
-    def update(self, other):
-        for key, value in other.items():
-            self[key] = value
-
-
-class Config(SimpleConfig):
-
+class Config:
+    """配置管理器 - 保持向后兼容的接口"""
+    _instance = None
+    _initialized = False
+    _config: Optional[AppConfig] = None
+    _model_names: Dict[str, Dict] = None
+    _embed_model_names: Dict[str, Any] = None
+    _reranker_names: Dict[str, Any] = None
+    _config_items: Dict[str, Dict] = None
+    
+    def __new__(cls):
+        if cls._instance is None:
+            cls._instance = super().__new__(cls)
+        return cls._instance
+    
     def __init__(self):
-        super().__init__()
+        if self._initialized:
+            return
+            
         self._config_items = {}
         self.storage_dir = os.getenv("SAVE_DIR", "storage")
         self.config_file = str(Path(SELECTED_CONFIG_PATH))
         os.makedirs(os.path.dirname(self.config_file), exist_ok=True)
-
+        
         self._update_models_from_file()
-
-        ### >>> 默认配置
-        # 功能选项
-        self.add_item("enable_reranker", default=False, des="是否开启重排序")
-        self.add_item(
-            "enable_web_search",
-            default=False,
-            des="是否开启网页搜索",
-        )  # noqa: E501
-
-        # Web搜索配置
-        self.add_item("tavily_api_key", default="", des="Tavily API Key")
-        self.add_item("tavily_base_url", default="https://api.tavily.com", des="Tavily API基础URL")
-
-        # 模型配置
-        ## 注意这里是模型名，而不是具体的模型路径，默认使用 HuggingFace 的路径
-        ## 如果需要自定义本地模型路径，则在 src/.env 中配置 MODEL_DIR
-        self.add_item("model_provider", default="siliconflow", des="模型提供商", choices=list(self.model_names.keys()))
-        self.add_item("model_name", default="Qwen/Qwen3-32B", des="模型名称")
-
-        self.add_item("embed_model", default="siliconflow/BAAI/bge-m3", des="Embedding 模型", choices=list(self.embed_model_names.keys()))
-        self.add_item(
-            "reranker", default="siliconflow/BAAI/bge-reranker-v2-m3", des="Re-Ranker 模型", choices=list(self.reranker_names.keys()))
-        ### <<< 默认配置结束
-
+        self._init_config()
         self.load()
         self.handle_self()
-        
-        # 初始化提供商启用状态
         self._init_provider_enabled_status()
-
-    def _init_provider_enabled_status(self):
-        """初始化提供商启用状态"""
-        if not hasattr(self, 'provider_enabled_status') or self.provider_enabled_status is None:
-            self.provider_enabled_status = {}
         
-        # 确保model_names已经初始化
-        if not hasattr(self, 'model_names') or self.model_names is None:
-            get_logger().warning("model_names not initialized, skipping provider_enabled_status initialization")
-            return
+        self._initialized = True
+    
+    def _init_config(self):
+        """初始化配置"""
+        # 创建AppConfig实例
+        self._config = AppConfig()
         
-        # 为所有模型提供商设置默认启用状态
-        for provider in self.model_names.keys():
-            if provider not in self.provider_enabled_status:
-                # 默认启用，除非明确设置为False
-                self.provider_enabled_status[provider] = True
-
-    def get_provider_enabled_status(self, provider: str = None):
-        """获取提供商启用状态"""
-        # 确保provider_enabled_status是字典类型
-        if not hasattr(self, 'provider_enabled_status') or self.provider_enabled_status is None:
-            self.provider_enabled_status = {}
-        
-        if provider:
-            return self.provider_enabled_status.get(provider, True)
-        return self.provider_enabled_status
-
-    def set_provider_enabled_status(self, provider: str, enabled: bool):
-        """设置提供商启用状态"""
-        if provider not in self.model_names:
-            raise ValueError(f"模型提供商 {provider} 不存在")
-        
-        self.provider_enabled_status[provider] = enabled
-        self.save()
-        get_logger().info(f"模型提供商 {provider} 启用状态已设置为: {enabled}")
-
-    def toggle_provider_status(self, provider: str, enabled: bool):
-        """切换提供商启用状态"""
-        return self.set_provider_enabled_status(provider, enabled)
-
-    def add_item(self, key, default, des=None, choices=None):
-        self.__setattr__(key, default)
-        self._config_items[key] = {"default": default, "des": des, "choices": choices}
-
-    def __dict__(self):
-        blocklist = [
-            "_config_items",
-            "model_names",
-            "model_provider_status",
-            "embed_model_names",
-            "reranker_names",
-        ]
-        result = {k: v for k, v in self.items() if k not in blocklist}
-        # 添加provider_enabled_status到配置中
-        if hasattr(self, 'provider_enabled_status'):
-            result['provider_enabled_status'] = self.provider_enabled_status
-        return result
-
+        # 添加默认配置项
+        self.add_item("enable_reranker", default=False, des="是否开启重排序")
+        self.add_item("enable_web_search", default=False, des="是否开启网页搜索")
+        self.add_item("tavily_api_key", default="", des="Tavily API Key")
+        self.add_item("tavily_base_url", default="https://api.tavily.com", des="Tavily API基础URL")
+        self.add_item("model_provider", default="openai", des="模型提供商", choices=list(self._model_names.keys()))
+        self.add_item("model_name", default="gpt-4o-mini", des="模型名称")
+        self.add_item("embed_model", default="siliconflow/BAAI/bge-m3", des="Embedding 模型", choices=list(self._embed_model_names.keys()))
+        self.add_item("reranker", default="siliconflow/BAAI/bge-reranker-v2-m3", des="Re-Ranker 模型", choices=list(self._reranker_names.keys()))
+    
     def _update_models_from_file(self):
-        """
-        从 models.yaml 和 models.private.yml 中更新 MODEL_NAMES
-        """
-
+        """从 models.yaml 和 models.private.yml 中更新 MODEL_NAMES"""
         with open(Path(MODELS_PATH), encoding="utf-8") as f:
             _models = yaml.safe_load(f)
 
@@ -173,49 +161,140 @@ class Config(SimpleConfig):
         except FileNotFoundError:
             _models_private = {}
 
-        self.model_names = {**_models["MODEL_NAMES"], **_models_private.get("MODEL_NAMES", {})}
-        self.embed_model_names = {**_models["EMBED_MODEL_INFO"], **_models_private.get("EMBED_MODEL_INFO", {})}
-        self.reranker_names = {**_models["RERANKER_LIST"], **_models_private.get("RERANKER_LIST", {})}
-
+        self._model_names = {**_models["MODEL_NAMES"], **_models_private.get("MODEL_NAMES", {})}
+        self._embed_model_names = {**_models["EMBED_MODEL_INFO"], **_models_private.get("EMBED_MODEL_INFO", {})}
+        self._reranker_names = {**_models["RERANKER_LIST"], **_models_private.get("RERANKER_LIST", {})}
+    
     def _save_models_to_file(self):
+        """保存模型配置到文件"""
         _models = {
-            "MODEL_NAMES": self.model_names,
-            "EMBED_MODEL_INFO": self.embed_model_names,
-            "RERANKER_LIST": self.reranker_names,
+            "MODEL_NAMES": self._model_names,
+            "EMBED_MODEL_INFO": self._embed_model_names,
+            "RERANKER_LIST": self._reranker_names,
         }
         with open(Path(MODELS_PRIVATE_PATH), "w", encoding="utf-8") as f:
             yaml.dump(_models, f, indent=2, allow_unicode=True)
+    
+    def _init_provider_enabled_status(self):
+        """初始化提供商启用状态"""
+        if not hasattr(self._config, "provider_enabled_status") or self._config.provider_enabled_status is None:
+            self._config.provider_enabled_status = {}
 
+        # 确保model_names已经初始化
+        if not hasattr(self, "_model_names") or self._model_names is None:
+            get_logger().warning("model_names not initialized, skipping provider_enabled_status initialization")
+            return
+
+        # 为所有模型提供商设置默认启用状态
+        for provider in self._model_names.keys():
+            if provider not in self._config.provider_enabled_status:
+                # 默认启用，除非明确设置为False
+                self._config.provider_enabled_status[provider] = True
+    
+    def get_provider_enabled_status(self, provider: str = None):
+        """获取提供商启用状态"""
+        # 确保provider_enabled_status是字典类型
+        if not hasattr(self._config, "provider_enabled_status") or self._config.provider_enabled_status is None:
+            self._config.provider_enabled_status = {}
+
+        if provider:
+            return self._config.provider_enabled_status.get(provider, True)
+        return self._config.provider_enabled_status
+
+    def set_provider_enabled_status(self, provider: str, enabled: bool):
+        """设置提供商启用状态"""
+        if provider not in self._model_names:
+            raise ValueError(f"模型提供商 {provider} 不存在")
+
+        self._config.provider_enabled_status[provider] = enabled
+        self.save()
+        get_logger().info(f"模型提供商 {provider} 启用状态已设置为: {enabled}")
+
+    def toggle_provider_status(self, provider: str, enabled: bool):
+        """切换提供商启用状态"""
+        return self.set_provider_enabled_status(provider, enabled)
+    
+    def add_item(self, key, default, des=None, choices=None):
+        """添加配置项"""
+        setattr(self._config, key, default)
+        self._config_items[key] = {"default": default, "des": des, "choices": choices}
+    
+    def __getattr__(self, key):
+        """获取配置值"""
+        if hasattr(self._config, key):
+            return getattr(self._config, key)
+        return super().__getattr__(key)
+    
+    def __setattr__(self, key, value):
+        """设置配置值"""
+        if key.startswith('_') or key in ['_instance', '_initialized', '_config', '_model_names', '_embed_model_names', '_reranker_names', '_config_items']:
+            super().__setattr__(key, value)
+        else:
+            setattr(self._config, key, value)
+    
+    def __getitem__(self, key):
+        """字典式访问"""
+        return getattr(self._config, key)
+    
+    def __setitem__(self, key, value):
+        """字典式设置"""
+        setattr(self._config, key, value)
+    
+    def get(self, key, default=None):
+        """获取配置值"""
+        return getattr(self._config, key, default)
+    
+    def update(self, other):
+        """更新配置"""
+        for key, value in other.items():
+            if hasattr(self._config, key):
+                setattr(self._config, key, value)
+    
+    def __dict__(self):
+        """转换为字典"""
+        blocklist = [
+            "_config_items",
+            "model_names",
+            "model_provider_status",
+            "embed_model_names",
+            "reranker_names",
+        ]
+        result = {k: v for k, v in self._config.dict().items() if k not in blocklist}
+        # 添加provider_enabled_status到配置中
+        if hasattr(self._config, "provider_enabled_status"):
+            result["provider_enabled_status"] = self._config.provider_enabled_status
+        return result
+    
     def update_provider_config(self, provider: str, config_data: dict):
         """更新模型提供商配置"""
-        if provider not in self.model_names:
+        if provider not in self._model_names:
             raise ValueError(f"模型提供商 {provider} 不存在")
-        
+
         # 更新配置
         if "base_url" in config_data:
-            self.model_names[provider]["base_url"] = config_data["base_url"]
+            self._model_names[provider]["base_url"] = config_data["base_url"]
         if "api_key" in config_data:
             # 将API key保存到环境变量
-            env_key = self.model_names[provider].get("env", [None])[0]
+            env_key = self._model_names[provider].get("env", [None])[0]
             if env_key:
                 os.environ[env_key] = config_data["api_key"]
             # 同步写入到配置，保证保存到文件
-            self.model_names[provider]["api_key"] = config_data["api_key"]
-        
+            self._model_names[provider]["api_key"] = config_data["api_key"]
+
         # 保存到配置文件
         self._save_models_to_file()
         get_logger().info(f"模型提供商 {provider} 配置已更新")
 
     def add_provider_model(self, provider: str, model_name: str):
         """为模型提供商添加模型"""
-        if provider not in self.model_names:
+        if provider not in self._model_names:
             raise ValueError(f"模型提供商 {provider} 不存在")
-        
-        if "models" not in self.model_names[provider]:
-            self.model_names[provider]["models"] = []
-        
-        if model_name not in self.model_names[provider]["models"]:
-            self.model_names[provider]["models"].append(model_name)
+
+        if "models" not in self._model_names[provider]:
+            self._model_names[provider]["models"] = []
+
+        if model_name not in self._model_names[provider]["models"]:
+            self._model_names[provider]["models"].append(model_name)
             self._save_models_to_file()
             get_logger().info(f"模型 {model_name} 已添加到 {provider}")
             return True
@@ -224,14 +303,14 @@ class Config(SimpleConfig):
 
     def remove_provider_model(self, provider: str, model_name: str):
         """从模型提供商删除模型"""
-        if provider not in self.model_names:
+        if provider not in self._model_names:
             raise ValueError(f"模型提供商 {provider} 不存在")
-        
-        if "models" not in self.model_names[provider]:
+
+        if "models" not in self._model_names[provider]:
             raise ValueError(f"模型提供商 {provider} 没有配置模型列表")
-        
-        if model_name in self.model_names[provider]["models"]:
-            self.model_names[provider]["models"].remove(model_name)
+
+        if model_name in self._model_names[provider]["models"]:
+            self._model_names[provider]["models"].remove(model_name)
             self._save_models_to_file()
             get_logger().info(f"模型 {model_name} 已从 {provider} 中删除")
             return True
@@ -246,10 +325,10 @@ class Config(SimpleConfig):
 
     def get_provider_config(self, provider: str):
         """获取模型提供商配置"""
-        if provider not in self.model_names:
+        if provider not in self._model_names:
             raise ValueError(f"模型提供商 {provider} 不存在")
-        
-        provider_config = self.model_names[provider]
+
+        provider_config = self._model_names[provider]
         return {
             "provider": provider,
             "name": provider_config.get("name", ""),
@@ -257,46 +336,44 @@ class Config(SimpleConfig):
             "default": provider_config.get("default", ""),
             "env": provider_config.get("env", []),
             "models": provider_config.get("models", []),
-            "url": provider_config.get("url", "")
+            "url": provider_config.get("url", ""),
         }
 
     def handle_self(self):
-        """
-        处理配置
-        """
-        self.model_dir = os.environ.get("MODEL_DIR", "")
+        """处理配置"""
+        self._config.model_dir = os.environ.get("MODEL_DIR", "")
 
-        if self.model_dir:
-            if os.path.exists(self.model_dir):
-                get_logger().debug(f"The model directory （{self.model_dir}） contains the following folders: {os.listdir(self.model_dir)}")
+        if self._config.model_dir:
+            if os.path.exists(self._config.model_dir):
+                get_logger().debug(f"The model directory （{self._config.model_dir}） contains the following folders: {os.listdir(self._config.model_dir)}")
             else:
                 get_logger().warning(
-                    f"Warning: The model directory （{self.model_dir}） does not exist. If not configured, please ignore it. If configured, please check if the configuration is correct;"
+                    f"Warning: The model directory （{self._config.model_dir}） does not exist. If not configured, please ignore it. If configured, please check if the configuration is correct;"
                     "For example, the mapping in the docker-compose file"
                 )
 
         # 检查模型提供商的环境变量
         conds = {}
-        self.model_provider_status = {}
-        for provider in self.model_names:
-            conds[provider] = self.model_names[provider]["env"]
+        self._config.model_provider_status = {}
+        for provider in self._model_names:
+            conds[provider] = self._model_names[provider]["env"]
             conds_bool = [bool(os.getenv(_k)) for _k in conds[provider]]
-            self.model_provider_status[provider] = all(conds_bool)
+            self._config.model_provider_status[provider] = all(conds_bool)
 
         # 处理Tavily配置
         if os.getenv("TAVILY_API_KEY"):
-            self.tavily_api_key = os.getenv("TAVILY_API_KEY")
+            self._config.tavily_api_key = os.getenv("TAVILY_API_KEY")
             # 如果配置了API Key但enable_web_search为False，则自动启用
-            if not self.enable_web_search:
-                self.enable_web_search = True
+            if not self._config.enable_web_search:
+                self._config.enable_web_search = True
                 get_logger().info("检测到TAVILY_API_KEY环境变量，自动启用网页搜索功能")
-        
-        # 如果配置了tavily_api_key，同步到环境变量
-        if hasattr(self, 'tavily_api_key') and self.tavily_api_key:
-            os.environ["TAVILY_API_KEY"] = self.tavily_api_key
 
-        self.valuable_model_provider = [k for k, v in self.model_provider_status.items() if v]
-        assert len(self.valuable_model_provider) > 0, f"No model provider available, please check your `.env` file. API_KEY_LIST: {conds}"
+        # 如果配置了tavily_api_key，同步到环境变量
+        if hasattr(self._config, "tavily_api_key") and self._config.tavily_api_key:
+            os.environ["TAVILY_API_KEY"] = self._config.tavily_api_key
+
+        self._config.valuable_model_provider = [k for k, v in self._config.model_provider_status.items() if v]
+        assert len(self._config.valuable_model_provider) > 0, f"No model provider available, please check your `.env` file. API_KEY_LIST: {conds}"
 
     def load(self):
         """根据传入的文件覆盖掉默认配置"""
@@ -308,33 +385,37 @@ class Config(SimpleConfig):
                     if content:
                         local_config = yaml.safe_load(content)
                         self.update(local_config)
-                        
+
                         # 加载provider_enabled_status
-                        if 'provider_enabled_status' in local_config:
-                            loaded_status = local_config['provider_enabled_status']
+                        if "provider_enabled_status" in local_config:
+                            loaded_status = local_config["provider_enabled_status"]
                             # 确保provider_enabled_status是字典类型，避免None值
                             if loaded_status is not None:
-                                self.provider_enabled_status = loaded_status
+                                self._config.provider_enabled_status = loaded_status
                             else:
-                                self.provider_enabled_status = {}
+                                self._config.provider_enabled_status = {}
                     else:
                         print(f"{self.config_file} is empty.")
             else:
                 get_logger().warning(f"Unknown config file type {self.config_file}")
 
     def save(self):
+        """保存配置到文件"""
         get_logger().info(f"Saving config to {self.config_file}")
+        config_dict = self._config.to_dict()
+        
         if self.config_file.endswith(".yaml"):
             with open(self.config_file, "w+") as f:
-                yaml.dump(self.__dict__(), f, indent=2, allow_unicode=True)
+                yaml.dump(config_dict, f, indent=2, allow_unicode=True)
         else:
             get_logger().warning(f"Unknown config file type {self.config_file}, save as yaml")
             with open(self.config_file, "w+") as f:
-                yaml.dump(self.__dict__(), f, indent=2, allow_unicode=True)
+                yaml.dump(config_dict, f, indent=2, allow_unicode=True)
         get_logger().info(f"Config file {self.config_file} saved")
 
     def dump_config(self):
-        return json.loads(str(self))
+        """导出配置"""
+        return json.loads(self._config.json())
 
     def compare_custom_models(self, value):
         """
@@ -353,6 +434,20 @@ class Config(SimpleConfig):
                     value[i]["api_key"] = current_api_key
 
         return value
+    
+    # 属性访问器，保持向后兼容
+    @property
+    def model_names(self):
+        return self._model_names
+    
+    @property
+    def embed_model_names(self):
+        return self._embed_model_names
+    
+    @property
+    def reranker_names(self):
+        return self._reranker_names
+
 
 # 创建全局配置实例
 config = Config()

@@ -7,6 +7,7 @@ import zhipuIcon from '@/assets/providers/zhipuai.png'
 import siliconflowIcon from '@/assets/providers/siliconflow.png'
 import arkIcon from '@/assets/providers/ark.png'
 import openrouterIcon from '@/assets/providers/openrouterai.png'
+import lingyiwanwuIcon from '@/assets/providers/lingyiwanwu.png'
 import defaultIcon from '@/assets/providers/default.png'
 
 export const modelIcons = {
@@ -20,5 +21,6 @@ export const modelIcons = {
   ark: arkIcon,
   'together.ai': togetherIcon,
   openrouter: openrouterIcon,
+  lingyiwanwu: lingyiwanwuIcon,
   default: defaultIcon // 添加默认图标
 }

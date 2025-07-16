@@ -11,14 +11,16 @@ MODEL_NAMES:
     name: OpenAI
     url: https://platform.openai.com/docs/models
     base_url: https://api.openai.com/v1
-    default: gpt-3.5-turbo
+    default: gpt-4o-mini
     env:
       - OPENAI_API_KEY
     models:
-      - gpt-4
       - gpt-4o
       - gpt-4o-mini
+      - gpt-4-turbo
+      - gpt-4
       - gpt-3.5-turbo
+      - gpt-3.5-turbo-16k
 
   deepseek:
     name: DeepSeek
@@ -30,6 +32,8 @@ MODEL_NAMES:
     models:
       - deepseek-chat
       - deepseek-reasoner
+      - deepseek-coder
+      - deepseek-vision
 
   zhipu:
     name: 智谱AI (Zhipu)
@@ -44,6 +48,7 @@ MODEL_NAMES:
       - glm-4-air
       - glm-4-flash
       - glm-z1-air
+      - glm-4v
 
   siliconflow:
     name: SiliconFlow
@@ -55,8 +60,14 @@ MODEL_NAMES:
     models:
       - Pro/deepseek-ai/DeepSeek-R1
       - Pro/deepseek-ai/DeepSeek-V3
+      - Pro/deepseek-ai/DeepSeek-V3.5
       - Qwen/QwQ-32B
       - Qwen/Qwen3-8B
+      - Qwen/Qwen3-32B
+      - Qwen/Qwen3-72B
+      - Qwen/Qwen2.5-7B-Instruct
+      - Qwen/Qwen2.5-32B-Instruct
+      - Qwen/Qwen2.5-72B-Instruct
 
   together.ai:
     name: Together.ai
@@ -68,20 +79,33 @@ MODEL_NAMES:
     models:
       - meta-llama/Llama-3.3-70B-Instruct-Turbo
       - meta-llama/Llama-3.3-70B-Instruct-Turbo-Free
+      - meta-llama/Llama-3.3-8B-Instruct
+      - meta-llama/Llama-3.3-8B-Instruct-Free
       - deepseek-ai/DeepSeek-R1-Distill-Llama-70B-free
+      - deepseek-ai/DeepSeek-V3.5
       - Qwen/QwQ-32B
+      - Qwen/Qwen3-8B
+      - Qwen/Qwen3-32B
+      - Qwen/Qwen3-72B
 
   dashscope:
     name: 阿里百炼 (DashScope)
     url: https://bailian.console.aliyun.com/?switchAgent=10226727&productCode=p_efm#/model-market
     base_url: https://dashscope.aliyuncs.com/compatible-mode/v1
-    default: qwen3-235b-a22b
+    default: qwen-max-latest
     env:
       - DASHSCOPE_API_KEY
     models:
       - qwen-max-latest
+      - qwen-max-longcontext
       - qwen3-235b-a22b
       - qwen3-32b
+      - qwen2.5-7b-instruct
+      - qwen2.5-32b-instruct
+      - qwen2.5-72b-instruct
+      - qwen2.5-7b-chat
+      - qwen2.5-32b-chat
+      - qwen2.5-72b-chat
 
   ark:
     name: 豆包（Ark）
@@ -93,27 +117,58 @@ MODEL_NAMES:
     models:
       - doubao-1-5-pro-32k-250115
       - doubao-1-5-lite-32k-250115
+      - doubao-1-5-pro-4k-250115
+      - doubao-1-5-lite-4k-250115
       - deepseek-r1-250120
 
   openrouter:
     name: OpenRouter
     url: https://openrouter.ai/models
     base_url: https://openrouter.ai/api/v1
-    default: openai/gpt-4o
+    default: openai/gpt-4o-mini
     env:
       - OPENROUTER_API_KEY
     models:
       - openai/gpt-4o
       - openai/gpt-4o-mini
+      - openai/gpt-4-turbo
+      - openai/gpt-3.5-turbo
       - google/gemini-2.5-pro-exp-03-25:free
+      - google/gemini-2.5-flash-exp-03-25:free
       - x-ai/grok-3-beta
       - meta-llama/llama-4-maverick
       - meta-llama/llama-4-maverick:free
       - anthropic/claude-3.7-sonnet
       - anthropic/claude-3.7-sonnet:thinking
+      - anthropic/claude-3.5-sonnet
+      - anthropic/claude-3.5-haiku
 
+  lingyiwanwu:
+    name: 零一万物 (Lingyiwanwu)
+    url: https://platform.lingyiwanwu.com/
+    base_url: https://api.lingyiwanwu.com/v1
+    default: yi-large
+    env:
+      - LINGYIWANWU_API_KEY
+    models:
+      - yi-large
+      - yi-large-turbo
+      - yi-medium
+      - yi-medium-turbo
+      - yi-small
+      - yi-small-turbo
 
 EMBED_MODEL_INFO:
+  ollama/nomic-embed-text:
+    name: nomic-embed-text
+    base_url: http://localhost:11434/api/embed
+    dimension: 768
+
+  ollama/bge-m3:
+    name: bge-m3
+    base_url: http://localhost:11434/api/embed
+    dimension: 1024
+
   siliconflow/BAAI/bge-m3:
     name: BAAI/bge-m3
     dimension: 1024
@@ -126,18 +181,13 @@ EMBED_MODEL_INFO:
     base_url: http://localhost:8081/v1/embeddings
     api_key: no_api_key
 
-  ollama/nomic-embed-text:
-    name: nomic-embed-text
-    base_url: http://localhost:11434/api/embed
-    dimension: 768
-
-  ollama/bge-m3:
-    name: bge-m3
-    base_url: http://localhost:11434/api/embed
+  vllm/BAAI/bge-large-zh-v1.5:
+    name: BAAI/bge-large-zh-v1.5
     dimension: 1024
+    base_url: http://localhost:8081/v1/embeddings
+    api_key: no_api_key
 
 RERANKER_LIST:
-
   siliconflow/BAAI/bge-reranker-v2-m3:
     name: BAAI/bge-reranker-v2-m3
     base_url: https://api.siliconflow.cn/v1/rerank
@@ -145,5 +195,10 @@ RERANKER_LIST:
 
   vllm/Qwen/Qwen3-Reranker-0.6B:
     name: Qwen/Qwen3-Reranker-0.6B
+    base_url: http://localhost:8081/v1/rerank
+    api_key: no_api_key
+
+  vllm/BAAI/bge-reranker-large:
+    name: BAAI/bge-reranker-large
     base_url: http://localhost:8081/v1/rerank
     api_key: no_api_key

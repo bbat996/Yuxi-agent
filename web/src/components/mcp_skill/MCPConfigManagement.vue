@@ -13,8 +13,11 @@
         <a-button @click="validateConfig" :loading="loading.validation" :icon="h(SafetyOutlined)">
           验证配置
         </a-button>
+        <a-button @click="debugData" size="small" type="dashed">
+          调试数据
+        </a-button>
       </a-space>
-      
+
       <!-- 统计信息 -->
       <div class="stats-info">
         <a-space>
@@ -50,14 +53,14 @@
             <a-card :title="server.name || server.server_name || '未知服务器'" class="mcp-server-card"
               :class="{ 'disabled': !(server.enabled !== false) }" :hoverable="true">
               <template #extra>
-                <a-space>
-                  <a-tag :color="(server.enabled !== false) ? 'green' : 'red'">
+                <div class="card-tags">
+                  <a-tag :color="(server.enabled !== false) ? 'green' : 'red'" size="small">
                     {{ (server.enabled !== false) ? '启用' : '禁用' }}
                   </a-tag>
-                  <a-tag :color="(server.type || server.server_type) === 'builtin' ? 'blue' : 'orange'">
+                  <a-tag :color="(server.type || server.server_type) === 'builtin' ? 'blue' : 'orange'" size="small">
                     {{ (server.type || server.server_type) === 'builtin' ? '内部' : '外部' }}
                   </a-tag>
-                </a-space>
+                </div>
               </template>
 
               <div class="server-content">
@@ -69,8 +72,8 @@
                   <h5>功能函数 ({{ getFunctionsCount(server) }})</h5>
                   <div class="functions-list">
                     <div v-if="getServerTools(server).length > 0" class="functions-grid">
-                      <a-tag v-for="tool in getServerTools(server).slice(0, 3)" :key="tool.name || tool.function_name || tool.id"
-                        color="cyan" size="small">
+                      <a-tag v-for="tool in getServerTools(server).slice(0, 3)"
+                        :key="tool.name || tool.function_name || tool.id" color="cyan" size="small">
                         {{ getToolDisplayName(tool) }}
                       </a-tag>
                       <a-tag v-if="getServerTools(server).length > 3" color="default" size="small">
@@ -79,13 +82,17 @@
                     </div>
                     <div v-else class="no-functions">
                       <span class="text-muted">暂无功能函数</span>
+                      <div class="debug-hint" v-if="process.env.NODE_ENV === 'development'">
+                        <small>提示: 点击"调试数据"按钮查看服务器原始数据</small>
+                      </div>
                     </div>
                   </div>
                 </div>
 
                 <div class="server-actions">
                   <a-space>
-                    <a-button size="small" type="primary" @click="viewServerDetail(server.name || server.server_name)" :icon="h(EyeOutlined)">
+                    <a-button size="small" type="primary" @click="viewServerDetail(server.name || server.server_name)"
+                      :icon="h(EyeOutlined)">
                       详情
                     </a-button>
                     <a-button size="small" @click="viewFunctions(server)" :icon="h(FunctionOutlined)">
@@ -302,31 +309,59 @@ const getFunctionsCount = (server) => {
 const getServerTools = (server) => {
   // 尝试多种可能的数据结构
   let tools = []
-  
+
+  // 调试服务器数据结构
+  console.log('服务器数据结构:', {
+    name: server.name || server.server_name,
+    hasTools: !!server.tools,
+    hasFunctions: !!server.functions,
+    hasToolsByCategory: !!server.tools_by_category,
+    hasServerTools: !!server.server_tools,
+    hasServerFunctions: !!server.server_functions,
+    serverKeys: Object.keys(server)
+  })
+
   if (server.tools && Array.isArray(server.tools)) {
     tools = server.tools
+    console.log('使用 server.tools:', tools.length)
   } else if (server.functions && Array.isArray(server.functions)) {
     tools = server.functions
+    console.log('使用 server.functions:', tools.length)
   } else if (server.tools_by_category && typeof server.tools_by_category === 'object') {
     // 如果按分类组织，则展平所有工具
     tools = Object.values(server.tools_by_category).flat()
+    console.log('使用 server.tools_by_category:', tools.length)
   } else if (server.server_tools && Array.isArray(server.server_tools)) {
     tools = server.server_tools
+    console.log('使用 server.server_tools:', tools.length)
   } else if (server.server_functions && Array.isArray(server.server_functions)) {
     tools = server.server_functions
+    console.log('使用 server.server_functions:', tools.length)
+  } else {
+    // 尝试查找其他可能的字段
+    const possibleFields = ['methods', 'capabilities', 'resources', 'handlers']
+    for (const field of possibleFields) {
+      if (server[field] && Array.isArray(server[field])) {
+        tools = server[field]
+        console.log(`使用 server.${field}:`, tools.length)
+        break
+      }
+    }
   }
-  
+
   // 确保返回的是数组
   if (!Array.isArray(tools)) {
     console.warn('服务器工具数据不是数组:', server.name || server.server_name, tools)
     tools = []
   }
-  
+
   // 调试信息
   if (tools.length > 0) {
     console.log(`服务器 ${server.name || server.server_name} 有 ${tools.length} 个工具:`, tools.slice(0, 3))
+  } else {
+    console.warn(`服务器 ${server.name || server.server_name} 没有找到工具数据`)
   }
-  
+
   return tools
 }
 
@@ -340,6 +375,12 @@ const getToolDisplayName = (tool) => {
     return tool.id
   } else if (tool.title) {
     return tool.title
+  } else if (tool.method) {
+    return tool.method
+  } else if (tool.handler) {
+    return tool.handler
+  } else if (tool.resource) {
+    return tool.resource
   } else {
     console.warn('工具缺少名称字段:', tool)
     return '未知工具'
@@ -370,7 +411,7 @@ const refreshServers = async () => {
       servers.value = response.data.servers || response.data || {}
       console.log('获取到的服务器数据:', servers.value)
       console.log('服务器数量:', Object.keys(servers.value).length)
-      
+
       // 打印每个服务器的基本信息
       Object.entries(servers.value).forEach(([key, server]) => {
         console.log(`服务器 ${key}:`, {
@@ -459,6 +500,27 @@ const handleSearch = () => {
   console.log('搜索关键词:', searchKeyword.value)
 }
 
+const debugData = () => {
+  console.log('=== 调试数据 ===')
+  console.log('原始服务器数据:', servers.value)
+  console.log('服务器数量:', Object.keys(servers.value).length)
+  
+  Object.entries(servers.value).forEach(([key, server]) => {
+    console.log(`\n服务器 ${key}:`, {
+      name: server.name || server.server_name,
+      type: server.type || server.server_type,
+      enabled: server.enabled,
+      description: server.description || server.server_description,
+      allKeys: Object.keys(server),
+      toolsCount: getServerTools(server).length,
+      tools: getServerTools(server)
+    })
+  })
+  
+  // 显示在页面上
+  message.info('调试信息已输出到控制台，请查看浏览器开发者工具')
+}
+
 // 初始化
 onMounted(async () => {
   await refreshAllData()
@@ -481,7 +543,7 @@ onMounted(async () => {
     background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
     border-radius: 12px;
     border: 1px solid #e2e8f0;
-    
+
     .stats-info {
       color: var(--gray-600);
       font-size: 0.9em;
@@ -527,7 +589,7 @@ onMounted(async () => {
         opacity: 0.6;
         cursor: not-allowed;
         background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
-        
+
         &:hover {
           transform: none;
           box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
@@ -540,22 +602,24 @@ onMounted(async () => {
         min-height: auto;
         display: flex;
         align-items: center;
-        
+
         .ant-card-head-title {
           font-size: 16px;
           font-weight: 600;
           color: #1e293b;
           line-height: 1.4;
           flex: 1;
-          margin-right: 12px;
+          margin-right: 16px;
           overflow: hidden;
           text-overflow: ellipsis;
           white-space: nowrap;
+          min-width: 0;
         }
-        
+
         .ant-card-extra {
           flex-shrink: 0;
           margin-left: auto;
+          min-width: 0;
         }
       }
 
@@ -604,6 +668,12 @@ onMounted(async () => {
             font-size: 13px;
             color: #94a3b8;
             font-style: italic;
+            
+            .debug-hint {
+              margin-top: 4px;
+              font-size: 11px;
+              color: #cbd5e1;
+            }
           }
         }
       }
@@ -611,26 +681,26 @@ onMounted(async () => {
       .server-actions {
         text-align: right;
         margin-top: auto;
-        
+
         :deep(.ant-btn) {
           border-radius: 8px;
           font-weight: 500;
           height: 32px;
           padding: 0 12px;
-          
+
           &.ant-btn-primary {
             background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
             border: none;
-            
+
             &:hover {
               background: linear-gradient(135deg, #2563eb 0%, #1e40af 100%);
             }
           }
-          
+
           &.ant-btn-default {
             border: 1px solid #e2e8f0;
             color: #475569;
-            
+
             &:hover {
               border-color: #3b82f6;
               color: #3b82f6;
@@ -640,142 +710,152 @@ onMounted(async () => {
       }
     }
   }
+}
+
+.tools-section {
+  margin-top: 20px;
+
+  h4 {
+    margin-bottom: 16px;
+    font-size: 16px;
+    font-weight: 600;
+    color: #1e293b;
+  }
+}
+
+.functions-header {
+  margin-bottom: 20px;
+
+  h4 {
+    margin-bottom: 8px;
+    font-size: 18px;
+    font-weight: 600;
+    color: #1e293b;
   }
 
-  .tools-section {
-    margin-top: 20px;
+  .server-description {
+    color: #64748b;
+    margin: 0;
+    font-size: 14px;
+    line-height: 1.5;
+  }
+}
 
-    h4 {
-      margin-bottom: 16px;
-      font-size: 16px;
+.functions-list {
+  .function-title {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+
+    .function-name {
       font-weight: 600;
       color: #1e293b;
     }
   }
 
-  .functions-header {
-    margin-bottom: 20px;
-
-    h4 {
-      margin-bottom: 8px;
-      font-size: 18px;
-      font-weight: 600;
-      color: #1e293b;
-    }
-
-    .server-description {
-      color: #64748b;
-      margin: 0;
-      font-size: 14px;
+  .function-description {
+    p {
+      margin-bottom: 10px;
+      color: #475569;
       line-height: 1.5;
     }
-  }
 
-  .functions-list {
-    .function-title {
-      display: flex;
-      align-items: center;
-      gap: 10px;
+    .function-schema {
+      margin-top: 12px;
 
-      .function-name {
+      h6 {
+        margin-bottom: 6px;
+        font-size: 13px;
         font-weight: 600;
-        color: #1e293b;
+        color: #374151;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
       }
-    }
 
-    .function-description {
-      p {
-        margin-bottom: 10px;
+      pre {
+        background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+        padding: 12px;
+        border-radius: 8px;
+        font-size: 12px;
+        overflow-x: auto;
+        border: 1px solid #e2e8f0;
         color: #475569;
-        line-height: 1.5;
-      }
-
-      .function-schema {
-        margin-top: 12px;
-
-        h6 {
-          margin-bottom: 6px;
-          font-size: 13px;
-          font-weight: 600;
-          color: #374151;
-          text-transform: uppercase;
-          letter-spacing: 0.5px;
-        }
-
-        pre {
-          background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
-          padding: 12px;
-          border-radius: 8px;
-          font-size: 12px;
-          overflow-x: auto;
-          border: 1px solid #e2e8f0;
-          color: #475569;
-        }
       }
     }
   }
+}
 
-  .no-functions {
-    text-align: center;
-    padding: 40px 24px;
+.no-functions {
+  text-align: center;
+  padding: 40px 24px;
+}
+
+.empty-state {
+  margin-top: 60px;
+}
+
+// 优化标签样式
+:deep(.ant-tag) {
+  border-radius: 6px;
+  font-weight: 500;
+  font-size: 12px;
+  padding: 2px 8px;
+  border: none;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+
+  &.ant-tag-green {
+    background: linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%);
+    color: #166534;
   }
 
-  .empty-state {
-    margin-top: 60px;
+  &.ant-tag-red {
+    background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
+    color: #dc2626;
   }
 
-  // 优化标签样式
-  :deep(.ant-tag) {
-    border-radius: 6px;
-    font-weight: 500;
-    font-size: 12px;
-    padding: 2px 8px;
-    border: none;
-    max-width: 100%;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    
-    &.ant-tag-green {
-      background: linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%);
-      color: #166534;
-    }
-    
-    &.ant-tag-red {
-      background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
-      color: #dc2626;
-    }
-    
-    &.ant-tag-blue {
-      background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
-      color: #1e40af;
-    }
-    
-    &.ant-tag-orange {
-      background: linear-gradient(135deg, #fed7aa 0%, #fdba74 100%);
-      color: #c2410c;
-    }
-    
-    &.ant-tag-cyan {
-      background: linear-gradient(135deg, #cffafe 0%, #a5f3fc 100%);
-      color: #0e7490;
-    }
-    
-    &.ant-tag-default {
-      background: #f1f5f9;
-      color: #64748b;
+  &.ant-tag-blue {
+    background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
+    color: #1e40af;
+  }
+
+  &.ant-tag-orange {
+    background: linear-gradient(135deg, #fed7aa 0%, #fdba74 100%);
+    color: #c2410c;
+  }
+
+  &.ant-tag-cyan {
+    background: linear-gradient(135deg, #cffafe 0%, #a5f3fc 100%);
+    color: #0e7490;
+  }
+
+  &.ant-tag-default {
+    background: #f1f5f9;
+    color: #64748b;
+  }
+}
+
+// 卡片标签样式
+.card-tags {
+  display: flex;
+  gap: 6px;
+  flex-wrap: nowrap;
+  align-items: center;
+}
+
+// 确保卡片头部标签不会重叠
+:deep(.ant-card-extra) {
+  .card-tags {
+    .ant-tag {
+      flex-shrink: 0;
+      min-width: 0;
+      max-width: 60px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
     }
   }
-  
-  // 确保卡片头部标签不会重叠
-  :deep(.ant-card-extra) {
-    .ant-space {
-      flex-wrap: nowrap;
-      
-      .ant-tag {
-        flex-shrink: 0;
-        min-width: 0;
-      }
-    }
-  }
+}
 </style>

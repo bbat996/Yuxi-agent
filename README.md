@@ -58,6 +58,11 @@ SILICONFLOW_API_KEY=sk-270ea********8bfa97.e3XOMd****Q1Sk
 OPENAI_API_KEY=<API_KEY>          # OpenAI 服务
 DEEPSEEK_API_KEY=<API_KEY>        # DeepSeek 服务
 ZHIPUAI_API_KEY=<API_KEY>         # 智谱清言服务
+DASHSCOPE_API_KEY=<API_KEY>       # 阿里百炼服务
+ARK_API_KEY=<API_KEY>             # 豆包方舟服务
+TOGETHER_API_KEY=<API_KEY>        # Together.ai 服务
+OPENROUTER_API_KEY=<API_KEY>      # OpenRouter 服务
+LINGYIWANWU_API_KEY=<API_KEY>     # 零一万物服务
 TAVILY_API_KEY=<TAVILY_API_KEY>   # 联网搜索功能
 ```
 
@@ -103,14 +108,15 @@ docker logs <容器名称> -f # 例如：docker logs api-dev
 
 | 模型供应商             | 默认模型                            | 配置项目                |
 | :--------------------- | :---------------------------------- | :---------------------- |
-| `siliconflow` (默认) | `Qwen/Qwen2.5-7B-Instruct` (免费) | `SILICONFLOW_API_KEY` |
-| `openai`             | `gpt-4o`                          | `OPENAI_API_KEY`      |
+| `openai` (默认)      | `gpt-4o-mini`                     | `OPENAI_API_KEY`      |
 | `deepseek`           | `deepseek-chat`                   | `DEEPSEEK_API_KEY`    |
-| `arc`（豆包方舟）    | `doubao-1-5-pro-32k-250115`       | `ARK_API_KEY`         |
 | `zhipu`（智谱清言）  | `glm-4-flash`                     | `ZHIPUAI_API_KEY`     |
+| `siliconflow`        | `Qwen/Qwen3-8B` (免费)            | `SILICONFLOW_API_KEY` |
 | `dashscope`（阿里）  | `qwen-max-latest`                 | `DASHSCOPE_API_KEY`   |
+| `ark`（豆包方舟）    | `doubao-1-5-pro-32k-250115`       | `ARK_API_KEY`         |
 | `together.ai`        | `meta-llama/Llama-3.3-70B-Instruct-Turbo-Free` | `TOGETHER_API_KEY`   |
-| `openrouter`         | `openai/gpt-4o`                   | `OPENROUTER_API_KEY`  |
+| `openrouter`         | `openai/gpt-4o-mini`              | `OPENROUTER_API_KEY`  |
+| `lingyiwanwu`        | `yi-large`                        | `LINGYIWANWU_API_KEY` |
 
 #### 添加新模型供应商
 

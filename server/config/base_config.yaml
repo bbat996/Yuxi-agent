@@ -1,16 +1,14 @@
 config_file: C:\Users\admin\github\Yuxi-agent\server\config\base_config.yaml
-embed_model: vllm/Qwen/Qwen3-Embedding-0.6B
-enable_reranker: false
+embed_model: ollama/nomic-embed-text
+enable_reranker: true
 enable_web_search: true
-tavily_api_key: tvly-3gR4ind9******JMOxw3E2LG
-tavily_base_url: https://api.tavily.com
 model_dir: ./Huggingface
-model_name: gpt-4o-mini
-model_provider: openai
+model_name: deepseek-chat
+model_provider: deepseek
 provider_enabled_status:
-  ark: true
-  dashscope: true
-  deepseek: false
+  ark: false
+  dashscope: false
+  deepseek: true
   openai: false
   openrouter: true
   siliconflow: false
@@ -18,6 +16,8 @@ provider_enabled_status:
   zhipu: false
 reranker: vllm/Qwen/Qwen3-Reranker-0.6B
 storage_dir: storage
+tavily_api_key: tvly-3gR4ind9******JMOxw3E2LG
+tavily_base_url: https://api.tavily.com
 valuable_model_provider:
 - openai
 - deepseek

@@ -9,43 +9,36 @@
     </HeaderComponent>
     <div class="setting-container layout-container">
       <div class="sider" v-if="state.windowWidth > 520">
-        <a-button type="text" v-if="userStore.isSuperAdmin" :class="{ activesec: state.section === 'base'}" @click="state.section='base'" :icon="h(SettingOutlined)"> 基本设置 </a-button>
-        <a-button type="text" v-if="userStore.isSuperAdmin" :class="{ activesec: state.section === 'model'}" @click="state.section='model'" :icon="h(CodeOutlined)"> 模型配置 </a-button>
-        <a-button type="text" v-if="userStore.isSuperAdmin" :class="{ activesec: state.section === 'mcp-config'}" @click="state.section='mcp-config'" :icon="h(SettingOutlined)"> MCP配置 </a-button>
-        <a-button type="text" :class="{ activesec: state.section === 'user'}" @click="state.section='user'" :icon="h(UserOutlined)" v-if="userStore.isAdmin"> 用户管理 </a-button>
+        <a-button type="text" v-if="userStore.isSuperAdmin" :class="{ activesec: state.section === 'base' }"
+          @click="state.section = 'base'" :icon="h(SettingOutlined)"> 基本设置 </a-button>
+        <a-button type="text" v-if="userStore.isSuperAdmin" :class="{ activesec: state.section === 'model' }"
+          @click="state.section = 'model'" :icon="h(CodeOutlined)"> 模型配置 </a-button>
+        <a-button type="text" v-if="userStore.isSuperAdmin" :class="{ activesec: state.section === 'mcp-config' }"
+          @click="state.section = 'mcp-config'" :icon="h(SettingOutlined)"> MCP配置 </a-button>
+        <a-button type="text" :class="{ activesec: state.section === 'user' }" @click="state.section = 'user'"
+          :icon="h(UserOutlined)" v-if="userStore.isAdmin"> 用户管理 </a-button>
       </div>
       <div class="setting" v-if="(state.windowWidth <= 520 || state.section === 'base') && userStore.isSuperAdmin">
         <h3>检索配置</h3>
         <div class="section">
           <div class="card card-select">
             <span class="label">对话模型</span>
-            <ModelSelectorComponent
-              @select-model="handleChatModelSelect"
-              :model_name="configStore.config?.model_name"
-              :model_provider="configStore.config?.model_provider"
-            />
+            <ModelSelectorComponent @select-model="handleChatModelSelect" :model_name="configStore.config?.model_name"
+              :model_provider="configStore.config?.model_provider" />
           </div>
           <div class="card card-select">
             <span class="label">{{ items?.embed_model.des }}</span>
-            <a-select style="width: 300px"
-              :value="configStore.config?.embed_model"
-              @change="handleChange('embed_model', $event)"
-            >
-              <a-select-option
-                v-for="(name, idx) in items?.embed_model.choices" :key="idx"
-                :value="name">{{ name }}
+            <a-select style="width: 300px" :value="configStore.config?.embed_model"
+              @change="handleChange('embed_model', $event)">
+              <a-select-option v-for="(name, idx) in items?.embed_model.choices" :key="idx" :value="name">{{ name }}
               </a-select-option>
             </a-select>
           </div>
           <div class="card card-select">
             <span class="label">{{ items?.reranker.des }}</span>
-            <a-select style="width: 300px"
-              :value="configStore.config?.reranker"
-              @change="handleChange('reranker', $event)"
-            >
-              <a-select-option
-                v-for="(name, idx) in items?.reranker.choices" :key="idx"
-                :value="name">{{ name }}
+            <a-select style="width: 300px" :value="configStore.config?.reranker"
+              @change="handleChange('reranker', $event)">
+              <a-select-option v-for="(name, idx) in items?.reranker.choices" :key="idx" :value="name">{{ name }}
               </a-select-option>
             </a-select>
           </div>
@@ -55,61 +48,50 @@
         <div class="section">
           <div class="card card-select">
             <span class="label">{{ items?.enable_reranker.des }}</span>
-            <a-switch
-              :checked="configStore.config?.enable_reranker"
-              @change="handleChange('enable_reranker', $event)"
-            />
+            <a-switch :checked="configStore.config?.enable_reranker"
+              @change="handleChange('enable_reranker', $event)" />
           </div>
           <div class="card card-select">
             <span class="label">{{ items?.enable_web_search.des }}</span>
-            <a-switch
-              :checked="configStore.config?.enable_web_search"
-              @change="handleChange('enable_web_search', $event)"
-            />
+            <a-switch :checked="configStore.config?.enable_web_search"
+              @change="handleChange('enable_web_search', $event)" />
           </div>
         </div>
 
         <h3>Web搜索配置</h3>
         <div class="section">
           <div class="card card-select">
-            <span class="label">Tavily API Key</span>
-            <a-input-password
-              style="width: 300px"
-              :value="configStore.config?.tavily_api_key || ''"
-              @change="handleChange('tavily_api_key', $event.target.value)"
-              placeholder="请输入Tavily API Key"
-            />
+            <span class="label">Tavily Base URL</span>
+            <a-input style="width: 300px" :value="configStore.config?.tavily_base_url || 'https://api.tavily.com'"
+              @change="handleChange('tavily_base_url', $event.target.value)" placeholder="Tavily API基础URL" />
           </div>
           <div class="card card-select">
-            <span class="label">Tavily Base URL</span>
-            <a-input
-              style="width: 300px"
-              :value="configStore.config?.tavily_base_url || 'https://api.tavily.com'"
-              @change="handleChange('tavily_base_url', $event.target.value)"
-              placeholder="Tavily API基础URL"
-            />
+            <span class="label">Tavily API Key</span>
+            <a-input-password style="width: 300px" :value="configStore.config?.tavily_api_key || ''"
+              @change="handleChange('tavily_api_key', $event.target.value)" placeholder="请输入Tavily API Key" />
           </div>
+
         </div>
       </div>
       <div class="setting" v-if="(state.windowWidth <= 520 || state.section === 'model') && userStore.isSuperAdmin">
         <ModelProvidersComponent />
       </div>
-      
+
       <!-- MCP配置管理 -->
-      <div class="setting" v-if="(state.windowWidth <= 520 || state.section === 'mcp-config') && userStore.isSuperAdmin">
+      <div class="setting"
+        v-if="(state.windowWidth <= 520 || state.section === 'mcp-config') && userStore.isSuperAdmin">
         <MCPConfigManagement />
       </div>
-      
+
       <!-- 用户管理 -->
       <div class="setting" v-if="state.section === 'user' && userStore.isAdmin">
-         <UserManagementComponent />
+        <UserManagementComponent />
       </div>
     </div>
   </div>
 </template>
 
 <script setup>
-import { message } from 'ant-design-vue';
 import { computed, reactive, ref, h, onMounted, onUnmounted } from 'vue'
 import { useConfigStore } from '@/stores/config';
 import { useUserStore } from '@/stores/user'
@@ -123,7 +105,6 @@ import HeaderComponent from '@/components/HeaderComponent.vue';
 import ModelProvidersComponent from '@/components/model/ModelProvidersComponent.vue';
 import UserManagementComponent from '@/components/user/UserManagementComponent.vue';
 import MCPConfigManagement from '@/components/mcp_skill/MCPConfigManagement.vue';
-import { notification, Button } from 'ant-design-vue';
 import { systemConfigApi } from '@/apis/admin_api'
 import ModelSelectorComponent from '@/components/model/ModelSelectorComponent.vue';
 
@@ -150,13 +131,6 @@ const preHandleChange = (key, e) => {
     || key == 'tavily_api_key'
     || key == 'tavily_base_url') {
     isNeedRestart.value = true
-    notification.info({
-      message: '需要重新加载模型',
-      description: '请点击右下角按钮重新加载模型',
-      placement: 'topLeft',
-      duration: 0,
-      btn: h(Button, { type: 'primary', onClick: sendRestart }, '立即重新加载')
-    })
   }
   return true
 }
@@ -200,19 +174,16 @@ onUnmounted(() => {
 
 const sendRestart = () => {
   console.log('Restarting...')
-  message.loading({ content: '重新加载模型中', key: "restart", duration: 0 });
 
   systemConfigApi.restartServer()
     .then(() => {
       console.log('Restarted')
-      message.success({ content: '重新加载完成!', key: "restart", duration: 2 });
       setTimeout(() => {
         window.location.reload()
       }, 200)
     })
     .catch(error => {
       console.error('重启服务失败:', error)
-      message.error({ content: `重启失败: ${error.message}`, key: "restart", duration: 2 });
     });
 }
 </script>
@@ -251,7 +222,7 @@ const sendRestart = () => {
   gap: 8px;
   padding-top: 20px;
 
-  & > * {
+  &>* {
     width: 100%;
     height: auto;
     padding: 6px 16px;
@@ -325,4 +296,4 @@ const sendRestart = () => {
     flex-direction: column;
   }
 }
-</style> 
+</style>
