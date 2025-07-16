@@ -103,16 +103,25 @@ class ChatbotAgent(BaseAgent):
     agent_type: str = "chatbot"
 
     @classmethod
+    async def create(cls, agent_id: str = None, config: dict = None, **kwargs) -> "ChatbotAgent":
+        """异步工厂方法，用于创建和初始化ChatbotAgent实例"""
+        agent = cls(agent_id=agent_id, config=config, **kwargs, _skip_init=True)
+        await agent._ainitialize_llm_and_tools()
+        logger.info(f"ChatbotAgent 异步初始化完成: {agent.name}")
+        return agent
+
+    @classmethod
     def from_db_record(cls, db_record, agent_id: str = None, **kwargs) -> "ChatbotAgent":
-        """从数据库记录创建ChatbotAgent实例"""
+        """从数据库记录创建ChatbotAgent实例（同步，可能不完全初始化）"""
         # 获取配置
         config = ChatbotConfiguration.from_db_record(db_record)
         
         # 创建实例
         agent_id = agent_id or getattr(db_record, 'agent_id', None)
+        # 注意：这里返回的实例可能没有完全初始化LLM和工具
         return cls(agent_id=agent_id, config=config.to_dict(), **kwargs)
 
-    def __init__(self, agent_id: str = None, config: dict = None, **kwargs):
+    def __init__(self, agent_id: str = None, config: dict = None, _skip_init: bool = False, **kwargs):
         self.agent_id = agent_id or "chatbot"
         
         # 合并 YAML、外部 config、默认值
@@ -139,12 +148,14 @@ class ChatbotAgent(BaseAgent):
         self.tools = []
         self.llm_with_tools = None
         self.graph = None
-        self._initialize_llm_and_tools()
 
-        logger.info(f"ChatbotAgent 初始化完成: {self.name}")
+        if not _skip_init:
+            logger.warning("同步初始化 ChatbotAgent，MCP工具可能无法加载。请使用 ChatbotAgent.create() 异步初始化。")
+            self._initialize_llm_and_tools() # 同步版本，可能不完整
+            logger.info(f"ChatbotAgent 同步初始化完成: {self.name}")
 
-    def _initialize_llm_and_tools(self):
-        """初始化或重新初始化LLM、工具和绑定后的模型"""
+    async def _ainitialize_llm_and_tools(self):
+        """异步初始化或重新初始化LLM、工具和绑定后的模型"""
         # 获取模型配置
         model_config = self._get_model_config()
         model_parameters = getattr(self.config_schema, "model_parameters", {})
@@ -161,7 +172,7 @@ class ChatbotAgent(BaseAgent):
         # 获取工具
         tools_config = getattr(self.config_schema, "tools", [])
         mcp_skills_config = getattr(self.config_schema, "mcp_skills", [])
-        self.tools = self._get_tools(
+        self.tools = await self._aget_tools(
             tools_config,
             mcp_skills_config,
         )
@@ -199,10 +210,41 @@ class ChatbotAgent(BaseAgent):
         # 重新初始化MCP连接配置
         self._init_mcp_connections()
         # 重新初始化模型和工具
+        # 注意：reload_config 是同步的，无法调用异步初始化
+        # 如果需要完全重新加载，需要重新创建实例
+        logger.warning("reload_config 是同步的，只会重新加载部分配置。如需完全重载，请重新创建 agent 实例。")
         self._initialize_llm_and_tools()
         logger.info(f"智能体配置重新加载完成: {self.name}")
 
-    def _get_tools(self, tools: List[str], mcp_skills: List[str] = None) -> List:
+    def _initialize_llm_and_tools(self):
+        """同步初始化LLM和工具（不支持异步的MCP工具）"""
+        # 获取模型配置
+        model_config = self._get_model_config()
+        model_parameters = getattr(self.config_schema, "model_parameters", {})
+
+        # 加载模型
+        logger.info(f"(同步) 开始加载模型: {model_config.get('provider')}/{model_config.get('model_name')}")
+        self.model = load_chat_model(
+            provider=model_config.get("provider"),
+            model=model_config.get("model_name"),
+            model_parameters=model_parameters
+        )
+        logger.info("(同步) 模型加载成功")
+
+        # 获取工具 (同步版本，跳过MCP)
+        tools_config = getattr(self.config_schema, "tools", [])
+        self.tools = self._get_tools(tools_config, []) # 传入空的mcp_skills
+        
+        logger.info("=== (同步) 工具配置 ===")
+        if self.tools:
+            tool_names = [getattr(tool, 'name', str(tool)) for tool in self.tools]
+            logger.info(f"可用工具: {', '.join(tool_names)}")
+            self.llm_with_tools = self.model.bind_tools(self.tools)
+        else:
+            logger.info("无可用工具")
+            self.llm_with_tools = self.model
+
+    async def _aget_tools(self, tools: List[str], mcp_skills: List[str] = None) -> List:
         """
         根据配置获取工具
         Args:
@@ -233,18 +275,7 @@ class ChatbotAgent(BaseAgent):
         # 添加MCP技能工具（支持list格式）
         if mcp_skills and isinstance(mcp_skills, list):
             from src.agents.mcp_client import get_mcp_tools_for_agent
-            import asyncio
-
-            mcp_skill_names = mcp_skills
-            try:
-                loop = asyncio.get_running_loop()
-                import concurrent.futures
-                with concurrent.futures.ThreadPoolExecutor() as executor:
-                    future = executor.submit(asyncio.run, get_mcp_tools_for_agent(mcp_skill_names))
-                    mcp_tools = future.result()
-            except RuntimeError:
-                mcp_tools = asyncio.run(get_mcp_tools_for_agent(mcp_skill_names))
-
+            mcp_tools = await get_mcp_tools_for_agent(mcp_skills)
             if isinstance(mcp_tools, list):
                 result_tools.extend(mcp_tools)
                 logger.debug(f"添加MCP工具: {len(mcp_tools)} 个")
