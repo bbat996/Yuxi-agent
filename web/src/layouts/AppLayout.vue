@@ -186,6 +186,7 @@ const mainList = [
     icon: Settings,
     activeIcon: Settings
   },
+
   // {
   //   name: '图谱',
   //   path: '/graph',

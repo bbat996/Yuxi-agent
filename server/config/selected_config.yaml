@@ -1,5 +1,5 @@
 config_file: C:\Users\admin\github\Yuxi-agent\server\config\base.yaml
-default_agent_id: ''
+
 embed_model: ollama/nomic-embed-text
 enable_reranker: false
 enable_web_search: true

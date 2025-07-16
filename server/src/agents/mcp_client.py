@@ -6,6 +6,7 @@ from langchain_core.tools import BaseTool
 from langchain_mcp_adapters.client import MultiServerMCPClient
 
 from src.utils import logger
+from src.mcp_server.config_manager import get_mcp_config_manager, reload_mcp_config
 
 # 默认MCP连接配置
 DEFAULT_MCP_CONNECTIONS = {
@@ -15,7 +16,13 @@ DEFAULT_MCP_CONNECTIONS = {
 class MCPClient:
     """MCP技能集成类（langchain-mcp-adapters 版，推荐用法）"""
     def __init__(self, connections: Optional[dict] = None):
-        self.connections = connections or DEFAULT_MCP_CONNECTIONS
+        if connections is None:
+            # 从配置文件加载连接配置
+            config_manager = get_mcp_config_manager()
+            self.connections = config_manager.get_server_connections()
+        else:
+            self.connections = connections
+        
         self.client = MultiServerMCPClient(self.connections)
         self._initialized = False
 
@@ -26,6 +33,14 @@ class MCPClient:
         self.client = MultiServerMCPClient(self.connections)
         self._initialized = False
         logger.info(f"MCP连接配置已更新: {list(connections.keys())}")
+    
+    def reload_from_config(self):
+        """从配置文件重新加载连接配置"""
+        config_manager = get_mcp_config_manager()
+        self.connections = config_manager.get_server_connections()
+        self.client = MultiServerMCPClient(self.connections)
+        self._initialized = False
+        logger.info(f"从配置文件重新加载MCP连接配置: {list(self.connections.keys())}")
 
     async def initialize(self):
         """初始化MCP客户端"""
@@ -73,10 +88,9 @@ class MCPClient:
 
     async def refresh_skills(self):
         """刷新MCP技能列表"""
-        # 目前 MultiServerMCPClient 没有刷新方法，重建 client 即可
-        self.client = MultiServerMCPClient(self.connections)
-        self._initialized = False
-        logger.info("MCP技能列表已刷新（MultiServerMCPClient）")
+        # 从配置文件重新加载
+        self.reload_from_config()
+        logger.info("MCP技能列表已刷新（从配置文件重新加载）")
 
     async def shutdown(self):
         """关闭MCP集成"""
@@ -117,31 +131,7 @@ async def get_mcp_tools_for_agent(mcp_skills: List[str] = None) -> List[BaseTool
     return await mcp_client.get_mcp_tools()
 
 def load_mcp_connections_from_config(mcp_config: dict) -> dict:
-    """从配置文件加载MCP连接配置"""
-    connections = {}
-    
-    if not mcp_config:
-        return connections
-    
-    for skill_name, skill_config in mcp_config.items():
-        if isinstance(skill_config, dict):
-            # 验证必要的配置字段
-            if "transport" not in skill_config:
-                logger.warning(f"MCP技能 {skill_name} 缺少 transport 配置")
-                continue
-                
-            # 根据传输类型验证配置
-            transport = skill_config["transport"]
-            if transport == "stdio":
-                if "command" not in skill_config or "args" not in skill_config:
-                    logger.warning(f"MCP技能 {skill_name} (stdio) 缺少 command 或 args 配置")
-                    continue
-            elif transport == "streamable_http":
-                if "url" not in skill_config:
-                    logger.warning(f"MCP技能 {skill_name} (http) 缺少 url 配置")
-                    continue
-            
-            connections[skill_name] = skill_config
-            logger.info(f"加载MCP技能配置: {skill_name} ({transport})")
-    
-    return connections
+    """从配置文件加载MCP连接配置（兼容旧版本）"""
+    # 现在使用新的配置管理器
+    config_manager = get_mcp_config_manager()
+    return config_manager.get_server_connections()

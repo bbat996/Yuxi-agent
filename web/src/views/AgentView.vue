@@ -185,8 +185,6 @@ import {
   CloseOutlined,
   SettingOutlined,
   LinkOutlined,
-  StarOutlined,
-  StarFilled,
   CheckCircleOutlined,
   PlusCircleOutlined
 } from '@ant-design/icons-vue';

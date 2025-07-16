@@ -67,11 +67,7 @@ export const chatApi = {
    */
   simpleCall: (query) => apiPost('/api/chat/call', { query }, {}, true),
 
-  /**
-   * 获取默认智能体
-   * @returns {Promise} - 默认智能体信息
-   */
-  getDefaultAgent: () => apiGet('/api/chat/default_agent', {}, true),
+
 
   /**
    * 获取智能体列表
@@ -106,7 +102,7 @@ export const chatApi = {
    * @returns {Promise} - 模型列表
    */
   getProviderModels: (provider) => {
-    return fetch(`/api/chat/models?model_provider=${provider}`, {
+    return fetch(`/api/model/models?model_provider=${provider}`, {
       headers: {
         ...useUserStore().getAuthHeaders()
       }
@@ -120,7 +116,7 @@ export const chatApi = {
    * @returns {Promise} - 更新结果
    */
   updateProviderModels: (provider, models) => {
-    return fetch(`/api/chat/models/update?model_provider=${provider}`, {
+    return fetch(`/api/model/models/update?model_provider=${provider}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -136,7 +132,7 @@ export const chatApi = {
    * @returns {Promise} - 提供商配置
    */
   getProviderConfig: (provider) => {
-    return fetch(`/api/chat/provider/${provider}/config`, {
+    return fetch(`/api/model/provider/${provider}/config`, {
       headers: {
         ...useUserStore().getAuthHeaders()
       }
@@ -150,7 +146,7 @@ export const chatApi = {
    * @returns {Promise} - 更新结果
    */
   updateProviderConfig: (provider, config) => {
-    return fetch(`/api/chat/provider/${provider}/config`, {
+    return fetch(`/api/model/provider/${provider}/config`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -167,7 +163,7 @@ export const chatApi = {
    * @returns {Promise} - 添加结果
    */
   addProviderModel: (provider, modelName) => {
-    return fetch(`/api/chat/provider/${provider}/models/add`, {
+    return fetch(`/api/model/provider/${provider}/models/add`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -184,7 +180,7 @@ export const chatApi = {
    * @returns {Promise} - 删除结果
    */
   removeProviderModel: (provider, modelName) => {
-    return fetch(`/api/chat/provider/${provider}/models/${modelName}`, {
+    return fetch(`/api/model/provider/${provider}/models/${modelName}`, {
       method: 'DELETE',
       headers: {
         ...useUserStore().getAuthHeaders()
@@ -199,13 +195,30 @@ export const chatApi = {
    * @returns {Promise} - 测试结果
    */
   testProviderConnection: (provider, config) => {
-    return fetch(`/api/chat/provider/${provider}/test`, {
+    return fetch(`/api/model/provider/${provider}/test`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         ...useUserStore().getAuthHeaders()
       },
       body: JSON.stringify(config)
+    }).then(response => response.json())
+  },
+
+  /**
+   * 切换模型提供商启用状态
+   * @param {string} provider - 模型提供商
+   * @param {boolean} enabled - 是否启用
+   * @returns {Promise} - 切换结果
+   */
+  toggleProviderStatus: (provider, enabled) => {
+    return fetch(`/api/model/provider/${provider}/toggle`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...useUserStore().getAuthHeaders()
+      },
+      body: JSON.stringify({ enabled })
     }).then(response => response.json())
   }
 }

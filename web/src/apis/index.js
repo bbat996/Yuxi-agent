@@ -18,6 +18,12 @@ export * from './agent_api'
 // 导出模板管理API模块
 export * from './template_api'
 
+// 导出MCP工具管理API模块（管理员权限）
+export * from './mcp_api'
+
+// 导出技能管理API模块（用户权限）
+export * from './skill_api'
+
 // 导出基础工具函数
 export { apiRequest, apiGet, apiPost, apiPut, apiDelete } from './base'
 

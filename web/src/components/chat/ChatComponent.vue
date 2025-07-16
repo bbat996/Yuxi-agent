@@ -31,7 +31,7 @@
         </div>
         <div v-if="opts.showPanel" class="my-panal r0 top100 swing-in-top-fwd" ref="panel">
           <div class="flex-center" @click="meta.summary_title = !meta.summary_title">
-            总结对话标题 <div @click.stop><a-switch v-model:checked="meta.summary_title" /></div>
+            总结对话标题 <div @click="(e) => e.stopPropagation()"><a-switch v-model:checked="meta.summary_title" /></div>
           </div>
           <div class="flex-center">
             最大历史轮数 <a-input-number id="inputNumber" v-model:value="meta.history_round" :min="1" :max="50" />
@@ -45,7 +45,7 @@
             </a-select>
           </div>
           <div class="flex-center" @click="meta.wideScreen = !meta.wideScreen">
-            宽屏模式 <div @click.stop><a-switch v-model:checked="meta.wideScreen" /></div>
+            宽屏模式 <div @click="(e) => e.stopPropagation()"><a-switch v-model:checked="meta.wideScreen" /></div>
           </div>
         </div>
       </div>

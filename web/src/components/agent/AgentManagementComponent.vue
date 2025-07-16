@@ -102,8 +102,7 @@ const newAgentName = ref('');
 const newAgentDesc = ref('');
 const newAgentType = ref('chatbot');
 const addingAgent = ref(false);
-const defaultAgentId = ref(null);
-const settingDefault = ref(false);
+
 const pagination = ref({ page: 1, page_size: 10, total: 0 });
 
 // 头像上传相关
@@ -118,8 +117,7 @@ const fetchAgents = async () => {
     if (res.success) {
       agents.value = res.data.agents;
       pagination.value.total = res.data.pagination.total;
-      const defaultAgent = agents.value.find(a => a.instance);
-      defaultAgentId.value = defaultAgent ? defaultAgent.agent_id : null;
+
       
       // 调试信息：检查智能体数据是否包含头像
       console.log('获取到的智能体列表:', agents.value);

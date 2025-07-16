@@ -2,7 +2,7 @@
   <a-modal
     :visible="modalVisible"
     :title="modalTitle"
-    width="800px"
+    :width="modalWidth"
     :confirm-loading="loading"
     :destroy-on-close="true"
     @ok="handleSubmit"
@@ -20,221 +20,248 @@
       <div class="form-section">
         <h4 class="section-title">基础信息</h4>
         
-        <a-row :gutter="16">
-          <a-col :span="12">
-            <a-form-item label="智能体名称" name="name">
-              <a-input 
-                v-model:value="formData.name" 
-                placeholder="请输入智能体名称"
-                :maxlength="50"
-                show-count
-              />
-            </a-form-item>
-          </a-col>
-          <a-col :span="12">
-            <a-form-item label="智能体类型" name="agent_type">
-              <a-select v-model:value="formData.agent_type" placeholder="选择智能体类型">
-                <a-select-option value="custom">自定义</a-select-option>
-                <a-select-option value="chatbot">聊天助手</a-select-option>
-                <a-select-option value="react">ReAct智能体</a-select-option>
-              </a-select>
-            </a-form-item>
-          </a-col>
-        </a-row>
-
-        <a-form-item label="智能体描述" name="description">
-          <a-textarea 
-            v-model:value="formData.description" 
-            placeholder="描述智能体的功能和用途"
-            :rows="3"
-            :maxlength="200"
+        <!-- 头像上传区域 -->
+        <a-form-item label="头像">
+          <div class="avatar-upload-section">
+            <div class="avatar-preview">
+              <a-avatar :size="80" :src="avatarPreview || formData.avatar || undefined">
+                <template #icon v-if="!avatarPreview && !formData.avatar">
+                  <RobotOutlined />
+                </template>
+              </a-avatar>
+            </div>
+            <div class="avatar-upload">
+              <a-upload
+                v-model:fileList="avatarFileList"
+                name="avatar"
+                :max-count="1"
+                :before-upload="beforeAvatarUpload"
+                :show-upload-list="false"
+                accept="image/*"
+              >
+                <a-button type="dashed">
+                  <template #icon><UploadOutlined /></template>
+                  上传头像
+                </a-button>
+              </a-upload>
+              <div class="upload-hint">
+                支持 JPG、PNG 格式，建议尺寸 200x200 像素
+              </div>
+            </div>
+          </div>
+        </a-form-item>
+        
+        <a-form-item label="名称" name="name" required>
+          <a-input 
+            v-model:value="formData.name" 
+            placeholder="输入智能体名称"
+            :maxlength="50"
             show-count
           />
         </a-form-item>
-      </div>
 
-      <!-- 系统提示词 -->
-      <div class="form-section">
-        <h4 class="section-title">
-          系统提示词
-          <a-tooltip title="智能体的基础行为指令">
-            <QuestionCircleOutlined class="help-icon" />
-          </a-tooltip>
-        </h4>
-        
-        <a-form-item name="system_prompt">
-          <div class="prompt-editor">
-            <div class="prompt-toolbar">
-              <a-button-group size="small">
-                <a-button @click="showTemplateSelector = true">
-                  <template #icon><AppstoreOutlined /></template>
-                  选择模板
-                </a-button>
-                <a-button @click="insertVariable">
-                  <template #icon><TagOutlined /></template>
-                  插入变量
-                </a-button>
-              </a-button-group>
-            </div>
-            <a-textarea 
-              v-model:value="formData.system_prompt"
-              placeholder="请输入系统提示词，定义智能体的角色和行为..."
-              :rows="6"
-              class="prompt-textarea"
-            />
-          </div>
+        <a-form-item label="描述" name="description">
+          <a-textarea 
+            v-model:value="formData.description" 
+            placeholder="输入描述（可选，最多200字）"
+            :maxlength="200"
+            :auto-size="{ minRows: 3, maxRows: 6 }"
+            show-count
+          />
+        </a-form-item>
+
+        <a-form-item label="类型" name="agent_type">
+          <a-select v-model:value="formData.agent_type" disabled>
+            <a-select-option value="chatbot">对话智能体</a-select-option>
+          </a-select>
         </a-form-item>
       </div>
 
-      <!-- 模型配置 -->
-      <div class="form-section">
-        <h4 class="section-title">模型配置</h4>
-        
-        <a-row :gutter="16">
-          <a-col :span="12">
-            <a-form-item label="模型" name="model">
-              <a-select 
-                v-model:value="formData.model_config.model" 
-                placeholder="选择模型"
-                show-search
-                @change="handleModelChange"
-              >
-                <a-select-option value="gpt-4">GPT-4</a-select-option>
-                <a-select-option value="gpt-3.5-turbo">GPT-3.5 Turbo</a-select-option>
-                <a-select-option value="claude-3">Claude-3</a-select-option>
-                <a-select-option value="local-llm">本地模型</a-select-option>
-              </a-select>
-            </a-form-item>
-          </a-col>
-          <a-col :span="12">
-            <a-form-item label="温度" name="temperature">
-              <a-slider
-                v-model:value="formData.model_config.temperature"
-                :min="0"
-                :max="2"
-                :step="0.1"
-                :tooltip-formatter="(val) => `${val} (${getTemperatureLabel(val)})`"
-              />
-            </a-form-item>
-          </a-col>
-        </a-row>
-
-        <a-row :gutter="16">
-          <a-col :span="12">
-            <a-form-item label="最大回复长度">
-              <a-input-number
-                v-model:value="formData.model_config.max_tokens"
-                :min="1"
-                :max="4000"
-                placeholder="最大回复长度"
-                style="width: 100%"
-              />
-            </a-form-item>
-          </a-col>
-          <a-col :span="12">
-            <a-form-item label="Top P">
-              <a-slider
-                v-model:value="formData.model_config.top_p"
-                :min="0"
-                :max="1"
-                :step="0.1"
-                :tooltip-formatter="(val) => `${val}`"
-              />
-            </a-form-item>
-          </a-col>
-        </a-row>
-      </div>
-
-      <!-- 工具配置 -->
-      <div class="form-section">
-        <h4 class="section-title">
-          工具配置
-          <a-button type="link" size="small" @click="showToolSelector = true">
-            <template #icon><PlusOutlined /></template>
-            添加工具
-          </a-button>
-        </h4>
-        
-        <div class="tools-list">
-          <div 
-            v-for="(tool, index) in formData.tools_config" 
-            :key="index"
-            class="tool-item"
-          >
-            <div class="tool-info">
-              <span class="tool-name">{{ tool.name }}</span>
-              <span class="tool-description">{{ tool.description }}</span>
-            </div>
-            <a-button 
-              type="text" 
-              size="small" 
-              danger 
-              @click="removeTool(index)"
-            >
-              <template #icon><DeleteOutlined /></template>
-            </a-button>
-          </div>
+      <!-- 仅在创建模式下显示其他配置 -->
+      <template v-if="mode === 'create'">
+        <!-- 系统提示词 -->
+        <div class="form-section">
+          <h4 class="section-title">
+            系统提示词
+            <a-tooltip title="智能体的基础行为指令">
+              <QuestionCircleOutlined class="help-icon" />
+            </a-tooltip>
+          </h4>
           
-          <a-empty v-if="formData.tools_config.length === 0" :image="false" description="暂未配置工具">
-            <a-button type="dashed" @click="showToolSelector = true">
+          <a-form-item name="system_prompt">
+            <div class="prompt-editor">
+              <div class="prompt-toolbar">
+                <a-button-group size="small">
+                  <a-button @click="showTemplateSelector = true">
+                    <template #icon><AppstoreOutlined /></template>
+                    选择模板
+                  </a-button>
+                  <a-button @click="insertVariable">
+                    <template #icon><TagOutlined /></template>
+                    插入变量
+                  </a-button>
+                </a-button-group>
+              </div>
+              <a-textarea 
+                v-model:value="formData.system_prompt"
+                placeholder="请输入系统提示词，定义智能体的角色和行为..."
+                :rows="6"
+                class="prompt-textarea"
+              />
+            </div>
+          </a-form-item>
+        </div>
+
+        <!-- 模型配置 -->
+        <div class="form-section">
+          <h4 class="section-title">模型配置</h4>
+          
+          <a-row :gutter="16">
+            <a-col :span="12">
+              <a-form-item label="模型" name="model">
+                <a-select 
+                  v-model:value="formData.model_config.model" 
+                  placeholder="选择模型"
+                  show-search
+                  @change="handleModelChange"
+                >
+                  <a-select-option value="gpt-4">GPT-4</a-select-option>
+                  <a-select-option value="gpt-3.5-turbo">GPT-3.5 Turbo</a-select-option>
+                  <a-select-option value="claude-3">Claude-3</a-select-option>
+                  <a-select-option value="local-llm">本地模型</a-select-option>
+                </a-select>
+              </a-form-item>
+            </a-col>
+            <a-col :span="12">
+              <a-form-item label="温度" name="temperature">
+                <a-slider
+                  v-model:value="formData.model_config.temperature"
+                  :min="0"
+                  :max="2"
+                  :step="0.1"
+                  :tooltip-formatter="(val) => `${val} (${getTemperatureLabel(val)})`"
+                />
+              </a-form-item>
+            </a-col>
+          </a-row>
+
+          <a-row :gutter="16">
+            <a-col :span="12">
+              <a-form-item label="最大回复长度">
+                <a-input-number
+                  v-model:value="formData.model_config.max_tokens"
+                  :min="1"
+                  :max="4000"
+                  placeholder="最大回复长度"
+                  style="width: 100%"
+                />
+              </a-form-item>
+            </a-col>
+            <a-col :span="12">
+              <a-form-item label="Top P">
+                <a-slider
+                  v-model:value="formData.model_config.top_p"
+                  :min="0"
+                  :max="1"
+                  :step="0.1"
+                  :tooltip-formatter="(val) => `${val}`"
+                />
+              </a-form-item>
+            </a-col>
+          </a-row>
+        </div>
+
+        <!-- 工具配置 -->
+        <div class="form-section">
+          <h4 class="section-title">
+            工具配置
+            <a-button type="link" size="small" @click="showToolSelector = true">
               <template #icon><PlusOutlined /></template>
               添加工具
             </a-button>
-          </a-empty>
-        </div>
-      </div>
-
-      <!-- 知识库配置 -->
-      <div class="form-section">
-        <h4 class="section-title">知识库配置</h4>
-        
-        <a-form-item label="知识库">
-          <a-select
-            v-model:value="formData.knowledge_config.databases"
-            mode="multiple"
-            placeholder="选择要关联的知识库"
-            :loading="knowledgeLoading"
-            @focus="loadKnowledgeBases"
-          >
-            <a-select-option 
-              v-for="kb in knowledgeBases" 
-              :key="kb.id" 
-              :value="kb.id"
+          </h4>
+          
+          <div class="tools-list">
+            <div 
+              v-for="(tool, index) in formData.tools_config" 
+              :key="index"
+              class="tool-item"
             >
-              {{ kb.name }}
-            </a-select-option>
-          </a-select>
-        </a-form-item>
+              <div class="tool-info">
+                <span class="tool-name">{{ tool.name }}</span>
+                <span class="tool-description">{{ tool.description }}</span>
+              </div>
+              <a-button 
+                type="text" 
+                size="small" 
+                danger 
+                @click="removeTool(index)"
+              >
+                <template #icon><DeleteOutlined /></template>
+              </a-button>
+            </div>
+            
+            <a-empty v-if="formData.tools_config.length === 0" :image="false" description="暂未配置工具">
+              <a-button type="dashed" @click="showToolSelector = true">
+                <template #icon><PlusOutlined /></template>
+                添加工具
+              </a-button>
+            </a-empty>
+          </div>
+        </div>
 
-        <a-row :gutter="16" v-if="formData.knowledge_config.databases.length > 0">
-          <a-col :span="12">
-            <a-form-item label="检索数量">
-              <a-input-number
-                v-model:value="formData.knowledge_config.retrieval_config.top_k"
-                :min="1"
-                :max="20"
-                placeholder="检索数量"
-                style="width: 100%"
-              />
-            </a-form-item>
-          </a-col>
-          <a-col :span="12">
-            <a-form-item label="相似度阈值">
-              <a-slider
-                v-model:value="formData.knowledge_config.retrieval_config.similarity_threshold"
-                :min="0"
-                :max="1"
-                :step="0.1"
-                :tooltip-formatter="(val) => `${val}`"
-              />
-            </a-form-item>
-          </a-col>
-        </a-row>
-      </div>
+        <!-- 知识库配置 -->
+        <div class="form-section">
+          <h4 class="section-title">知识库配置</h4>
+          
+          <a-form-item label="知识库">
+            <a-select
+              v-model:value="formData.knowledge_config.databases"
+              mode="multiple"
+              placeholder="选择要关联的知识库"
+              :loading="knowledgeLoading"
+              @focus="loadKnowledgeBases"
+            >
+              <a-select-option 
+                v-for="kb in knowledgeBases" 
+                :key="kb.id" 
+                :value="kb.id"
+              >
+                {{ kb.name }}
+              </a-select-option>
+            </a-select>
+          </a-form-item>
+
+          <a-row :gutter="16" v-if="formData.knowledge_config.databases.length > 0">
+            <a-col :span="12">
+              <a-form-item label="检索数量">
+                <a-input-number
+                  v-model:value="formData.knowledge_config.retrieval_config.top_k"
+                  :min="1"
+                  :max="20"
+                  placeholder="检索数量"
+                  style="width: 100%"
+                />
+              </a-form-item>
+            </a-col>
+            <a-col :span="12">
+              <a-form-item label="相似度阈值">
+                <a-slider
+                  v-model:value="formData.knowledge_config.retrieval_config.similarity_threshold"
+                  :min="0"
+                  :max="1"
+                  :step="0.1"
+                  :tooltip-formatter="(val) => `${val}`"
+                />
+              </a-form-item>
+            </a-col>
+          </a-row>
+        </div>
+      </template>
     </a-form>
 
-    <!-- 测试区域 -->
-    <div class="test-section" v-if="mode === 'create' || mode === 'edit'">
+    <!-- 测试区域 - 仅在创建模式下显示 -->
+    <div class="test-section" v-if="mode === 'create'">
       <a-divider>配置测试</a-divider>
       <div class="test-controls">
         <a-input
@@ -317,7 +344,9 @@ import {
   AppstoreOutlined,
   TagOutlined,
   PlusOutlined,
-  DeleteOutlined
+  DeleteOutlined,
+  UploadOutlined,
+  RobotOutlined
 } from '@ant-design/icons-vue'
 import { agentAPI } from '@/apis'
 
@@ -367,23 +396,29 @@ const formData = reactive({
   },
   mcp_config: {
     skills: []
-  }
+  },
+  avatar: null // 用于存储头像的URL
 })
 
 // 表单验证规则
-const formRules = {
-  name: [
-    { required: true, message: '请输入智能体名称', trigger: 'blur' },
-    { min: 2, max: 50, message: '名称长度在2-50字符之间', trigger: 'blur' }
-  ],
-  agent_type: [
-    { required: true, message: '请选择智能体类型', trigger: 'change' }
-  ],
-  system_prompt: [
-    { required: true, message: '请输入系统提示词', trigger: 'blur' },
-    { min: 10, message: '提示词至少需要10个字符', trigger: 'blur' }
-  ]
-}
+const formRules = computed(() => {
+  const baseRules = {
+    name: [
+      { required: true, message: '请输入智能体名称', trigger: 'blur' },
+      { min: 2, max: 50, message: '名称长度在2-50字符之间', trigger: 'blur' }
+    ]
+  }
+  
+  // 仅在创建模式下添加系统提示词验证
+  if (props.mode === 'create') {
+    baseRules.system_prompt = [
+      { required: true, message: '请输入系统提示词', trigger: 'blur' },
+      { min: 10, message: '提示词至少需要10个字符', trigger: 'blur' }
+    ]
+  }
+  
+  return baseRules
+})
 
 // 其他数据
 const testMessage = ref('')
@@ -401,9 +436,17 @@ const availableTools = ref([])
 const knowledgeLoading = ref(false)
 const knowledgeBases = ref([])
 
+// 头像上传相关
+const avatarFileList = ref([])
+const avatarPreview = ref(null)
+
 // 计算属性
 const modalTitle = computed(() => {
   return props.mode === 'edit' ? '编辑智能体' : '创建智能体'
+})
+
+const modalWidth = computed(() => {
+  return props.mode === 'edit' ? '600px' : '800px'
 })
 
 // 监听 visible 变化
@@ -421,12 +464,24 @@ watch(modalVisible, (newVal) => {
 // 初始化表单
 const initForm = () => {
   if (props.mode === 'edit' && props.agent) {
-    // 编辑模式，填充现有数据
+    // 编辑模式，只填充基础字段
     Object.assign(formData, {
-      ...props.agent,
-      model_config: { ...formData.model_config, ...props.agent.model_config },
-      knowledge_config: { ...formData.knowledge_config, ...props.agent.knowledge_config }
+      name: props.agent.name || '',
+      description: props.agent.description || '',
+      agent_type: props.agent.agent_type || 'chatbot',
+      avatar: props.agent.avatar || null
     })
+    // 处理头像文件列表
+    if (props.agent.avatar) {
+      avatarFileList.value = [{
+        uid: 'avatar',
+        name: 'avatar',
+        status: 'done',
+        url: props.agent.avatar,
+        thumbUrl: props.agent.avatar
+      }]
+      avatarPreview.value = props.agent.avatar
+    }
   } else {
     // 创建模式，重置表单
     resetForm()
@@ -438,29 +493,43 @@ const initForm = () => {
 
 // 重置表单
 const resetForm = () => {
-  Object.assign(formData, {
-    name: '',
-    description: '',
-    agent_type: 'custom',
-    system_prompt: '',
-    model_config: {
-      model: 'gpt-3.5-turbo',
-      temperature: 0.7,
-      max_tokens: 2000,
-      top_p: 0.9
-    },
-    tools_config: [],
-    knowledge_config: {
-      databases: [],
-      retrieval_config: {
-        top_k: 5,
-        similarity_threshold: 0.7
-      }
-    },
-    mcp_config: {
-      skills: []
-    }
-  })
+  if (props.mode === 'edit') {
+    // 编辑模式，只重置基础字段
+    Object.assign(formData, {
+      name: '',
+      description: '',
+      agent_type: 'chatbot',
+      avatar: null
+    })
+  } else {
+    // 创建模式，重置所有字段
+    Object.assign(formData, {
+      name: '',
+      description: '',
+      agent_type: 'custom',
+      system_prompt: '',
+      model_config: {
+        model: 'gpt-3.5-turbo',
+        temperature: 0.7,
+        max_tokens: 2000,
+        top_p: 0.9
+      },
+      tools_config: [],
+      knowledge_config: {
+        databases: [],
+        retrieval_config: {
+          top_k: 5,
+          similarity_threshold: 0.7
+        }
+      },
+      mcp_config: {
+        skills: []
+      },
+      avatar: null
+    })
+  }
+  avatarFileList.value = [] // 清空文件列表
+  avatarPreview.value = null // 清空预览
 }
 
 // 温度标签
@@ -574,8 +643,16 @@ const handleSubmit = async () => {
 
     let response
     if (props.mode === 'edit') {
-      response = await agentAPI.updateAgent(props.agent.agent_id, formData)
+      // 编辑模式，只提交基础字段
+      const editData = {
+        name: formData.name,
+        description: formData.description,
+        agent_type: formData.agent_type,
+        avatar: formData.avatar
+      }
+      response = await agentAPI.updateAgent(props.agent.agent_id, editData)
     } else {
+      // 创建模式，提交所有字段
       response = await agentAPI.createAgent(formData)
     }
 
@@ -596,6 +673,30 @@ const handleSubmit = async () => {
 // 取消
 const handleCancel = () => {
   modalVisible.value = false
+}
+
+// 头像上传前处理
+const beforeAvatarUpload = (file) => {
+  const isJPGOrPNG = file.type === 'image/jpeg' || file.type === 'image/png'
+  if (!isJPGOrPNG) {
+    message.error('只能上传 JPG/PNG 格式的图片!')
+    return false
+  }
+  const isLt2M = file.size / 1024 / 1024 < 2
+  if (!isLt2M) {
+    message.error('图片大小不能超过 2MB!')
+    return false
+  }
+  
+  // 创建预览并转换为base64
+  const reader = new FileReader()
+  reader.onload = (e) => {
+    avatarPreview.value = e.target.result
+    formData.avatar = e.target.result // 将base64数据保存到formData
+  }
+  reader.readAsDataURL(file)
+  
+  return false // 阻止自动上传，我们手动处理
 }
 
 // 组件挂载
@@ -780,5 +881,26 @@ onMounted(() => {
 .tool-option-description {
   font-size: 12px;
   color: #999;
+}
+
+.avatar-upload-section {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.avatar-preview {
+  flex-shrink: 0;
+}
+
+.avatar-upload {
+  flex-grow: 1;
+}
+
+.upload-hint {
+  font-size: 12px;
+  color: #999;
+  margin-top: 8px;
 }
 </style> 

@@ -35,9 +35,9 @@
               <template #icon><MessageOutlined /></template>
               开始聊天
             </a-button>
-            <a-button @click="$emit('edit', agent)">
+            <a-button @click="showEditModal = true">
               <template #icon><EditOutlined /></template>
-              编辑
+              编辑信息
             </a-button>
           </div>
         </div>
@@ -219,6 +219,14 @@
       </a-spin>
     </div>
   </a-modal>
+
+  <!-- 编辑智能体模态框 -->
+  <AgentModal
+    v-model:visible="showEditModal"
+    :agent="agent"
+    mode="edit"
+    @success="handleEditSuccess"
+  />
 </template>
 
 <script setup>
@@ -236,6 +244,7 @@ import {
   CodeOutlined
 } from '@ant-design/icons-vue'
 import { agentAPI } from '@/apis'
+import AgentModal from './AgentModal.vue'
 
 // Props
 const props = defineProps({
@@ -257,6 +266,7 @@ const modalVisible = ref(false)
 const agent = ref(null)
 const stats = ref({})
 const loading = ref(false)
+const showEditModal = ref(false)
 
 // 监听 visible 变化
 watch(() => props.visible, (newVal) => {
@@ -303,6 +313,13 @@ const loadAgentDetail = async () => {
   } finally {
     loading.value = false
   }
+}
+
+// 处理编辑成功
+const handleEditSuccess = () => {
+  // 重新加载智能体详情
+  loadAgentDetail()
+  message.success('智能体更新成功')
 }
 
 // 获取类型颜色

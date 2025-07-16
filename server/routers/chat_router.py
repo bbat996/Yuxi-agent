@@ -24,35 +24,7 @@ from models.thread_model import Thread
 chat = APIRouter(prefix="/chat", tags=["chat"])
 
 
-@chat.get("/default_agent")
-async def get_default_agent(current_user: User = Depends(get_required_user)):
-    """获取默认智能体ID（需要登录）"""
-    default_agent_id = config.default_agent_id
-    # 如果没有设置默认智能体，尝试获取第一个可用的智能体
-    if not default_agent_id:
-        agents = await agent_manager.get_agents_info()
-        if agents:
-            default_agent_id = agents[0].get("name", "")
 
-    return {"default_agent_id": default_agent_id}
-
-
-@chat.post("/set_default_agent")
-async def set_default_agent(agent_id: str = Body(..., embed=True), current_user=Depends(get_admin_user)):
-    """设置默认智能体ID (仅管理员)"""
-    # 验证智能体是否存在
-    agents = await agent_manager.get_agents_info()
-    agent_ids = [agent.get("name", "") for agent in agents]
-
-    if agent_id not in agent_ids:
-        raise HTTPException(status_code=404, detail=f"智能体 {agent_id} 不存在")
-
-    # 设置默认智能体ID
-    config.default_agent_id = agent_id
-    # 保存配置
-    config.save()
-
-    return {"success": True, "default_agent_id": agent_id}
 
 
 @chat.get("/")
@@ -107,12 +79,7 @@ async def chat_agent(
     # 将meta和thread_id整合到config中
     def make_chunk(content=None, **kwargs):
 
-        return (
-            json.dumps(
-                {"request_id": meta.get("request_id"), "response": content, **kwargs}, ensure_ascii=False
-            ).encode("utf-8")
-            + b"\n"
-        )
+        return json.dumps({"request_id": meta.get("request_id"), "response": content, **kwargs}, ensure_ascii=False).encode("utf-8") + b"\n"
 
     async def stream_messages():
 
@@ -142,108 +109,6 @@ async def chat_agent(
         yield make_chunk(status="finished", meta=meta)
 
     return StreamingResponse(stream_messages(), media_type="application/json")
-
-
-@chat.get("/models")
-async def get_chat_models(model_provider: str, current_user: User = Depends(get_admin_user)):
-    """获取指定模型提供商的模型列表（需要登录）"""
-    model = select_model(model_provider=model_provider)
-    return {"models": model.get_models()}
-
-
-@chat.post("/models/update")
-async def update_chat_models(model_provider: str, model_names: list[str], current_user=Depends(get_admin_user)):
-    """更新指定模型提供商的模型列表 (仅管理员)"""
-    config.model_names[model_provider]["models"] = model_names
-    config._save_models_to_file()
-    return {"models": config.model_names[model_provider]["models"]}
-
-
-@chat.get("/provider/{provider}/config")
-async def get_provider_config(provider: str, current_user: User = Depends(get_admin_user)):
-    """获取指定模型提供商的配置信息（仅管理员）"""
-    provider_config = config.get_provider_config(provider)
-    return provider_config
-
-
-@chat.post("/provider/{provider}/config")
-async def update_provider_config(
-    provider: str, 
-    config_data: dict = Body(...), 
-    current_user: User = Depends(get_admin_user)
-):
-    """更新指定模型提供商的配置信息（仅管理员）"""
-    config.update_provider_config(provider, config_data)
-    return {
-        "success": True,
-        "message": f"模型提供商 {provider} 配置已更新",
-        "config": config.get_provider_config(provider)
-    }
-
-
-@chat.post("/provider/{provider}/models/add")
-async def add_provider_model(
-    provider: str, 
-    model_name: str = Body(...), 
-    current_user: User = Depends(get_admin_user)
-):
-    """为指定模型提供商添加模型（仅管理员）"""
-    config.add_provider_model(provider, model_name)
-    return {
-        "success": True,
-        "message": f"模型 {model_name} 已添加到 {provider}",
-        "models": config.model_names[provider]["models"]
-    }
-
-
-@chat.delete("/provider/{provider}/models/{model_name}")
-async def remove_provider_model(
-    provider: str, 
-    model_name: str, 
-    current_user: User = Depends(get_admin_user)
-):
-    """从指定模型提供商删除模型（仅管理员）"""
-    config.remove_provider_model(provider, model_name)
-    return {
-        "success": True,
-        "message": f"模型 {model_name} 已从 {provider} 中删除",
-        "models": config.model_names[provider]["models"]
-    }
-
-
-@chat.post("/provider/{provider}/test")
-async def test_provider_connection(
-    provider: str, 
-    config_data: dict = Body(...), 
-    current_user: User = Depends(get_admin_user)
-):
-    """测试模型提供商连接（仅管理员）"""
-    if provider not in config.model_names:
-        raise HTTPException(status_code=404, detail=f"模型提供商 {provider} 不存在")
-    
-    # 临时设置配置进行测试
-    test_base_url = config_data.get("base_url", config.model_names[provider].get("base_url", ""))
-    test_api_key = config_data.get("api_key", "")
-    
-    if not test_base_url or not test_api_key:
-        raise HTTPException(status_code=400, detail="base_url 和 api_key 不能为空")
-    
-    # 创建临时模型实例进行测试
-    from src.models.chat_model import OpenAIBase
-    test_model = OpenAIBase(
-        api_key=test_api_key,
-        base_url=test_base_url,
-        model_name="test-model"
-    )
-    
-    # 尝试获取模型列表
-    models = test_model.get_models()
-    
-    return {
-        "success": True,
-        "message": "连接测试成功",
-        "models_count": len(models) if models else 0
-    }
 
 
 @chat.get("/tools")
@@ -311,9 +176,7 @@ class ThreadResponse(BaseModel):
 
 
 @chat.post("/thread", response_model=ThreadResponse)
-async def create_thread(
-    thread: ThreadCreate, db: Session = Depends(get_db), current_user: User = Depends(get_required_user)
-):
+async def create_thread(thread: ThreadCreate, db: Session = Depends(get_db), current_user: User = Depends(get_required_user)):
     """创建新对话线程"""
     thread_id = str(uuid.uuid4())
 
@@ -341,9 +204,7 @@ async def create_thread(
 
 
 @chat.get("/threads", response_model=list[ThreadResponse])
-async def list_threads(
-    agent_id: str | None = None, db: Session = Depends(get_db), current_user: User = Depends(get_required_user)
-):
+async def list_threads(agent_id: str | None = None, db: Session = Depends(get_db), current_user: User = Depends(get_required_user)):
     """获取用户的所有对话线程"""
     query = db.query(Thread).filter(Thread.user_id == current_user.id, Thread.status == 1)
 
@@ -394,9 +255,7 @@ async def update_thread(
     current_user: User = Depends(get_required_user),
 ):
     """更新对话线程信息"""
-    thread = (
-        db.query(Thread).filter(Thread.id == thread_id, Thread.user_id == current_user.id, Thread.status == 1).first()
-    )
+    thread = db.query(Thread).filter(Thread.id == thread_id, Thread.user_id == current_user.id, Thread.status == 1).first()
 
     if not thread:
         raise HTTPException(status_code=404, detail="对话线程不存在")

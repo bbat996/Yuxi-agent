@@ -1,0 +1,287 @@
+# MCP服务器配置文件
+# 用于配置各种MCP工具服务器
+
+# 内置服务器配置
+builtin_servers:
+  math:
+    enabled: true
+    name: "Math Tools Server"
+    description: "数学计算工具服务器"
+    server_type: "builtin"
+    module_path: "src.mcp_server.math_tools"
+    class_name: "mcp"
+    tools:
+      basic_math:
+        enabled: true
+        description: "基础数学运算"
+        tools:
+          - "add"
+          - "sub"
+          - "multiply"
+          - "divide"
+          - "power"
+          - "sqrt"
+      conversion:
+        enabled: true
+        description: "单位转换"
+        tools:
+          - "convert_temperature"
+          - "convert_length"
+
+  time:
+    enabled: true
+    name: "Time Tools Server"
+    description: "时间日期处理工具服务器"
+    server_type: "builtin"
+    module_path: "src.mcp_server.time_tools"
+    class_name: "mcp"
+    tools:
+      time_utils:
+        enabled: true
+        description: "时间工具"
+        tools:
+          - "get_time"
+          - "get_date_info"
+          - "calculate_date_difference"
+          - "add_days_to_date"
+          - "get_week_info"
+
+  network:
+    enabled: true
+    name: "Network Tools Server"
+    description: "网络工具服务器"
+    server_type: "builtin"
+    module_path: "src.mcp_server.network_tools"
+    class_name: "mcp"
+    tools:
+      web_utils:
+        enabled: true
+        description: "网络工具"
+        tools:
+          - "get_weather"
+          - "check_url_status"
+          - "get_ip_info"
+          - "url_encode"
+          - "url_decode"
+          - "http_get"
+          - "http_post"
+          - "validate_url"
+
+  file:
+    enabled: true
+    name: "File Tools Server"
+    description: "文件操作工具服务器"
+    server_type: "builtin"
+    module_path: "src.mcp_server.file_tools"
+    class_name: "mcp"
+    tools:
+      file_ops:
+        enabled: true
+        description: "文件操作"
+        tools:
+          - "read_file"
+          - "write_file"
+          - "list_directory"
+          - "get_file_info"
+          - "create_directory"
+          - "delete_file"
+      data_utils:
+        enabled: true
+        description: "数据处理"
+        tools:
+          - "json_parse"
+          - "json_stringify"
+          - "text_to_base64"
+          - "base64_to_text"
+          - "calculate_hash"
+
+  text:
+    enabled: true
+    name: "Text Tools Server"
+    description: "文本处理工具服务器"
+    server_type: "builtin"
+    module_path: "src.mcp_server.text_tools"
+    class_name: "mcp"
+    tools:
+      text_processing:
+        enabled: true
+        description: "文本处理"
+        tools:
+          - "text_search"
+          - "text_replace"
+          - "text_split"
+          - "text_join"
+          - "extract_numbers"
+          - "extract_urls"
+          - "count_words"
+          - "text_case_convert"
+      validation:
+        enabled: true
+        description: "数据验证"
+        tools:
+          - "validate_email"
+          - "validate_phone"
+
+  system:
+    enabled: true
+    name: "System Tools Server"
+    description: "系统信息工具服务器"
+    server_type: "builtin"
+    module_path: "src.mcp_server.system_tools"
+    class_name: "mcp"
+    tools:
+      system_info:
+        enabled: true
+        description: "系统信息"
+        tools:
+          - "get_system_info"
+          - "get_memory_info"
+          - "get_disk_info"
+          - "get_cpu_info"
+          - "get_network_info"
+          - "get_environment_variables"
+          - "get_current_working_directory"
+      process_management:
+        enabled: true
+        description: "进程管理"
+        tools:
+          - "get_process_info"
+          - "list_processes"
+
+# 外部服务器配置
+external_servers:
+  # 示例外部服务器配置
+  # example_external:
+  #   enabled: false
+  #   name: "Example External Server"
+  #   description: "外部服务器示例"
+  #   server_type: "external"
+  #   transport: "stdio"
+  #   command: "python"
+  #   args: ["-m", "external_server_module"]
+  #   env:
+  #     PYTHONPATH: "/path/to/external/server"
+
+# 全局配置
+global_config:
+  default_servers:
+    - "math"
+    - "time"
+    - "network"
+    - "file"
+    - "text"
+    - "system"
+  connection_timeout: 30
+  max_connections: 10
+  log_level: "INFO"
+  
+  # 工具调用限制
+  tool_limits:
+    max_calls_per_minute: 100
+    max_calls_per_hour: 1000
+    max_concurrent_calls: 5
+    
+  # 安全配置
+  security:
+    allowed_origins: ["*"]
+    require_authentication: false
+    rate_limiting: true
+
+# 环境变量配置
+environment_variables:
+  PYTHONPATH: "${PYTHONPATH}"
+  LOG_LEVEL: "INFO"
+  DEBUG: "false"
+
+# 工具分类配置（用于前端展示）
+tool_categories:
+  基础数学运算:
+    description: "基本的数学计算工具"
+    servers: ["math"]
+    tools:
+      - "add"
+      - "sub"
+      - "multiply"
+      - "divide"
+      - "power"
+      - "sqrt"
+      - "convert_temperature"
+      - "convert_length"
+  
+  时间日期工具:
+    description: "时间日期相关的处理工具"
+    servers: ["time"]
+    tools:
+      - "get_time"
+      - "get_date_info"
+      - "calculate_date_difference"
+      - "add_days_to_date"
+      - "get_week_info"
+  
+  网络工具:
+    description: "网络相关的工具"
+    servers: ["network"]
+    tools:
+      - "get_weather"
+      - "check_url_status"
+      - "get_ip_info"
+      - "url_encode"
+      - "url_decode"
+      - "http_get"
+      - "http_post"
+      - "validate_url"
+  
+  文件操作工具:
+    description: "文件和目录操作工具"
+    servers: ["file"]
+    tools:
+      - "read_file"
+      - "write_file"
+      - "list_directory"
+      - "get_file_info"
+      - "create_directory"
+      - "delete_file"
+  
+  数据处理工具:
+    description: "数据格式转换和处理工具"
+    servers: ["file"]
+    tools:
+      - "json_parse"
+      - "json_stringify"
+      - "text_to_base64"
+      - "base64_to_text"
+      - "calculate_hash"
+  
+  文本处理工具:
+    description: "文本搜索、替换和分割工具"
+    servers: ["text"]
+    tools:
+      - "text_search"
+      - "text_replace"
+      - "text_split"
+      - "text_join"
+      - "extract_numbers"
+      - "extract_urls"
+      - "count_words"
+      - "text_case_convert"
+  
+  系统信息工具:
+    description: "系统信息和监控工具"
+    servers: ["system"]
+    tools:
+      - "get_system_info"
+      - "get_memory_info"
+      - "get_disk_info"
+      - "get_cpu_info"
+      - "get_network_info"
+      - "get_process_info"
+      - "list_processes"
+      - "get_environment_variables"
+      - "get_current_working_directory"
+  
+  数据验证工具:
+    description: "数据格式验证工具"
+    servers: ["text"]
+    tools:
+      - "validate_email"
+      - "validate_phone" 

@@ -24,7 +24,7 @@
         </div>
       </div>
 
-      <!-- 已配置的模型提供商 -->
+      <!-- 已配置且启用的模型提供商 -->
       <div
         v-for="item in modelKeys"
         :key="item"
@@ -45,6 +45,48 @@
             </div>
           </div>
           <div class="provider-actions">
+            <a-switch
+              :checked="isProviderEnabled(item)"
+              @change="(checked) => toggleProviderStatus(item, checked)"
+              @click="(e) => e.stopPropagation()"
+              size="small"
+              style="margin-right: 8px;"
+            />
+            <!-- <a-button type="text" size="small" @click.stop="openProviderConfig(item)">
+              <template #icon><SettingOutlined /></template>
+            </a-button> -->
+          </div>
+        </div>
+      </div>
+
+      <!-- 已配置但未启用的模型提供商 -->
+      <div
+        v-for="item in disabledModelKeys"
+        :key="item"
+        class="provider-item configured-provider disabled-provider"
+        :class="{ active: selectedProvider === item }"
+        @click="selectProvider(item)"
+      >
+        <div class="provider-header">
+          <div class="provider-info">
+            <div class="provider-icon">
+              <img :src="modelIcons[item] || modelIcons.default" alt="模型图标" />
+            </div>
+            <div class="provider-details">
+              <h3>{{ modelNames[item].name }}</h3>
+              <span class="provider-status"
+                >{{ (modelNames[item].models || []).length }} 个模型 · 已禁用</span
+              >
+            </div>
+          </div>
+          <div class="provider-actions">
+            <a-switch
+              :checked="isProviderEnabled(item)"
+              @change="(checked) => toggleProviderStatus(item, checked)"
+              @click="(e) => e.stopPropagation()"
+              size="small"
+              style="margin-right: 8px;"
+            />
             <!-- <a-button type="text" size="small" @click.stop="openProviderConfig(item)">
               <template #icon><SettingOutlined /></template>
             </a-button> -->
@@ -151,7 +193,7 @@
             <div>
               <h2>{{ modelNames[selectedProvider]?.name }}</h2>
               <p class="provider-description">
-                {{ modelStatus[selectedProvider] ? '已配置' : '未配置' }} ·
+                {{ modelStatus[selectedProvider] ? (isProviderEnabled(selectedProvider) ? '已配置' : '已配置但已禁用') : '未配置' }} ·
                 {{ (modelNames[selectedProvider]?.models || []).length }} 个模型
               </p>
             </div>
@@ -161,14 +203,28 @@
               <template #icon><SettingOutlined /></template>
               连接配置
             </a-button>
-            <a-button type="primary" @click="openAddModelModal(selectedProvider)" style="margin-left: 8px;">
+            <a-button 
+              v-if="isProviderEnabled(selectedProvider)"
+              type="primary" 
+              @click="openAddModelModal(selectedProvider)" 
+              style="margin-left: 8px;"
+            >
               <template #icon><EditOutlined /></template>
               添加模型
+            </a-button>
+            <a-button 
+              v-else
+              type="primary" 
+              @click="toggleProviderStatus(selectedProvider, true)" 
+              style="margin-left: 8px;"
+            >
+              <template #icon><EditOutlined /></template>
+              启用提供商
             </a-button>
           </div>
         </div>
 
-        <div v-if="modelStatus[selectedProvider]" class="models-grid">
+        <div v-if="modelStatus[selectedProvider] && isProviderEnabled(selectedProvider)" class="models-grid">
           <div
             v-for="(model, idx) in modelNames[selectedProvider]?.models"
             :key="idx"
@@ -190,6 +246,15 @@
               </a-popconfirm>
             </div>
           </div>
+        </div>
+
+        <div v-else-if="modelStatus[selectedProvider] && !isProviderEnabled(selectedProvider)" class="disabled-state">
+          <div class="disabled-icon">🚫</div>
+          <h3>模型提供商已禁用</h3>
+          <p>该模型提供商已被禁用，无法使用其模型。请启用该提供商以继续使用。</p>
+          <a-button type="primary" @click="toggleProviderStatus(selectedProvider, true)">
+            启用提供商
+          </a-button>
         </div>
 
         <div v-else class="unconfigured-state">
@@ -474,6 +539,32 @@ const selectedProvider = ref(null)
 // 计算属性
 const modelNames = computed(() => configStore.config?.model_names)
 const modelStatus = computed(() => configStore.config?.model_provider_status)
+const providerEnabledStatus = computed(() => configStore.config?.provider_enabled_status || {})
+
+// 判断提供商是否启用
+const isProviderEnabled = (provider) => {
+  // 如果配置中没有启用状态，默认启用
+  return providerEnabledStatus.value[provider] !== false
+}
+
+// 筛选已配置且启用的模型提供商
+const modelKeys = computed(() => {
+  return Object.keys(modelStatus.value || {}).filter((key) => 
+    modelStatus.value[key] && isProviderEnabled(key)
+  )
+})
+
+// 筛选已配置但未启用的模型提供商
+const disabledModelKeys = computed(() => {
+  return Object.keys(modelStatus.value || {}).filter((key) => 
+    modelStatus.value[key] && !isProviderEnabled(key)
+  )
+})
+
+// 筛选未配置的模型提供商
+const notModelKeys = computed(() => {
+  return Object.keys(modelStatus.value || {}).filter((key) => !modelStatus.value[key])
+})
 
 // 自定义模型相关状态
 const customModel = reactive({
@@ -554,16 +645,6 @@ const addModel = reactive({
   modelName: ''
 })
 
-// 筛选 modelStatus 中为真的key
-const modelKeys = computed(() => {
-  return Object.keys(modelStatus.value || {}).filter((key) => modelStatus.value[key])
-})
-
-// 筛选 modelStatus 中为假的key
-const notModelKeys = computed(() => {
-  return Object.keys(modelStatus.value || {}).filter((key) => !modelStatus.value[key])
-})
-
 // 模型展开状态管理
 const expandedModels = reactive({})
 
@@ -589,6 +670,27 @@ watch(
     }
   },
   { immediate: true }
+)
+
+// 监听供应商启用状态变化，如果当前选中的供应商被禁用，自动切换到其他可用的
+watch(
+  providerEnabledStatus,
+  () => {
+    if (selectedProvider.value && selectedProvider.value !== 'custom') {
+      if (!isProviderEnabled(selectedProvider.value)) {
+        // 当前选中的供应商被禁用，尝试切换到其他可用的
+        if (configStore.config.custom_models && configStore.config.custom_models.length > 0) {
+          selectedProvider.value = 'custom'
+        } else if (modelKeys.value.length > 0) {
+          selectedProvider.value = modelKeys.value[0]
+        } else if (notModelKeys.value.length > 0) {
+          selectedProvider.value = notModelKeys.value[0]
+        } else {
+          selectedProvider.value = null
+        }
+      }
+    }
+  }
 )
 
 // 选择提供商
@@ -978,6 +1080,24 @@ const handleDeleteModel = async (modelName) => {
     message.destroy('delete-model')
   }
 }
+
+// 切换提供商启用状态
+const toggleProviderStatus = async (provider, enabled) => {
+  const action = enabled ? '启用' : '禁用'
+  message.loading({ content: `${action}提供商中...`, key: 'toggle-provider', duration: 0 })
+
+  try {
+    const data = await chatApi.toggleProviderStatus(provider, enabled)
+    console.log(`${provider} 提供商状态更新成功:`, data)
+    message.success({ content: `${action}提供商成功!`, key: 'toggle-provider', duration: 2 })
+    configStore.refreshConfig()
+  } catch (error) {
+    console.error(`${provider} 提供商状态更新失败:`, error)
+    message.error({ content: `${action}提供商失败: ${error.message}`, key: 'toggle-provider', duration: 2 })
+  } finally {
+    message.destroy('toggle-provider')
+  }
+}
 </script>
 
 <style lang="less" scoped>
@@ -1059,6 +1179,25 @@ const handleDeleteModel = async (modelName) => {
 
       .provider-details h3 {
         color: var(--gray-600);
+      }
+    }
+
+    &.disabled-provider {
+      .provider-header {
+        background: #f8f9fa;
+      }
+
+      .provider-icon {
+        filter: grayscale(100%);
+        opacity: 0.6;
+      }
+
+      .provider-details h3 {
+        color: var(--gray-600);
+      }
+
+      .provider-status {
+        color: var(--gray-500);
       }
     }
 
@@ -1370,6 +1509,31 @@ const handleDeleteModel = async (modelName) => {
         color: var(--gray-700);
         border: 1px solid var(--gray-300);
       }
+    }
+  }
+
+  .disabled-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 48px 24px;
+    color: var(--gray-600);
+
+    .disabled-icon {
+      font-size: 48px;
+      margin-bottom: 16px;
+    }
+
+    h3 {
+      margin: 0 0 8px 0;
+      color: var(--gray-700);
+    }
+
+    p {
+      margin: 0 0 16px 0;
+      font-size: 14px;
     }
   }
 }

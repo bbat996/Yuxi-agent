@@ -381,6 +381,32 @@ async def update_agent(agent_id: str, request: AgentUpdateRequest, current_user:
 
         agent.updated_at = datetime.utcnow()
 
+        # === 新增：保存配置到YAML文件 ===
+        import yaml
+        import os
+        # 组装格式
+        config = {
+            "name": agent.name,
+            "description": agent.description or "",
+            "system_prompt": agent.system_prompt or "",
+            "provider": (agent.model_config or {}).get("provider", ""),
+            "model_name": (agent.model_config or {}).get("model_name", ""),
+            "model_parameters": (agent.model_config or {}).get("parameters", {}),
+            "tools": (agent.tools_config or {}).get("builtin_tools", []),
+            "mcp_skills": (agent.tools_config or {}).get("mcp_skills", {}),
+            "knowledge_databases": (agent.knowledge_config or {}).get("databases", []),
+            "retrieval_params": (agent.knowledge_config or {}).get("retrieval_params", {}),
+        }
+        # 文件名处理，前缀加@，防止特殊字符
+        safe_name = agent.name.replace("/", "_").replace("\\", "_").replace(" ", "_")
+        file_name = f"@{safe_name}.private.yaml"
+        config_dir = os.path.join(os.path.dirname(__file__), "../config/agents")
+        os.makedirs(config_dir, exist_ok=True)
+        file_path = os.path.join(config_dir, file_name)
+        with open(file_path, "w", encoding="utf-8") as f:
+            yaml.dump(config, f, allow_unicode=True, sort_keys=False)
+        # === END ===
+
         logger.info(f"用户 {current_user.username} 更新了智能体: {agent.name}")
 
         return {"success": True, "message": "智能体更新成功", "data": agent.to_dict()}

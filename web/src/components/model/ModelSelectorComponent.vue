@@ -1,11 +1,12 @@
 <template>
-  <a-dropdown>
+  <a-dropdown trigger="click" :disabled="!modelKeys.length">
     <a class="model-select" @click.prevent>
       <!-- <BulbOutlined /> -->
       <a-tooltip :title="model_name" placement="right">
         <span class="model-text text"> {{ model_name }} </span>
       </a-tooltip>
       <span class="text" style="color: #aaa;">{{ model_provider }} </span>
+      <DownOutlined class="dropdown-arrow" />
     </a>
     <template #overlay>
       <a-menu class="scrollable-menu">
@@ -19,6 +20,9 @@
             custom/{{ model.custom_id }}
           </a-menu-item>
         </a-menu-item-group>
+        <a-menu-item v-if="!modelKeys.length && !customModels.length" disabled>
+          暂无可用模型
+        </a-menu-item>
       </a-menu>
     </template>
   </a-dropdown>
@@ -26,7 +30,7 @@
 
 <script setup>
 import { computed } from 'vue'
-import { BulbOutlined } from '@ant-design/icons-vue'
+import { BulbOutlined, DownOutlined } from '@ant-design/icons-vue'
 import { useConfigStore } from '@/stores/config'
 
 const props = defineProps({
@@ -44,17 +48,23 @@ const configStore = useConfigStore()
 const emit = defineEmits(['select-model'])
 
 // 从configStore中获取所需数据
-const modelNames = computed(() => configStore.config?.model_names)
+const modelNames = computed(() => {
+  console.log('ModelSelector: modelNames computed, config:', configStore.config)
+  return configStore.config?.model_names
+})
 const modelStatus = computed(() => configStore.config?.model_provider_status)
 const customModels = computed(() => configStore.config?.custom_models || [])
 
 // 筛选 modelStatus 中为真的key
 const modelKeys = computed(() => {
-  return Object.keys(modelStatus.value || {}).filter(key => modelStatus.value?.[key])
+  const keys = Object.keys(modelStatus.value || {}).filter(key => modelStatus.value?.[key])
+  console.log('ModelSelector: modelKeys computed:', keys)
+  return keys
 })
 
 // 选择模型的方法
 const handleSelectModel = (provider, name) => {
+  console.log('ModelSelector: handleSelectModel called with:', { provider, name })
   emit('select-model', { provider, name })
 }
 </script>
@@ -72,6 +82,8 @@ const handleSelectModel = (provider, name) => {
   align-items: center;
   gap: 0.5rem;
   background-color: white;
+  position: relative;
+  z-index: 1;
 
   &.borderless {
     border: none;
@@ -86,6 +98,11 @@ const handleSelectModel = (provider, name) => {
     text-overflow: ellipsis;
   }
 
+  .dropdown-arrow {
+    font-size: 12px;
+    color: #8c8c8c;
+    margin-left: 4px;
+  }
 
 }
 

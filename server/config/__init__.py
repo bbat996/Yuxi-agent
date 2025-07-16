@@ -59,8 +59,7 @@ class Config(SimpleConfig):
             default=False,
             des="是否开启网页搜索（注：现阶段会根据 TAVILY_API_KEY 自动开启，无法手动配置，将会在下个版本移除此配置项）",
         )  # noqa: E501
-        # 默认智能体配置
-        self.add_item("default_agent_id", default="", des="默认智能体ID")
+
         # 模型配置
         ## 注意这里是模型名，而不是具体的模型路径，默认使用 HuggingFace 的路径
         ## 如果需要自定义本地模型路径，则在 src/.env 中配置 MODEL_DIR
@@ -69,12 +68,44 @@ class Config(SimpleConfig):
 
         self.add_item("embed_model", default="siliconflow/BAAI/bge-m3", des="Embedding 模型", choices=list(self.embed_model_names.keys()))
         self.add_item(
-            "reranker", default="siliconflow/BAAI/bge-reranker-v2-m3", des="Re-Ranker 模型", choices=list(self.reranker_names.keys())
-        )  # noqa: E501
+            "reranker", default="siliconflow/BAAI/bge-reranker-v2-m3", des="Re-Ranker 模型", choices=list(self.reranker_names.keys()))
         ### <<< 默认配置结束
 
         self.load()
         self.handle_self()
+        
+        # 初始化提供商启用状态
+        self._init_provider_enabled_status()
+
+    def _init_provider_enabled_status(self):
+        """初始化提供商启用状态"""
+        if not hasattr(self, 'provider_enabled_status'):
+            self.provider_enabled_status = {}
+        
+        # 为所有模型提供商设置默认启用状态
+        for provider in self.model_names.keys():
+            if provider not in self.provider_enabled_status:
+                # 默认启用，除非明确设置为False
+                self.provider_enabled_status[provider] = True
+
+    def get_provider_enabled_status(self, provider: str = None):
+        """获取提供商启用状态"""
+        if provider:
+            return self.provider_enabled_status.get(provider, True)
+        return self.provider_enabled_status
+
+    def set_provider_enabled_status(self, provider: str, enabled: bool):
+        """设置提供商启用状态"""
+        if provider not in self.model_names:
+            raise ValueError(f"模型提供商 {provider} 不存在")
+        
+        self.provider_enabled_status[provider] = enabled
+        self.save()
+        logger.info(f"模型提供商 {provider} 启用状态已设置为: {enabled}")
+
+    def toggle_provider_status(self, provider: str, enabled: bool):
+        """切换提供商启用状态"""
+        return self.set_provider_enabled_status(provider, enabled)
 
     def add_item(self, key, default, des=None, choices=None):
         self.__setattr__(key, default)
@@ -88,7 +119,11 @@ class Config(SimpleConfig):
             "embed_model_names",
             "reranker_names",
         ]
-        return {k: v for k, v in self.items() if k not in blocklist}
+        result = {k: v for k, v in self.items() if k not in blocklist}
+        # 添加provider_enabled_status到配置中
+        if hasattr(self, 'provider_enabled_status'):
+            result['provider_enabled_status'] = self.provider_enabled_status
+        return result
 
     def _update_models_from_file(self):
         """
@@ -231,6 +266,10 @@ class Config(SimpleConfig):
                     if content:
                         local_config = yaml.safe_load(content)
                         self.update(local_config)
+                        
+                        # 加载provider_enabled_status
+                        if 'provider_enabled_status' in local_config:
+                            self.provider_enabled_status = local_config['provider_enabled_status']
                     else:
                         print(f"{self.config_file} is empty.")
             else:

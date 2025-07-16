@@ -11,7 +11,7 @@
       <div class="sider" v-if="state.windowWidth > 520">
         <a-button type="text" v-if="userStore.isSuperAdmin" :class="{ activesec: state.section === 'base'}" @click="state.section='base'" :icon="h(SettingOutlined)"> 基本设置 </a-button>
         <a-button type="text" v-if="userStore.isSuperAdmin" :class="{ activesec: state.section === 'model'}" @click="state.section='model'" :icon="h(CodeOutlined)"> 模型配置 </a-button>
-        <a-button type="text" :class="{ activesec: state.section === 'mcp-skills'}" @click="state.section='mcp-skills'" :icon="h(ToolOutlined)"> MCP技能 </a-button>
+        <a-button type="text" v-if="userStore.isSuperAdmin" :class="{ activesec: state.section === 'mcp-config'}" @click="state.section='mcp-config'" :icon="h(SettingOutlined)"> MCP配置 </a-button>
         <a-button type="text" :class="{ activesec: state.section === 'user'}" @click="state.section='user'" :icon="h(UserOutlined)" v-if="userStore.isAdmin"> 用户管理 </a-button>
       </div>
       <div class="setting" v-if="(state.windowWidth <= 520 || state.section === 'base') && userStore.isSuperAdmin">
@@ -52,13 +52,12 @@
         </div>
       </div>
       <div class="setting" v-if="(state.windowWidth <= 520 || state.section === 'model') && userStore.isSuperAdmin">
-        <h3>模型配置</h3>
         <ModelProvidersComponent />
       </div>
       
-      <!-- MCP技能管理 -->
-      <div class="setting" v-if="state.windowWidth <= 520 || state.section === 'mcp-skills'">
-        <MCPSkillManagement />
+      <!-- MCP配置管理 -->
+      <div class="setting" v-if="(state.windowWidth <= 520 || state.section === 'mcp-config') && userStore.isSuperAdmin">
+        <MCPConfigManagement />
       </div>
       
       <!-- 用户管理 -->
@@ -78,13 +77,12 @@ import {
   ReloadOutlined,
   SettingOutlined,
   CodeOutlined,
-  UserOutlined,
-  ToolOutlined
+  UserOutlined
 } from '@ant-design/icons-vue';
 import HeaderComponent from '@/components/HeaderComponent.vue';
 import ModelProvidersComponent from '@/components/model/ModelProvidersComponent.vue';
 import UserManagementComponent from '@/components/user/UserManagementComponent.vue';
-import MCPSkillManagement from '@/components/mcp_skill/MCPSkillManagement.vue';
+import MCPConfigManagement from '@/components/mcp_skill/MCPConfigManagement.vue';
 import { notification, Button } from 'ant-design-vue';
 import { systemConfigApi } from '@/apis/admin_api'
 import ModelSelectorComponent from '@/components/model/ModelSelectorComponent.vue';
@@ -150,7 +148,7 @@ const handleChatModelSelect = ({ provider, name }) => {
 onMounted(() => {
   updateWindowWidth()
   window.addEventListener('resize', updateWindowWidth)
-  state.section = userStore.isSuperAdmin ? 'base' : (userStore.isAdmin ? 'user' : 'mcp-skills')
+  state.section = userStore.isSuperAdmin ? 'base' : (userStore.isAdmin ? 'user' : 'mcp-config')
 })
 
 onUnmounted(() => {

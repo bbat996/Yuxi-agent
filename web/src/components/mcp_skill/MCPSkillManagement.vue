@@ -2,8 +2,8 @@
   <div class="mcp-skill-management">
     <div class="section-header">
       <h3>MCP技能</h3>
-      <a-button type="primary" @click="showCreateModal" :icon="h(PlusOutlined)">
-        注册技能
+      <a-button type="primary" @click="refreshSkills" :loading="templateStore.loading.mcpSkills" :icon="h(ReloadOutlined)">
+        刷新
       </a-button>
     </div>
     
@@ -100,14 +100,8 @@
                       <a-button size="small" @click="previewSkill(skill)" :icon="h(EyeOutlined)">
                         预览
                       </a-button>
-                      <a-button size="small" @click="editSkill(skill)" :icon="h(EditOutlined)">
-                        编辑
-                      </a-button>
                       <a-button size="small" @click="testSkill(skill)" :icon="h(ExperimentOutlined)">
                         测试
-                      </a-button>
-                      <a-button size="small" danger @click="deleteSkill(skill)" :icon="h(DeleteOutlined)">
-                        删除
                       </a-button>
                     </a-space>
                   </div>
@@ -121,17 +115,14 @@
         <a-empty v-if="!templateStore.loading.mcpSkills && filteredSkills.length === 0" class="empty-state">
           <template #description>
             <span v-if="hasFilters">没有找到符合条件的技能</span>
-            <span v-else>还没有MCP技能，快来注册第一个吧！</span>
+            <span v-else>没有可用的MCP技能</span>
           </template>
-          <a-button v-if="!hasFilters" type="primary" @click="showCreateModal">
-            注册技能
-          </a-button>
         </a-empty>
       </div>
     </div>
     
-    <!-- 模态框 -->
-    <a-modal
+    <!-- 模态框（暂不使用） -->
+    <!-- <a-modal
       :open="modalVisible"
       @update:open="modalVisible = $event"
       :title="modalMode === 'create' ? '注册MCP技能' : '编辑MCP技能'"
@@ -145,7 +136,7 @@
         @submit="handleSubmit"
         @cancel="modalVisible = false"
       />
-    </a-modal>
+    </a-modal> -->
     
     <a-modal
       :open="previewVisible"
@@ -252,15 +243,13 @@ const refreshSkills = () => {
 }
 
 const showCreateModal = () => {
-  currentSkill.value = null
-  modalMode.value = 'create'
-  modalVisible.value = true
+  // 暂不支持创建技能
+  message.info('暂不支持创建MCP技能，只能查看现有技能')
 }
 
 const editSkill = (skill) => {
-  currentSkill.value = skill
-  modalMode.value = 'edit'
-  modalVisible.value = true
+  // 暂不支持编辑技能
+  message.info('暂不支持编辑MCP技能，只能查看现有技能')
 }
 
 const previewSkill = (skill) => {
@@ -280,14 +269,8 @@ const testSkill = async (skill) => {
 }
 
 const deleteSkill = async (skill) => {
-  try {
-    await templateStore.deleteMcpSkill(skill.skill_id)
-    message.success('技能删除成功')
-    refreshSkills()
-  } catch (error) {
-    console.error('删除技能失败:', error)
-    message.error('删除技能失败')
-  }
+  // 暂不支持删除技能
+  message.info('暂不支持删除MCP技能，只能查看现有技能')
 }
 
 const handleSubmit = () => {

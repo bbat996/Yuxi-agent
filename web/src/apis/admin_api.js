@@ -260,15 +260,7 @@ export const graphApi = {
 
 // 系统配置API
 export const systemConfigApi = {
-  /**
-   * 设置默认智能体
-   * @param {string} agentId - 智能体ID
-   * @returns {Promise} - 设置结果
-   */
-  setDefaultAgent: async (agentId) => {
-    checkAdminPermission()
-    return apiPost('/api/chat/set_default_agent', { agent_id: agentId }, {}, true)
-  },
+
 
   /**
    * 获取系统配置

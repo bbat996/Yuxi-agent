@@ -27,18 +27,18 @@
             <div class="conversation-title">{{ chat.title || '新对话' }}</div>
           </div>
           <div class="conversation-actions">
-            <a-dropdown :trigger="['click']" @click.stop>
+            <a-dropdown :trigger="['click']" @click="(e) => e.stopPropagation()">
               <template #overlay>
                 <a-menu>
-                  <a-menu-item key="rename" @click.stop="renameChat(chat.id)">
+                  <a-menu-item key="rename" @click="(e) => { e.stopPropagation(); renameChat(chat.id); }">
                     <EditOutlined /> 重命名
                   </a-menu-item>
-                  <a-menu-item key="delete" @click.stop="deleteChat(chat.id)" v-if="chat.id !== currentChatId">
+                  <a-menu-item key="delete" @click="(e) => { e.stopPropagation(); deleteChat(chat.id); }" v-if="chat.id !== currentChatId">
                     <DeleteOutlined /> 删除
                   </a-menu-item>
                 </a-menu>
               </template>
-              <a-button type="text" class="more-btn" @click.stop>
+              <a-button type="text" class="more-btn" @click="(e) => e.stopPropagation()">
                 <MoreOutlined />
               </a-button>
             </a-dropdown>

@@ -26,10 +26,6 @@
                 <span class="agent-type">{{ agent.agent_type }}</span>
               </div>
               <div class="agent-status">
-                <a-tag v-if="agent.agent_id === defaultAgentId" color="gold" size="small">
-                  <star-filled />
-                  默认
-                </a-tag>
                 <a-tag v-if="agent.is_active" color="green" size="small">运行中</a-tag>
               </div>
             </div>
@@ -50,10 +46,6 @@
                 <span class="agent-type">{{ agent.agent_type }}</span>
               </div>
               <div class="agent-status">
-                <a-tag v-if="agent.agent_id === defaultAgentId" color="gold" size="small">
-                  <star-filled />
-                  默认
-                </a-tag>
                 <a-tag v-if="agent.is_active" color="green" size="small">运行中</a-tag>
                 <a-tag v-if="agent.is_mine" color="blue" size="small">我的</a-tag>
               </div>
@@ -81,17 +73,7 @@
           </a-button>
         </a-tooltip>
         
-        <a-tooltip title="设为默认智能体">
-          <a-button 
-            type="text" 
-            size="small" 
-            @click="handleSetDefault"
-            :disabled="selectedAgent.agent_id === defaultAgentId"
-          >
-            <star-outlined v-if="selectedAgent.agent_id !== defaultAgentId" />
-            <star-filled v-else style="color: #faad14;" />
-          </a-button>
-        </a-tooltip>
+
 
         <a-tooltip title="智能体详情">
           <a-button type="text" size="small" @click="$emit('view-details', selectedAgent)">
@@ -181,10 +163,6 @@
               <robot-outlined v-else />
             </div>
             <div class="agent-badges">
-              <a-tag v-if="agent.agent_id === defaultAgentId" color="gold" size="small">
-                <star-filled />
-                默认
-              </a-tag>
               <a-tag v-if="agent.is_active" color="green" size="small">运行中</a-tag>
               <a-tag v-if="agent.is_mine" color="blue" size="small">我的</a-tag>
             </div>
@@ -204,11 +182,8 @@
             <a-button type="text" size="small" @click.stop="handleQuickEdit(agent)">
               <edit-outlined />
             </a-button>
-            <a-button type="text" size="small" @click.stop="handleSetDefault(agent)">
-              <star-outlined v-if="agent.agent_id !== defaultAgentId" />
-              <star-filled v-else style="color: #faad14;" />
-            </a-button>
-            <a-dropdown trigger="click" @click.stop>
+
+            <a-dropdown trigger="click" @click="(e) => e.stopPropagation()">
               <a-button type="text" size="small">
                 <more-outlined />
               </a-button>
@@ -269,8 +244,6 @@
 import { ref, computed, watch, onMounted } from 'vue'
 import { message, Modal } from 'ant-design-vue'
 import {
-  StarFilled,
-  StarOutlined,
   RobotOutlined,
   SettingOutlined,
   InfoCircleOutlined,
@@ -300,11 +273,7 @@ const props = defineProps({
     type: String,
     default: ''
   },
-  // 默认智能体ID
-  defaultAgentId: {
-    type: String,
-    default: ''
-  },
+
   // 组件宽度（仅compact模式）
   width: {
     type: String,
@@ -327,7 +296,7 @@ const emit = defineEmits([
   'duplicate-agent',
   'export-agent',
   'delete-agent',
-  'set-default'
+
 ])
 
 // ================================================================================
@@ -472,19 +441,7 @@ const handlePageSizeChange = (current, size) => {
   fetchAgents()
 }
 
-/**
- * 设置默认智能体
- */
-const handleSetDefault = (agent = selectedAgent.value) => {
-  if (!agent) return
-  
-  if (!userStore.isAdmin) {
-    message.warning('只有管理员可以设置默认智能体')
-    return
-  }
-  
-  emit('set-default', agent)
-}
+
 
 /**
  * 快速编辑

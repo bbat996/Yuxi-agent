@@ -404,20 +404,15 @@ export const useTemplateStore = defineStore('template', () => {
       errors.mcpSkills = null
       
       const params = {
-        page: mcpPagination.current,
-        page_size: mcpPagination.pageSize,
-        search: mcpFilters.search || undefined,
         category: mcpFilters.category || undefined,
-        status: mcpFilters.status || undefined,
-        sort_by: mcpFilters.sortBy,
-        sort_order: mcpFilters.sortOrder
+        server: mcpFilters.server || undefined
       }
       
       const response = await templateAPI.getMCPSkills(params)
       
       if (response.success) {
         mcpSkills.value = response.data.skills || []
-        mcpPagination.total = response.data.pagination?.total || 0
+        mcpPagination.total = response.data.total || 0
         
         // 提取分类
         extractMcpCategories()
@@ -428,7 +423,7 @@ export const useTemplateStore = defineStore('template', () => {
         // 更新缓存
         cache.lastFetchSkills = Date.now()
         mcpSkills.value.forEach(skill => {
-          cache.mcpSkills.set(skill.id, skill)
+          cache.mcpSkills.set(skill.skill_id, skill)
         })
         
         return mcpSkills.value
