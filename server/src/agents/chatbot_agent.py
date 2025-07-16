@@ -133,8 +133,47 @@ class ChatbotAgent(BaseAgent):
         self.requirements = ["TAVILY_API_KEY", "ZHIPUAI_API_KEY"]
         self.workdir = Path(sys_config.storage_dir) / "agents" / self.name
         self.workdir.mkdir(parents=True, exist_ok=True)
+
+        # 初始化模型和工具
+        self.model = None
+        self.tools = []
+        self.llm_with_tools = None
         self.graph = None
+        self._initialize_llm_and_tools()
+
         logger.info(f"ChatbotAgent 初始化完成: {self.name}")
+
+    def _initialize_llm_and_tools(self):
+        """初始化或重新初始化LLM、工具和绑定后的模型"""
+        # 获取模型配置
+        model_config = self._get_model_config()
+        model_parameters = getattr(self.config_schema, "model_parameters", {})
+
+        # 加载模型
+        logger.info(f"开始加载模型: {model_config.get('provider')}/{model_config.get('model_name')}")
+        self.model = load_chat_model(
+            provider=model_config.get("provider"),
+            model=model_config.get("model_name"),
+            model_parameters=model_parameters
+        )
+        logger.info("模型加载成功")
+
+        # 获取工具
+        tools_config = getattr(self.config_schema, "tools", [])
+        mcp_skills_config = getattr(self.config_schema, "mcp_skills", [])
+        self.tools = self._get_tools(
+            tools_config,
+            mcp_skills_config,
+        )
+        
+        logger.info("=== 工具配置 ===")
+        if self.tools:
+            tool_names = [getattr(tool, 'name', str(tool)) for tool in self.tools]
+            logger.info(f"可用工具: {', '.join(tool_names)}")
+            self.llm_with_tools = self.model.bind_tools(self.tools)
+        else:
+            logger.info("无可用工具")
+            self.llm_with_tools = self.model
 
     def _init_mcp_connections(self):
         """初始化MCP连接配置"""
@@ -159,6 +198,8 @@ class ChatbotAgent(BaseAgent):
         self.graph = None
         # 重新初始化MCP连接配置
         self._init_mcp_connections()
+        # 重新初始化模型和工具
+        self._initialize_llm_and_tools()
         logger.info(f"智能体配置重新加载完成: {self.name}")
 
     def _get_tools(self, tools: List[str], mcp_skills: List[str] = None) -> List:
@@ -237,42 +278,11 @@ class ChatbotAgent(BaseAgent):
         system_prompt = final_config.get("system_prompt", self.config_schema.system_prompt)
         system_prompt = f"{system_prompt} Now is {get_cur_time_with_utc()}"
 
-        # 获取模型配置
-        model_config = self._get_model_config()
-        model_parameters = final_config.get("model_parameters", {})
-
-        # 检查环境变量
-        provider = model_config.get("provider")
-        # 加载模型
-        logger.info(f"开始加载模型: {provider}/{model_config.get('model_name')}")
-        model = load_chat_model(
-            provider=model_config.get("provider"),
-            model=model_config.get("model_name"),
-            model_parameters=model_parameters
-        )
-        logger.info("模型加载成功")
-   
-
-        # 获取工具
-        tools = self._get_tools(
-            final_config.get("tools", self.config_schema.tools),
-            final_config.get("mcp_skills", self.config_schema.mcp_skills),
-        )
-        logger.info(f"=== 工具配置 ===")
-        if tools:
-            tool_names = []
-            for tool in tools:
-                tool_name = getattr(tool, 'name', str(tool))
-                tool_names.append(tool_name)
-            logger.info(f"可用工具: {', '.join(tool_names)}")
-            model = model.bind_tools(tools)
-
         # 异步调用模型
         messages = [{"role": "system", "content": system_prompt}] + state["messages"]
-        from pprint import pprint
-        pprint(messages)
         try:
-            result = await model.ainvoke(messages)
+            # 使用预先加载和绑定的模型与工具
+            result = await self.llm_with_tools.ainvoke(messages)
             
             # 格式化打印结果
             logger.info("=== 模型调用成功 ===")
@@ -304,27 +314,10 @@ class ChatbotAgent(BaseAgent):
             return self.graph
         workflow = StateGraph(State, config_schema=self.config_schema)
         workflow.add_node("llm", self.llm_call)
-        all_tools = list(get_all_tools().values())
-        mcp_skills = getattr(self.config_schema, "mcp_skills", [])
-        if mcp_skills and isinstance(mcp_skills, list):
-            from src.agents.mcp_client import get_mcp_tools_for_agent
-            import asyncio
-            mcp_skill_names = mcp_skills
-            try:
-                loop = asyncio.get_running_loop()
-                import concurrent.futures
-                with concurrent.futures.ThreadPoolExecutor() as executor:
-                    future = executor.submit(asyncio.run, get_mcp_tools_for_agent(mcp_skill_names))
-                    mcp_tools = future.result()
-            except RuntimeError:
-                mcp_tools = asyncio.run(get_mcp_tools_for_agent(mcp_skill_names))
-            if isinstance(mcp_tools, list):
-                all_tools.extend(mcp_tools)
-                logger.info(f"工具节点添加了 {len(mcp_tools)} 个MCP工具")
-        if all_tools:
-            workflow.add_node("tools", ToolNode(tools=all_tools))
+        if self.tools:
+            workflow.add_node("tools", ToolNode(tools=self.tools))
         workflow.add_edge(START, "llm")
-        if all_tools:
+        if self.tools:
             workflow.add_conditional_edges(
                 "llm",
                 tools_condition,
