@@ -4,10 +4,10 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from contextlib import contextmanager
 
-from server.src import config
-from server.models import Base
-from server.models.user_model import User
-from server.src.utils import logger
+from src import config
+from models import Base
+from models.user_model import User
+from src.utils import logger
 
 
 class DBManager:
@@ -77,3 +77,7 @@ class DBManager:
 
 
 db_manager = DBManager()
+
+if __name__ == "__main__":
+    db_manager = DBManager()
+    print(db_manager.check_first_run())

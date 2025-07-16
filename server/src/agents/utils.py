@@ -3,10 +3,10 @@ import asyncio
 import os
 import traceback
 
-from server.src import config
-from server.src.utils import logger, get_docker_safe_url
-from server.src.models import get_custom_model
-from server.src.agents.registry import BaseAgent
+from src import config
+from src.utils import logger, get_docker_safe_url
+from src.models import get_custom_model
+from src.agents.registry import BaseAgent
 from langchain_core.language_models import BaseChatModel
 from langchain_core.runnables import RunnableConfig
 from langchain_core.messages import AIMessageChunk, ToolMessage

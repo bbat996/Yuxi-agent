@@ -6,8 +6,8 @@ from abc import abstractmethod
 from zhipuai import ZhipuAI
 from langchain_huggingface import HuggingFaceEmbeddings
 
-from server.src import config
-from server.src.utils import hashstr, logger, get_docker_safe_url
+from src import config
+from src.utils import hashstr, logger, get_docker_safe_url
 
 
 class BaseEmbeddingModel:

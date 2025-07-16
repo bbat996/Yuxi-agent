@@ -1,7 +1,7 @@
 import time
 import hashlib
 import os
-from server.src.utils.logging_config import logger
+from src.utils.logging_config import logger
 
 
 def is_text_pdf(pdf_path):

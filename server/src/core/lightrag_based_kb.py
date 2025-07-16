@@ -13,9 +13,9 @@ from lightrag.llm.openai import openai_complete_if_cache, openai_embed
 from lightrag.utils import EmbeddingFunc, setup_logger
 from lightrag.kg.shared_storage import initialize_pipeline_status
 
-from server.src import config
-from server.src.utils import logger, hashstr, get_docker_safe_url
-from server.src.plugins import ocr
+from src import config
+from src.utils import logger, hashstr, get_docker_safe_url
+from src.plugins import ocr
 
 work_dir = os.path.join(config.storage_dir, "lightrag_data")
 log_dir = os.path.join(work_dir, "logs", "lightrag")
@@ -125,7 +125,7 @@ class LightRagBasedKB:
         # provider_info = config.model_names[llm_info.get("provider")]
         # api_key = os.getenv(provider_info.get("env")[0] or "OPENAI_API_KEY") or "no_api_key"
         # base_url = get_docker_safe_url(provider_info.get("base_url", "http://localhost:8081/v1"))
-        from server.src.models import get_custom_model
+        from src.models import get_custom_model
 
         llm_info = get_custom_model("qwen3:32b-RFnC")
 
@@ -165,7 +165,7 @@ class LightRagBasedKB:
 
         if file_ext == ".pdf":
             # 使用 OCR 处理 PDF
-            from server.src.core.indexing import parse_pdf_async
+            from src.core.indexing import parse_pdf_async
 
             text = await parse_pdf_async(str(file_path_obj), params=params)
             return f"Using OCR to process {file_path_obj.name}\n\n{text}"

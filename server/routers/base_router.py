@@ -4,11 +4,11 @@ from pathlib import Path
 from fastapi import Request, Body, Depends, HTTPException
 from fastapi import APIRouter
 
-from server.config import SITE_INFO_PATH
-from server.src import config, knowledge_base, graph_base
-from server.utils.auth_middleware import get_admin_user, get_superadmin_user
-from server.models.user_model import User
-from server.src.utils.logging_config import logger
+from config import SITE_INFO_PATH
+from src import config, knowledge_base, graph_base
+from utils.auth_middleware import get_admin_user, get_superadmin_user
+from models.user_model import User
+from src.utils.logging_config import logger
 
 
 base = APIRouter(tags=["base"])
@@ -63,7 +63,7 @@ async def restart(current_user: User = Depends(get_superadmin_user)):
 
 @base.get("/log")
 def get_log(current_user: User = Depends(get_admin_user)):
-    from server.src.utils.logging_config import LOG_FILE
+    from src.utils.logging_config import LOG_FILE
     from collections import deque
 
     with open(LOG_FILE, encoding="utf-8") as f:

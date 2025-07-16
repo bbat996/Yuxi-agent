@@ -4,9 +4,9 @@ from sqlalchemy.orm import Session
 from jose import JWTError, jwt
 import re
 
-from server.db_manager import db_manager
-from server.models.user_model import User
-from server.utils.auth_utils import AuthUtils
+from db_manager import db_manager
+from models.user_model import User
+from utils.auth_utils import AuthUtils
 
 # 定义OAuth2密码承载器，指定token URL
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/token", auto_error=False)

@@ -3,7 +3,7 @@ from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
 from sqlalchemy.dialects.mysql import JSON
 
-from server.models import Base
+from models import Base
 
 
 class Thread(Base):

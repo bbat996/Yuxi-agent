@@ -1,11 +1,11 @@
 from fastapi import APIRouter
-from server.routers.chat_router import chat
-from server.routers.data_router import data
-from server.routers.base_router import base
-from server.routers.auth_router import auth
-from server.routers.agent_router import agent_router
-from server.routers.skill_router import skill_router
-# from server.routers.graph_router import graph
+from routers.chat_router import chat
+from routers.data_router import data
+from routers.base_router import base
+from routers.auth_router import auth
+from routers.agent_router import agent_router
+from routers.skill_router import skill_router
+# from routers.graph_router import graph
 
 router = APIRouter()
 router.include_router(base)

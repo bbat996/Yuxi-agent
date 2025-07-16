@@ -4,7 +4,7 @@ import base64
 import os
 import time
 from typing import Optional, Any
-from server.src.utils import logger
+from src.utils import logger
 
 
 class PaddleXLayoutParser:

@@ -2,8 +2,8 @@ import uuid
 
 from dataclasses import dataclass, field
 
-from server.src.agents.registry import Configuration
-from server.src.agents.tools_factory import get_all_tools
+from src.agents.registry import Configuration
+from src.agents.tools_factory import get_all_tools
 
 
 @dataclass(kw_only=True)

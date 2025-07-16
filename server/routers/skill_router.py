@@ -7,11 +7,11 @@ import uuid
 import json
 from datetime import datetime
 
-from server.db_manager import DBManager
-from server.models.agent_models import PromptTemplate, MCPSkill
-from server.models.user_model import User
-from server.utils.auth_middleware import get_required_user, get_admin_user
-from server.src.utils import logger
+from db_manager import DBManager
+from models.agent_models import PromptTemplate, MCPSkill
+from models.user_model import User
+from utils.auth_middleware import get_required_user, get_admin_user
+from src.utils import logger
 
 # 创建路由器
 skill_router = APIRouter(prefix="/skills", tags=["skills"])

@@ -127,17 +127,17 @@ def parse_pdf(file, params=None):
     opt_ocr = params.get("enable_ocr", "disable")
 
     if opt_ocr == "onnx_rapid_ocr":
-        from server.src.plugins import ocr
+        from src.plugins import ocr
 
         return ocr.process_pdf(file)
 
     elif opt_ocr == "mineru_ocr":
-        from server.src.plugins import ocr
+        from src.plugins import ocr
 
         return ocr.process_pdf_mineru(file)
 
     elif opt_ocr == "paddlex_ocr":
-        from server.src.plugins import ocr
+        from src.plugins import ocr
 
         return ocr.process_pdf_paddlex(file)
 

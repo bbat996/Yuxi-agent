@@ -4,7 +4,7 @@ PaddleX 文档分析使用示例
 演示如何使用 analyze_document 函数分析文档
 """
 
-from server.src.plugins import analyze_document
+from src.plugins import analyze_document
 
 
 def analyze_custom_file(file_path: str):

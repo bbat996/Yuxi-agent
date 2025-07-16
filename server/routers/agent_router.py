@@ -5,11 +5,11 @@ import uuid
 from datetime import datetime
 from pydantic import BaseModel, Field
 
-from server.db_manager import DBManager
-from server.models.agent_models import CustomAgent, AgentInstance
-from server.models.user_model import User
-from server.utils.auth_middleware import get_required_user
-from server.src.utils import logger
+from db_manager import DBManager
+from models.agent_models import CustomAgent, AgentInstance
+from models.user_model import User
+from utils.auth_middleware import get_required_user
+from src.utils import logger
 
 # 创建路由器
 agent_router = APIRouter(prefix="/agents", tags=["agents"])
@@ -575,7 +575,7 @@ async def create_chatbot_agent(agent_id: str, current_user: User = Depends(get_r
 
         try:
             # 导入ChatbotAgent
-            from server.src.agents.chatbot_agent import ChatbotAgent
+            from src.agents.chatbot_agent import ChatbotAgent
 
             # 直接从数据库记录创建ChatbotAgent实例
             chatbot_agent = ChatbotAgent.from_db_record(agent)

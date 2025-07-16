@@ -1,6 +1,6 @@
 import os
 from tavily import TavilyClient
-from server.src.utils.logging_config import logger
+from src.utils.logging_config import logger
 
 
 class WebSearcher:

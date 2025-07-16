@@ -1,4 +1,4 @@
-from server.src.utils.prompts import get_system_prompt
+from src.utils.prompts import get_system_prompt
 
 
 class HistoryManager:

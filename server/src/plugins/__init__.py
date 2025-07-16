@@ -1,4 +1,4 @@
-from server.src.plugins._ocr import OCRPlugin
+from src.plugins._ocr import OCRPlugin
 
 ocr = OCRPlugin()
 

@@ -3,8 +3,8 @@ import json
 import requests
 import numpy as np
 
-from server.src import config
-from server.src.utils import logger, get_docker_safe_url
+from src import config
+from src.utils import logger, get_docker_safe_url
 
 
 def sigmoid(x):

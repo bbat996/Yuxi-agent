@@ -11,12 +11,12 @@ from langgraph.graph import StateGraph, START, END
 from langgraph.prebuilt import ToolNode, tools_condition
 from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver, aiosqlite
 
-from server.src import config as sys_config
-from server.src.utils import logger
-from server.src.agents.registry import State, BaseAgent
-from server.src.agents.utils import load_chat_model, get_cur_time_with_utc
-from server.src.agents.chatbot.configuration import ChatbotConfiguration
-from server.src.agents.tools_factory import get_all_tools
+from src import config as sys_config
+from src.utils import logger
+from src.agents.registry import State, BaseAgent
+from src.agents.utils import load_chat_model, get_cur_time_with_utc
+from src.agents.chatbot.configuration import ChatbotConfiguration
+from src.agents.tools_factory import get_all_tools
 
 
 class ChatbotAgent(BaseAgent):
@@ -105,7 +105,7 @@ def main():
     thread_id = str(uuid.uuid4())
     config = {"configurable": {"thread_id": thread_id}}
 
-    from server.src.agents.utils import agent_cli
+    from src.agents.utils import agent_cli
 
     agent_cli(agent, config)
 

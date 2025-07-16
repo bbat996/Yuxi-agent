@@ -3,7 +3,7 @@ from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 import time
 
-from server.models import Base
+from models import Base
 
 class KnowledgeDatabase(Base):
     """知识库模型"""

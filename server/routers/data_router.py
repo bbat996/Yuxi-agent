@@ -3,10 +3,10 @@ import asyncio
 import traceback
 from fastapi import APIRouter, File, UploadFile, HTTPException, Depends, Body, Form, Query
 
-from server.src.utils import logger, hashstr
-from server.src import executor, config, knowledge_base, graph_base
-from server.utils.auth_middleware import get_admin_user
-from server.models.user_model import User
+from src.utils import logger, hashstr
+from src import executor, config, knowledge_base, graph_base
+from utils.auth_middleware import get_admin_user
+from models.user_model import User
 
 data = APIRouter(prefix="/data", tags=["data"])
 

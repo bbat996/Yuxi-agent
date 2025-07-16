@@ -1,7 +1,7 @@
 import asyncio
-from server.src.agents.chatbot_agent import ChatbotAgent
-from server.src.utils import logger
-from server.db_manager import DBManager
+from src.agents.chatbot_agent import ChatbotAgent
+from src.utils import logger
+from db_manager import DBManager
 
 
 class AgentManager:
@@ -19,8 +19,8 @@ class AgentManager:
         if agent_id in self._instances:
             return self._instances[agent_id]
         # 数据库查找
-        from server.models.agent_models import CustomAgent as CustomAgentModel
-        from server.src.agents.chatbot_agent import ChatbotAgent
+        from models.agent_models import CustomAgent as CustomAgentModel
+        from src.agents.chatbot_agent import ChatbotAgent
         with self.db_manager.get_session_context() as session:
             db_record = session.query(CustomAgentModel).filter(
                 CustomAgentModel.agent_id == agent_id,
@@ -41,8 +41,8 @@ class AgentManager:
         if identifier in self._instances:
             return self._instances[identifier]
         # 再查数据库（支持用 name 查找）
-        from server.models.agent_models import CustomAgent as CustomAgentModel
-        from server.src.agents.chatbot_agent import ChatbotAgent
+        from models.agent_models import CustomAgent as CustomAgentModel
+        from src.agents.chatbot_agent import ChatbotAgent
         with self.db_manager.get_session_context() as session:
             db_record = session.query(CustomAgentModel).filter(
                 ((CustomAgentModel.agent_id == identifier) | (CustomAgentModel.name == identifier)),
@@ -67,7 +67,7 @@ class AgentManager:
     def get_agents_by_user(self, user_id, include_public=True):
         """获取指定用户的所有智能体（自己创建的+公开的），返回dict列表，避免DetachedInstanceError"""
         from sqlalchemy import or_
-        from server.models.agent_models import CustomAgent as CustomAgentModel
+        from models.agent_models import CustomAgent as CustomAgentModel
         with self.db_manager.get_session_context() as session:
             query = session.query(CustomAgentModel).filter(CustomAgentModel.deleted_at.is_(None))
             if include_public:

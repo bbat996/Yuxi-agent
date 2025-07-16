@@ -3,7 +3,7 @@ from typing import Annotated
 from langchain_core.tools import tool
 from langchain_tavily import TavilySearch
 
-from server.src import config, graph_base
+from src import config, graph_base
 
 
 @tool

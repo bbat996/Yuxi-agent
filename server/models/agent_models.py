@@ -3,7 +3,7 @@ from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 import uuid
 
-from server.models import Base
+from models import Base
 
 class CustomAgent(Base):
     """自定义智能体模型"""

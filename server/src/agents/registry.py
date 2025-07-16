@@ -13,8 +13,8 @@ from langchain_core.messages import BaseMessage
 from langgraph.graph.state import CompiledStateGraph
 from langgraph.graph.message import add_messages
 
-from server.config import PROJECT_DIR
-from server.src.utils import logger
+from config import PROJECT_DIR
+from src.utils import logger
 
 
 class State(TypedDict):

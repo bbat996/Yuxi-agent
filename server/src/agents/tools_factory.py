@@ -6,9 +6,9 @@ from typing import Any
 from pydantic import BaseModel, Field
 from langchain_core.tools import StructuredTool
 
-from server.src import knowledge_base
-from server.src.utils import logger
-from server.src.agents.function_tool import _TOOLS_REGISTRY
+from src import knowledge_base
+from src.utils import logger
+from src.agents.function_tool import _TOOLS_REGISTRY
 
 
 class KnowledgeRetrieverModel(BaseModel):

@@ -15,7 +15,7 @@ from mineru.backend.pipeline.pipeline_middle_json_mkcontent import union_make as
 from mineru.backend.pipeline.model_json_to_middle_json import result_to_middle_json as pipeline_result_to_middle_json
 from mineru.backend.vlm.vlm_middle_json_mkcontent import union_make as vlm_union_make
 
-from server.src.utils.logging_config import logger
+from src.utils.logging_config import logger
 
 
 def do_parse(

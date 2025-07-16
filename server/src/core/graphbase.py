@@ -6,9 +6,9 @@ import traceback
 from neo4j import GraphDatabase as GD
 from neo4j import Query
 
-from server.src import config
-from server.src.models.embedding import get_embedding_model
-from server.src.utils import logger
+from src import config
+from src.models.embedding import get_embedding_model
+from src.utils import logger
 
 warnings.filterwarnings("ignore", category=UserWarning)
 

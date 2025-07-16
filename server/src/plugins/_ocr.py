@@ -9,7 +9,7 @@ from PIL import Image
 from tqdm import tqdm
 from rapidocr_onnxruntime import RapidOCR
 
-from server.src.utils import logger, is_text_pdf
+from src.utils import logger, is_text_pdf
 
 
 GOLBAL_STATE = {}

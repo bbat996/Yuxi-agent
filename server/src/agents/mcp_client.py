@@ -5,7 +5,7 @@ from typing import List, Dict, Any, Optional
 from langchain_core.tools import BaseTool
 from langchain_mcp_adapters.client import MultiServerMCPClient
 
-from server.src.utils import logger
+from src.utils import logger
 
 # 默认MCP连接配置
 DEFAULT_MCP_CONNECTIONS = {

@@ -1,7 +1,7 @@
 import os
 import requests
 from openai import OpenAI
-from server.src.utils import logger, get_docker_safe_url
+from src.utils import logger, get_docker_safe_url
 from langchain_openai import ChatOpenAI
 
 

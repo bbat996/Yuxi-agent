@@ -2,7 +2,7 @@ import os
 import json
 import yaml
 from pathlib import Path
-from server.src.utils.logging_config import logger
+from src.utils.logging_config import logger
 from dotenv import load_dotenv
 from .constant import CONFIG_PATH, MODELS_PATH, MODELS_PRIVATE_PATH, PROJECT_DIR, SELECTED_CONFIG_PATH, SITE_INFO_PATH
 

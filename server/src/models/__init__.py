@@ -1,9 +1,9 @@
 import os
 import traceback
 
-from server.src import config
-from server.src.utils.logging_config import logger
-from server.src.models.chat_model import OpenAIBase
+from src import config
+from src.utils.logging_config import logger
+from src.models.chat_model import OpenAIBase
 
 
 def select_model(model_provider, model_name=None):
@@ -15,19 +15,19 @@ def select_model(model_provider, model_name=None):
     logger.info(f"Selecting model from `{model_provider}` with `{model_name}`")
 
     if model_provider == "qianfan":
-        from server.src.models.chat_model import Qianfan
+        from src.models.chat_model import Qianfan
 
         return Qianfan(model_name)
 
     if model_provider == "openai":
-        from server.src.models.chat_model import OpenModel
+        from src.models.chat_model import OpenModel
 
         return OpenModel(model_name)
 
     if model_provider == "custom":
         model_info = get_custom_model(model_name)
 
-        from server.src.models.chat_model import CustomModel
+        from src.models.chat_model import CustomModel
 
         return CustomModel(model_info)
 

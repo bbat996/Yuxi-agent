@@ -10,16 +10,16 @@ from langchain_core.messages import AIMessageChunk, HumanMessage
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
 
-from server.src import executor, config
-from server.src.core import HistoryManager
-from server.src.agents.agent_manager import agent_manager
-from server.src.models import select_model
-from server.src.utils.logging_config import logger
-from server.src.agents.tools_factory import get_all_tools
-from server.routers.auth_router import get_admin_user
-from server.utils.auth_middleware import get_required_user, get_db
-from server.models.user_model import User
-from server.models.thread_model import Thread
+from src import executor, config
+from src.core import HistoryManager
+from src.agents.agent_manager import agent_manager
+from src.models import select_model
+from src.utils.logging_config import logger
+from src.agents.tools_factory import get_all_tools
+from routers.auth_router import get_admin_user
+from utils.auth_middleware import get_required_user, get_db
+from models.user_model import User
+from models.thread_model import Thread
 
 chat = APIRouter(prefix="/chat", tags=["chat"])
 
@@ -229,7 +229,7 @@ async def test_provider_connection(
         raise HTTPException(status_code=400, detail="base_url 和 api_key 不能为空")
     
     # 创建临时模型实例进行测试
-    from server.src.models.chat_model import OpenAIBase
+    from src.models.chat_model import OpenAIBase
     test_model = OpenAIBase(
         api_key=test_api_key,
         base_url=test_base_url,

@@ -10,13 +10,13 @@ from langgraph.graph import StateGraph, START, END
 from langgraph.prebuilt import ToolNode, tools_condition
 from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver, aiosqlite
 
-from server.src import config as sys_config
-from server.src.utils import logger
-from server.src.agents.registry import State, BaseAgent, Configuration
-from server.src.agents.utils import load_chat_model, get_cur_time_with_utc
-from server.src.agents.tools_factory import get_all_tools
-from server.db_manager import DBManager
-from server.models.agent_models import CustomAgent as CustomAgentModel
+from src import config as sys_config
+from src.utils import logger
+from src.agents.registry import State, BaseAgent, Configuration
+from src.agents.utils import load_chat_model, get_cur_time_with_utc
+from src.agents.tools_factory import get_all_tools
+from db_manager import DBManager
+from models.agent_models import CustomAgent as CustomAgentModel
 
 
 @dataclass(kw_only=True)
@@ -138,7 +138,7 @@ class ChatbotAgent(BaseAgent):
 
     def _init_mcp_connections(self):
         """初始化MCP连接配置"""
-        from server.src.agents.mcp_client import get_mcp_client, load_mcp_connections_from_config
+        from src.agents.mcp_client import get_mcp_client, load_mcp_connections_from_config
         
         # 从配置中获取MCP技能配置
         mcp_config = getattr(self.config_schema, "mcp_skills", {})
@@ -194,7 +194,7 @@ class ChatbotAgent(BaseAgent):
 
         # 添加MCP技能工具（langchain-mcp-adapters 版）
         if mcp_skills and isinstance(mcp_skills, dict):
-            from server.src.agents.mcp_client import get_mcp_tools_for_agent
+            from src.agents.mcp_client import get_mcp_tools_for_agent
             import asyncio
 
             # 获取MCP技能名称列表
@@ -328,7 +328,7 @@ class ChatbotAgent(BaseAgent):
         # 添加MCP工具到工具节点
         mcp_skills = getattr(self.config_schema, "mcp_skills", {})
         if mcp_skills and isinstance(mcp_skills, dict):
-            from server.src.agents.mcp_client import get_mcp_tools_for_agent
+            from src.agents.mcp_client import get_mcp_tools_for_agent
             import asyncio
 
             # 获取MCP技能名称列表
