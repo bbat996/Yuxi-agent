@@ -87,7 +87,7 @@ async def chat_agent(
         yield make_chunk(status="init", meta=meta, msg=HumanMessage(content=query).model_dump())
 
         # 尝试获取智能体（预定义或自定义）
-        agent = agent_manager.get_agent_by_identifier(agent_name)
+        agent = await agent_manager.aget_agent_by_identifier(agent_name)
 
         messages = [{"role": "user", "content": query}]
 
@@ -121,7 +121,7 @@ async def get_tools(current_user: User = Depends(get_admin_user)):
 async def save_agent_config(agent_name: str, config: dict = Body(...), current_user: User = Depends(get_admin_user)):
     """保存智能体配置到YAML文件（需要管理员权限）"""
     # 获取Agent实例和配置类
-    agent = agent_manager.get_agent_by_identifier(agent_name)
+    agent = await agent_manager.aget_agent_by_identifier(agent_name)
     if agent is None:
         raise HTTPException(status_code=404, detail=f"智能体 {agent_name} 不存在")
 
@@ -139,7 +139,7 @@ async def save_agent_config(agent_name: str, config: dict = Body(...), current_u
 async def get_agent_history(agent_name: str, thread_id: str, current_user: User = Depends(get_required_user)):
     """获取智能体历史消息（需要登录）"""
     # 获取Agent实例和配置类
-    agent = agent_manager.get_agent_by_identifier(agent_name)
+    agent = await agent_manager.aget_agent_by_identifier(agent_name)
     # 获取历史消息
     history = await agent.get_history(user_id=current_user.id, thread_id=thread_id)
     return {"history": history}
@@ -149,7 +149,7 @@ async def get_agent_history(agent_name: str, thread_id: str, current_user: User 
 async def get_agent_config(agent_name: str, current_user: User = Depends(get_required_user)):
     """从YAML文件加载智能体配置（需要登录）"""
     # 检查智能体是否存在
-    agent = agent_manager.get_agent_by_identifier(agent_name)
+    agent = await agent_manager.aget_agent_by_identifier(agent_name)
 
     config_data = agent.config_schema.from_runnable_config(config={}, agent_name=agent_name)
     return {"success": True, "config": config_data}

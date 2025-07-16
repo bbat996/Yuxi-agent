@@ -14,43 +14,99 @@ class AgentManager:
         agent = agent_class()
         self._instances[agent.name] = agent
 
-    def get_agent(self, agent_id, **kwargs):
-        """获取智能体实例（先查缓存，无则查库并缓存）"""
+    async def aget_agent(self, agent_id, **kwargs):
+        """异步获取智能体实例（先查缓存，无则查库并异步创建、缓存）"""
         if agent_id in self._instances:
             return self._instances[agent_id]
-        # 数据库查找
+
         from models.agent_models import CustomAgent as CustomAgentModel
         from src.agents.chatbot_agent import ChatbotAgent
+
         with self.db_manager.get_session_context() as session:
             db_record = session.query(CustomAgentModel).filter(
                 CustomAgentModel.agent_id == agent_id,
                 CustomAgentModel.deleted_at.is_(None),
                 CustomAgentModel.is_active == True
             ).first()
+
             if not db_record:
                 raise ValueError(f"智能体 {agent_id} 不存在")
+
+        # 使用异步工厂创建实例
+        agent = await ChatbotAgent.create(agent_id=db_record.agent_id, config=db_record.to_chatbot_config())
+        self._instances[agent_id] = agent
+        return agent
+
+    def get_agent(self, agent_id, **kwargs):
+        """同步获取智能体实例（先查缓存，无则查库并缓存）。警告：可能不完全初始化。"""
+        logger.warning(f"正在同步获取智能体 {agent_id}，MCP工具可能无法加载。推荐使用 aget_agent。")
+        if agent_id in self._instances:
+            return self._instances[agent_id]
+
+        from models.agent_models import CustomAgent as CustomAgentModel
+        from src.agents.chatbot_agent import ChatbotAgent
+
+        with self.db_manager.get_session_context() as session:
+            db_record = session.query(CustomAgentModel).filter(
+                CustomAgentModel.agent_id == agent_id,
+                CustomAgentModel.deleted_at.is_(None),
+                CustomAgentModel.is_active == True
+            ).first()
+
+            if not db_record:
+                raise ValueError(f"智能体 {agent_id} 不存在")
+
+            # 使用同步方法创建，可能不完整
             agent = ChatbotAgent.from_db_record(db_record)
             self._instances[agent_id] = agent
             return agent
 
-    def get_agent_by_identifier(self, identifier, **kwargs):
+    async def aget_agent_by_identifier(self, identifier, **kwargs):
         """
-        根据标识符获取智能体（支持 agent_id 或 name，优先缓存，无则查库）
+        异步根据标识符获取智能体（支持 agent_id 或 name，优先缓存，无则查库）
         """
-        # 先查缓存
         if identifier in self._instances:
             return self._instances[identifier]
-        # 再查数据库（支持用 name 查找）
+
         from models.agent_models import CustomAgent as CustomAgentModel
         from src.agents.chatbot_agent import ChatbotAgent
+
         with self.db_manager.get_session_context() as session:
             db_record = session.query(CustomAgentModel).filter(
                 ((CustomAgentModel.agent_id == identifier) | (CustomAgentModel.name == identifier)),
                 CustomAgentModel.deleted_at.is_(None),
                 CustomAgentModel.is_active == True
             ).first()
+
             if not db_record:
                 return None
+
+        # 使用异步工厂创建实例
+        agent = await ChatbotAgent.create(agent_id=db_record.agent_id, config=db_record.to_chatbot_config())
+        self._instances[db_record.agent_id] = agent
+        return agent
+
+    def get_agent_by_identifier(self, identifier, **kwargs):
+        """
+        同步根据标识符获取智能体（支持 agent_id 或 name，优先缓存，无则查库）。警告：可能不完全初始化。
+        """
+        logger.warning(f"正在同步获取智能体 {identifier}，MCP工具可能无法加载。推荐使用 aget_agent_by_identifier。")
+        if identifier in self._instances:
+            return self._instances[identifier]
+
+        from models.agent_models import CustomAgent as CustomAgentModel
+        from src.agents.chatbot_agent import ChatbotAgent
+
+        with self.db_manager.get_session_context() as session:
+            db_record = session.query(CustomAgentModel).filter(
+                ((CustomAgentModel.agent_id == identifier) | (CustomAgentModel.name == identifier)),
+                CustomAgentModel.deleted_at.is_(None),
+                CustomAgentModel.is_active == True
+            ).first()
+
+            if not db_record:
+                return None
+
             agent = ChatbotAgent.from_db_record(db_record)
             self._instances[db_record.agent_id] = agent
             return agent

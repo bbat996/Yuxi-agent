@@ -653,11 +653,9 @@ async def create_chatbot_agent(agent_id: str, current_user: User = Depends(get_r
             raise HTTPException(status_code=403, detail="无权限使用此智能体")
 
         try:
-            # 导入ChatbotAgent
-            from src.agents.chatbot_agent import ChatbotAgent
-
-            # 直接从数据库记录创建ChatbotAgent实例
-            chatbot_agent = ChatbotAgent.from_db_record(agent)
+            # 从 AgentManager 获取或创建实例
+            from src.agents.agent_manager import agent_manager
+            chatbot_agent = await agent_manager.aget_agent(agent_id)
 
             # 获取智能体信息
             agent_info = await chatbot_agent.get_info()
