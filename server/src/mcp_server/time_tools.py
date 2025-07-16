@@ -131,3 +131,6 @@ def get_week_info(date_str: str = None, format: str = "%Y-%m-%d") -> Dict[str, A
         }
     except Exception as e:
         return {"error": f"获取周信息时发生错误: {str(e)}"} 
+    
+if __name__ == "__main__":
+    mcp.run()

@@ -8,7 +8,7 @@ import yaml
 from typing import Dict, List, Any, Optional
 from pathlib import Path
 from src.utils.logging_config import logger
-
+from config import PROJECT_DIR
 
 class MCPConfigManager:
     """MCP配置管理器"""
@@ -22,70 +22,19 @@ class MCPConfigManager:
         """
         if config_path is None:
             # 获取项目根目录
-            project_root = Path(__file__).parent.parent.parent
-            config_path = project_root / "config" / "mcp_server.yaml"
+            config_path = PROJECT_DIR / "server" / "config" / "mcp_server.yaml"
         
         self.config_path = Path(config_path)
         self.config = self._load_config()
         
-        # 确保config不为None
-        if self.config is None:
-            logger.warning("配置加载失败，使用默认配置")
-            self.config = self._get_default_config()
     
     def _load_config(self) -> Dict[str, Any]:
         """加载配置文件"""
-        try:
-            if not self.config_path.exists():
-                logger.warning(f"MCP配置文件不存在: {self.config_path}")
-                return self._get_default_config()
-            
-            with open(self.config_path, 'r', encoding='utf-8') as f:
-                config = yaml.safe_load(f)
-            
-            # 检查YAML解析结果是否为None（空文件或只有注释的情况）
-            if config is None:
-                logger.warning(f"MCP配置文件为空或只包含注释: {self.config_path}")
-                return self._get_default_config()
-            
-            logger.info(f"成功加载MCP配置文件: {self.config_path}")
-            return config
-            
-        except Exception as e:
-            logger.error(f"加载MCP配置文件失败: {e}")
-            return self._get_default_config()
-    
-    def _get_default_config(self) -> Dict[str, Any]:
-        """获取默认配置"""
-        return {
-            "global": {
-                "timeout": 30,
-                "max_connections": 10,
-                "log_level": "INFO",
-                "rate_limit": {
-                    "per_minute": 100,
-                    "per_hour": 1000,
-                    "concurrent": 5
-                }
-            },
-            "servers": {
-                "math_tools": {
-                    "enabled": True,
-                    "module_path": "src.mcp_server.math_tools",
-                    "class_name": "mcp",
-                    "tools": [
-                        {
-                            "name": "add",
-                            "description": "计算两个数的和",
-                            "parameters": {
-                                "a": {"type": "number", "description": "第一个数"},
-                                "b": {"type": "number", "description": "第二个数"}
-                            }
-                        }
-                    ]
-                }
-            }
-        }
+        with open(self.config_path, 'r', encoding='utf-8') as f:
+            config = yaml.safe_load(f)
+        logger.info(f"成功加载MCP配置文件: {self.config_path}")
+        return config
+
     
     def get_global_config(self) -> Dict[str, Any]:
         """获取全局配置"""
@@ -120,23 +69,29 @@ class MCPConfigManager:
     def get_server_connections(self) -> Dict[str, Any]:
         """获取服务器连接配置（用于langchain-mcp-adapters）"""
         connections = {}
-        
-        try:
-            servers = self.get_servers()
-            for server_name, server_config in servers.items():
-                if isinstance(server_config, dict) and server_config.get("enabled", False):
-                    # 内置服务器使用stdio传输
-                    connections[server_name] = {
-                        "transport": "stdio",
-                        "command": "python",
-                        "args": ["-m", server_config.get("module_path", "src.mcp_server.math_tools")],
-                        "env": {
-                            "PYTHONPATH": os.environ.get("PYTHONPATH", "")
-                        }
-                    }
-        except Exception as e:
-            logger.error(f"获取服务器连接配置时出错: {e}")
-        
+        servers = self.get_enabled_servers()
+        # 获取项目根目录，以便构建绝对路径
+        project_root = PROJECT_DIR
+
+        for server_name in servers:
+            server_config = self.get_server_config(server_name)
+            if server_config:
+                # 优先使用yaml中的env字段，否则用os.environ
+                env = server_config.get("env")
+                if not env:
+                    env = {"PYTHONPATH": os.environ.get("PYTHONPATH", "")}
+                else:
+                    # 如果PYTHONPATH是相对路径 'server'，则转换为绝对路径
+                    if env.get("PYTHONPATH") == "server":
+                        server_path = os.path.join(project_root, 'server')
+                        env["PYTHONPATH"] = server_path
+
+                connections[server_name] = {
+                    "transport": "stdio",
+                    "command": "python",
+                    "args": ["-m", server_config.get("module_path")],
+                    "env": env
+                }
         return connections
     
     def get_all_tools(self) -> List[str]:
@@ -156,13 +111,11 @@ class MCPConfigManager:
     def get_enabled_tools(self, server_name: str = None) -> List[str]:
         """获取已启用的工具列表"""
         tools = []
-        servers = self.get_servers()
+        servers = self.get_enabled_servers()
         
-        for s_name, server_config in servers.items():
-            if server_name and s_name != server_name:
-                continue
-                
-            if isinstance(server_config, dict) and server_config.get("enabled", False):
+        for server_name in servers:
+            server_config = self.get_server_config(server_name)
+            if server_config:
                 server_tools = server_config.get("tools", [])
                 for tool in server_tools:
                     if isinstance(tool, dict) and "name" in tool:
@@ -172,10 +125,11 @@ class MCPConfigManager:
     
     def get_tool_info(self, tool_name: str) -> Optional[Dict[str, Any]]:
         """获取指定工具的详细信息"""
-        servers = self.get_servers()
+        servers = self.get_enabled_servers()
         
-        for server_name, server_config in servers.items():
-            if isinstance(server_config, dict) and server_config.get("enabled", False):
+        for server_name in servers:
+            server_config = self.get_server_config(server_name)
+            if server_config:
                 server_tools = server_config.get("tools", [])
                 for tool in server_tools:
                     if isinstance(tool, dict) and tool.get("name") == tool_name:
@@ -192,10 +146,11 @@ class MCPConfigManager:
     def search_tools(self, keyword: str) -> List[str]:
         """搜索工具"""
         matching_tools = []
-        servers = self.get_servers()
+        servers = self.get_enabled_servers()
         
-        for server_name, server_config in servers.items():
-            if isinstance(server_config, dict) and server_config.get("enabled", False):
+        for server_name in servers:
+            server_config = self.get_server_config(server_name)
+            if server_config:
                 server_tools = server_config.get("tools", [])
                 for tool in server_tools:
                     if isinstance(tool, dict) and "name" in tool:
@@ -212,7 +167,7 @@ class MCPConfigManager:
     def get_tools_by_server(self, server_name: str) -> List[Dict[str, Any]]:
         """获取指定服务器的工具列表"""
         server_config = self.get_server_config(server_name)
-        if not server_config or not server_config.get("enabled", False):
+        if not server_config:
             return []
         
         tools = server_config.get("tools", [])
@@ -255,50 +210,34 @@ class MCPConfigManager:
         """根据ID获取工具信息（兼容旧接口）"""
         return self.get_tool_info(tool_name)
     
-    def get_enabled_tools_for_server(self, server_name: str) -> List[str]:
-        """获取指定服务器的已启用工具列表"""
-        return self.get_enabled_tools(server_name)
-    
-    def is_server_enabled(self, server_name: str) -> bool:
-        """检查服务器是否启用"""
-        server_config = self.get_server_config(server_name)
-        return server_config is not None and server_config.get("enabled", False)
-    
     def validate_config(self) -> List[str]:
         """验证配置"""
         errors = []
-        
-        try:
-            servers = self.get_servers()
+        servers = self.get_servers()
+        for server_name, server_config in servers.items():
+            if not isinstance(server_config, dict):
+                errors.append(f"服务器 '{server_name}' 配置格式错误")
+                continue
             
-            for server_name, server_config in servers.items():
-                if not isinstance(server_config, dict):
-                    errors.append(f"服务器 '{server_name}' 配置格式错误")
-                    continue
-                
-                # 检查必需字段
-                if "module_path" not in server_config:
-                    errors.append(f"服务器 '{server_name}' 缺少 module_path 配置")
-                
-                if "class_name" not in server_config:
-                    errors.append(f"服务器 '{server_name}' 缺少 class_name 配置")
-                
-                # 检查工具配置
-                tools = server_config.get("tools", [])
-                if not isinstance(tools, list):
-                    errors.append(f"服务器 '{server_name}' 的 tools 配置格式错误")
-                else:
-                    for i, tool in enumerate(tools):
-                        if not isinstance(tool, dict):
-                            errors.append(f"服务器 '{server_name}' 的第 {i+1} 个工具配置格式错误")
-                        elif "name" not in tool:
-                            errors.append(f"服务器 '{server_name}' 的第 {i+1} 个工具缺少 name 字段")
-                        elif "description" not in tool:
-                            errors.append(f"服务器 '{server_name}' 的工具 '{tool['name']}' 缺少 description 字段")
-        
-        except Exception as e:
-            errors.append(f"配置验证过程中发生错误: {str(e)}")
-        
+            # 检查必需字段
+            if "module_path" not in server_config:
+                errors.append(f"服务器 '{server_name}' 缺少 module_path 配置")
+            
+            if "class_name" not in server_config:
+                errors.append(f"服务器 '{server_name}' 缺少 class_name 配置")
+            
+            # 检查工具配置
+            tools = server_config.get("tools", [])
+            if not isinstance(tools, list):
+                errors.append(f"服务器 '{server_name}' 的 tools 配置格式错误")
+            else:
+                for i, tool in enumerate(tools):
+                    if not isinstance(tool, dict):
+                        errors.append(f"服务器 '{server_name}' 的第 {i+1} 个工具配置格式错误")
+                    elif "name" not in tool:
+                        errors.append(f"服务器 '{server_name}' 的第 {i+1} 个工具缺少 name 字段")
+                    elif "description" not in tool:
+                        errors.append(f"服务器 '{server_name}' 的工具 '{tool['name']}' 缺少 description 字段")
         return errors
     
     def reload_config(self):
@@ -326,6 +265,11 @@ class MCPConfigManager:
             "enabled_server_names": enabled_servers,
             "all_server_names": list(servers.keys())
         }
+
+    def get_all_server_names(self) -> List[str]:
+        """获取所有MCP服务器名称"""
+        servers = self.get_servers()
+        return list(servers.keys())
 
 
 # 全局配置管理器实例

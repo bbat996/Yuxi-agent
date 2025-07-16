@@ -125,3 +125,7 @@ def convert_length(value: float, from_unit: str, to_unit: str) -> dict:
         "to_unit": to_unit,
         "original_value": value
     } 
+
+# 启动 MCP stdio 服务入口
+if __name__ == "__main__":
+    mcp.run()

@@ -16,10 +16,10 @@ tools:
   - "web_search"
   - "calculator"
 
-# MCP技能配置 - 字典格式
+# MCP技能配置 - 列表格式
 mcp_skills:
   - "time_tools"
-  - "file_manager"
+  - "system_tools"
   
 # 知识库配置
 knowledge_databases:

@@ -4,7 +4,7 @@ MCP技能集成模块（基于 langchain-mcp-adapters 正确用法重写）
 from typing import List, Dict, Any, Optional
 from langchain_core.tools import BaseTool
 from langchain_mcp_adapters.client import MultiServerMCPClient
-
+import traceback
 from src.utils import logger
 from src.mcp_server.config_manager import get_mcp_config_manager, reload_mcp_config
 
@@ -15,14 +15,11 @@ DEFAULT_MCP_CONNECTIONS = {
 
 class MCPClient:
     """MCP技能集成类（langchain-mcp-adapters 版，推荐用法）"""
-    def __init__(self, connections: Optional[dict] = None):
-        if connections is None:
-            # 从配置文件加载连接配置
-            config_manager = get_mcp_config_manager()
-            self.connections = config_manager.get_server_connections()
-        else:
-            self.connections = connections
-        
+    def __init__(self):
+        # 从配置文件加载连接配置
+        config_manager = get_mcp_config_manager()
+        self.connections = config_manager.get_server_connections()
+        print(self.connections)
         self.client = MultiServerMCPClient(self.connections)
         self._initialized = False
 
@@ -52,23 +49,25 @@ class MCPClient:
         """获取MCP工具"""
         if not self._initialized:
             await self.initialize()
-        
         # 检查是否有可用的连接
         if not self.connections:
             logger.warning("没有配置MCP连接，无法获取工具")
             return []
-        
         # 如果指定了服务器名称，检查该服务器是否存在
         if server_name and server_name not in self.connections:
             available_servers = list(self.connections.keys())
             logger.error(f"找不到名为 '{server_name}' 的MCP服务器，可用的服务器: {available_servers}")
             return []
-        
         try:
             tools = await self.client.get_tools(server_name=server_name)
             return tools
         except Exception as e:
             logger.error(f"获取MCP工具失败: {e}")
+            logger.error(traceback.format_exc())
+            # 递归打印 ExceptionGroup 的所有子异常
+            if hasattr(e, 'exceptions'):
+                for idx, sub_exc in enumerate(e.exceptions):
+                    logger.error(''.join(traceback.format_exception(type(sub_exc), sub_exc, sub_exc.__traceback__)))
             return []
 
     async def get_available_mcp_tools(self) -> Dict[str, Any]:

@@ -237,3 +237,7 @@ def delete_file(file_path: str) -> str:
             return f"文件不存在: {file_path}"
     except Exception as e:
         return f"删除文件失败: {str(e)}" 
+    
+if __name__ == "__main__":
+    mcp.run()
+    

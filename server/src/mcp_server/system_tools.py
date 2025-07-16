@@ -205,3 +205,7 @@ def get_current_working_directory() -> str:
         return os.getcwd()
     except Exception as e:
         return f"获取工作目录失败: {str(e)}" 
+    
+    
+if __name__ == "__main__":
+    mcp.run()

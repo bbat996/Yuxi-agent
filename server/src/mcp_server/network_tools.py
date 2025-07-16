@@ -204,4 +204,7 @@ def validate_url(url: str) -> Dict[str, Any]:
             "url": url,
             "is_valid": False,
             "error": str(e)
-        } 
+        }
+
+if __name__ == "__main__":
+    mcp.run()

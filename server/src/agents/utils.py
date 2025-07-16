@@ -39,9 +39,11 @@ def load_chat_model(provider: str, model: str, **kwargs) -> BaseChatModel:
             **model_parameters
         )
 
-    model_info = config.model_names.get(provider, {})
-    api_key = os.getenv(model_info["env"][0], model_info["env"][0])
-    base_url = get_docker_safe_url(model_info["base_url"])
+    model_info = config.model_names.get(provider, None)
+    if model_info is None:
+        raise ValueError(f"Model provider {provider} not found in config.model_names")
+    api_key = os.getenv(model_info.env[0], model_info.api_key)
+    base_url = get_docker_safe_url(model_info.base_url)
 
     if provider in ["deepseek", "dashscope"]:
         from langchain_deepseek import ChatDeepSeek

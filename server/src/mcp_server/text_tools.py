@@ -233,4 +233,7 @@ def text_case_convert(text: str, case_type: str = "lower") -> str:
         
         return case_functions[case_type](text)
     except Exception as e:
-        return f"转换失败: {str(e)}" 
+        return f"转换失败: {str(e)}"
+
+if __name__ == "__main__":
+    mcp.run()

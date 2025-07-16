@@ -139,20 +139,17 @@ class ChatbotAgent(BaseAgent):
     def _init_mcp_connections(self):
         """初始化MCP连接配置"""
         from src.agents.mcp_client import get_mcp_client, load_mcp_connections_from_config
-        
-        # 从配置中获取MCP技能配置
         mcp_config = getattr(self.config_schema, "mcp_skills", {})
-        if isinstance(mcp_config, dict) and mcp_config:
+        if isinstance(mcp_config, list) and mcp_config:
+            # 兼容list格式，直接跳过连接配置（只用技能名，不需要连接）
+            logger.info(f"mcp_skills 为 list（{mcp_config}），使用默认MCP连接配置")
+            # 不更新连接
+        elif isinstance(mcp_config, dict) and mcp_config:
             connections = load_mcp_connections_from_config(mcp_config)
             if connections:
-                # 更新全局MCP集成实例的连接配置
                 mcp_integration = get_mcp_client()
                 mcp_integration.update_connections(connections)
                 logger.info(f"智能体 {self.name} 加载了 {len(connections)} 个MCP技能配置")
-        elif isinstance(mcp_config, list):
-            logger.info(f"mcp_skills 为 list（{mcp_config}），使用默认MCP连接配置")
-            # 当 mcp_skills 是列表时，使用默认配置，不更新连接
-            # 这样可以支持预定义的MCP技能名称
         else:
             logger.info(f"mcp_skills 类型未知（{type(mcp_config)}），跳过 MCP 连接初始化: {mcp_config}")
 
@@ -169,7 +166,7 @@ class ChatbotAgent(BaseAgent):
         根据配置获取工具
         Args:
             tools: 内置工具列表
-            mcp_skills: MCP技能列表
+            mcp_skills: MCP技能列表（list of str）
         Returns:
             工具列表
         """
@@ -192,25 +189,19 @@ class ChatbotAgent(BaseAgent):
                     result_tools.append(platform_tools[tool_name])
                     logger.debug(f"添加知识库工具: {tool_name}")
 
-        # 添加MCP技能工具（langchain-mcp-adapters 版）
-        if mcp_skills and isinstance(mcp_skills, dict):
+        # 添加MCP技能工具（支持list格式）
+        if mcp_skills and isinstance(mcp_skills, list):
             from src.agents.mcp_client import get_mcp_tools_for_agent
             import asyncio
 
-            # 获取MCP技能名称列表
-            mcp_skill_names = list(mcp_skills.keys())
-            
-            # 修复异步事件循环问题
+            mcp_skill_names = mcp_skills
             try:
-                # 尝试获取当前运行的事件循环
                 loop = asyncio.get_running_loop()
-                # 如果已经在事件循环中，创建一个新的事件循环来运行
                 import concurrent.futures
                 with concurrent.futures.ThreadPoolExecutor() as executor:
                     future = executor.submit(asyncio.run, get_mcp_tools_for_agent(mcp_skill_names))
                     mcp_tools = future.result()
             except RuntimeError:
-                # 如果没有运行的事件循环，直接使用 asyncio.run
                 mcp_tools = asyncio.run(get_mcp_tools_for_agent(mcp_skill_names))
 
             if isinstance(mcp_tools, list):
@@ -223,8 +214,8 @@ class ChatbotAgent(BaseAgent):
         model_config = {}
         
         # 使用分开配置方式
-        provider = getattr(self.config_schema, "provider", "zhipu")
-        model_name = getattr(self.config_schema, "model_name", "glm-4-plus")
+        provider = getattr(self.config_schema, "provider", "deepseek")
+        model_name = getattr(self.config_schema, "model_name", "deepseek-chat")
         
         model_config["provider"] = provider
         model_config["model_name"] = model_name
@@ -254,16 +245,13 @@ class ChatbotAgent(BaseAgent):
         provider = model_config.get("provider")
         # 加载模型
         logger.info(f"开始加载模型: {provider}/{model_config.get('model_name')}")
-        try:
-            model = load_chat_model(
-                provider=model_config.get("provider"),
-                model=model_config.get("model_name"),
-                model_parameters=model_parameters
-            )
-            logger.info("模型加载成功")
-        except Exception as e:
-            logger.error(f"模型加载失败: {e}")
-            raise
+        model = load_chat_model(
+            provider=model_config.get("provider"),
+            model=model_config.get("model_name"),
+            model_parameters=model_parameters
+        )
+        logger.info("模型加载成功")
+   
 
         # 获取工具
         tools = self._get_tools(
@@ -312,61 +300,37 @@ class ChatbotAgent(BaseAgent):
 
     async def get_graph(self, config_schema: RunnableConfig = None, **kwargs):
         """构建执行图"""
-        # 如果图已存在且配置未改变，直接返回
         if self.graph is not None:
             return self.graph
-
-        # 创建状态图
         workflow = StateGraph(State, config_schema=self.config_schema)
-
-        # 添加节点
         workflow.add_node("llm", self.llm_call)
-
-        # 获取所有可用工具用于工具节点（包括内置工具、知识库工具和MCP工具）
         all_tools = list(get_all_tools().values())
-        
-        # 添加MCP工具到工具节点
-        mcp_skills = getattr(self.config_schema, "mcp_skills", {})
-        if mcp_skills and isinstance(mcp_skills, dict):
+        mcp_skills = getattr(self.config_schema, "mcp_skills", [])
+        if mcp_skills and isinstance(mcp_skills, list):
             from src.agents.mcp_client import get_mcp_tools_for_agent
             import asyncio
-
-            # 获取MCP技能名称列表
-            mcp_skill_names = list(mcp_skills.keys())
-            
-            # 修复异步事件循环问题
+            mcp_skill_names = mcp_skills
             try:
-                # 尝试获取当前运行的事件循环
                 loop = asyncio.get_running_loop()
-                # 如果已经在事件循环中，创建一个新的事件循环来运行
                 import concurrent.futures
                 with concurrent.futures.ThreadPoolExecutor() as executor:
                     future = executor.submit(asyncio.run, get_mcp_tools_for_agent(mcp_skill_names))
                     mcp_tools = future.result()
             except RuntimeError:
-                # 如果没有运行的事件循环，直接使用 asyncio.run
                 mcp_tools = asyncio.run(get_mcp_tools_for_agent(mcp_skill_names))
-
             if isinstance(mcp_tools, list):
                 all_tools.extend(mcp_tools)
                 logger.info(f"工具节点添加了 {len(mcp_tools)} 个MCP工具")
-        
         if all_tools:
             workflow.add_node("tools", ToolNode(tools=all_tools))
-
-        # 添加边
         workflow.add_edge(START, "llm")
-
         if all_tools:
             workflow.add_conditional_edges(
                 "llm",
                 tools_condition,
             )
             workflow.add_edge("tools", "llm")
-
         workflow.add_edge("llm", END)
-
-        # 编译图并设置检查点
         try:
             sqlite_checkpointer = AsyncSqliteSaver(await self.get_async_conn())
             graph = workflow.compile(checkpointer=sqlite_checkpointer)
