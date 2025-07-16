@@ -13,9 +13,10 @@ provider_enabled_status:
   dashscope: false
   deepseek: true
   lingyiwanwu: true
-  openai: true
+  ollama: false
+  openai: false
   openrouter: true
-  siliconflow: true
+  siliconflow: false
   together.ai: false
   zhipu: false
 reranker: vllm/Qwen/Qwen3-Reranker-0.6B

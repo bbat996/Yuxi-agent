@@ -14,7 +14,7 @@
         <a-button type="text" v-if="userStore.isSuperAdmin" :class="{ activesec: state.section === 'model' }"
           @click="state.section = 'model'" :icon="h(CodeOutlined)"> 模型配置 </a-button>
         <a-button type="text" v-if="userStore.isSuperAdmin" :class="{ activesec: state.section === 'mcp-config' }"
-          @click="state.section = 'mcp-config'" :icon="h(SettingOutlined)"> MCP配置 </a-button>
+          @click="state.section = 'mcp-config'" :icon="h(SettingOutlined)"> MCP </a-button>
         <a-button type="text" :class="{ activesec: state.section === 'user' }" @click="state.section = 'user'"
           :icon="h(UserOutlined)" v-if="userStore.isAdmin"> 用户管理 </a-button>
       </div>

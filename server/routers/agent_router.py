@@ -30,7 +30,7 @@ class AgentCreateRequest(BaseModel):
 
     # 工具配置
     tools: Optional[List[str]] = Field(default_factory=list, description="内置工具列表")
-    mcp_skills: Optional[Dict[str, Any]] = Field(default_factory=dict, description="MCP技能配置")
+    mcp_skills: Optional[List[str]] = Field(default_factory=list, description="MCP技能列表")
 
     # 知识库配置
     knowledge_databases: Optional[List[str]] = Field(default_factory=list, description="知识库ID列表")
@@ -75,7 +75,7 @@ class AgentUpdateRequest(BaseModel):
 
     # 工具配置
     tools: Optional[List[str]] = Field(None, description="内置工具列表")
-    mcp_skills: Optional[Dict[str, Any]] = Field(None, description="MCP技能配置")
+    mcp_skills: Optional[List[str]] = Field(None, description="MCP技能列表")
 
     # 知识库配置
     knowledge_databases: Optional[List[str]] = Field(None, description="知识库ID列表")
@@ -96,7 +96,7 @@ class AgentUpdateRequest(BaseModel):
                 "model_name": "glm-4-plus",
                 "model_parameters": {"temperature": 0.8},
                 "tools": ["web_search", "calculator", "file_reader"],
-                "mcp_skills": {"file_manager": {"enabled": True}, "calendar": {"enabled": True}},
+                "mcp_skills": ["file_manager", "calendar"],
                 "knowledge_databases": ["kb_1", "kb_2", "kb_3"],
                 "retrieval_params": {"top_k": 10},
                 "tags": ["客服", "售后", "技术支持"],
@@ -113,7 +113,7 @@ class AgentConfigOverride(BaseModel):
     model_name: Optional[str] = Field(None, description="模型名称")
     model_parameters: Optional[Dict[str, Any]] = Field(None, description="模型参数")
     tools: Optional[List[str]] = Field(None, description="内置工具列表")
-    mcp_skills: Optional[Dict[str, Any]] = Field(None, description="MCP技能配置")
+    mcp_skills: Optional[List[str]] = Field(None, description="MCP技能列表")
     knowledge_databases: Optional[List[str]] = Field(None, description="知识库ID列表")
     retrieval_params: Optional[Dict[str, Any]] = Field(None, description="检索参数")
 
@@ -124,7 +124,7 @@ class AgentConfigOverride(BaseModel):
                 "model_name": "gpt-4",
                 "model_parameters": {"temperature": 0.7},
                 "tools": ["web_search"],
-                "mcp_skills": {"file_manager": {"enabled": True}},
+                "mcp_skills": ["file_manager"],
                 "knowledge_databases": ["kb_1"],
                 "retrieval_params": {"top_k": 3},
             }
@@ -144,7 +144,7 @@ def _build_model_config(provider: str = None, model_name: str = None, model_para
     return config
 
 
-def _build_tools_config(tools: List[str] = None, mcp_skills: Dict[str, Any] = None) -> Dict[str, Any]:
+def _build_tools_config(tools: List[str] = None, mcp_skills: List[str] = None) -> Dict[str, Any]:
     """构建工具配置字典"""
     config = {}
     if tools is not None:
@@ -393,7 +393,7 @@ async def update_agent(agent_id: str, request: AgentUpdateRequest, current_user:
             "model_name": (agent.model_config or {}).get("model_name", ""),
             "model_parameters": (agent.model_config or {}).get("parameters", {}),
             "tools": (agent.tools_config or {}).get("builtin_tools", []),
-            "mcp_skills": (agent.tools_config or {}).get("mcp_skills", {}),
+            "mcp_skills": (agent.tools_config or {}).get("mcp_skills", []),
             "knowledge_databases": (agent.knowledge_config or {}).get("databases", []),
             "retrieval_params": (agent.knowledge_config or {}).get("retrieval_params", {}),
         }
