@@ -18,10 +18,8 @@ tools:
 
 # MCP技能配置 - 字典格式
 mcp_skills:
-  system_server:
-    transport: "stdio"
-    command: "python"
-    args: ["server/src/agents/mcp_server/system_server.py"]
+  - "time_tools"
+  - "file_manager"
   
 # 知识库配置
 knowledge_databases:

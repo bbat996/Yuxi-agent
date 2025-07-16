@@ -603,10 +603,32 @@ const loadAgentData = async () => {
           example_library: agentData.knowledge_config?.example_library || false
         },
         mcp_config: {
-          enabled: Array.isArray(agentData.tools_config?.mcp_servers) ? agentData.tools_config.mcp_servers.length > 0 : 
-                   Array.isArray(agentData.tools_config?.mcp_skills) ? agentData.tools_config.mcp_skills.length > 0 : false,
-          servers: Array.isArray(agentData.tools_config?.mcp_servers) ? agentData.tools_config.mcp_servers : 
-                  Array.isArray(agentData.tools_config?.mcp_skills) ? agentData.tools_config.mcp_skills : []
+          enabled: (() => {
+            // 检查mcp_servers（列表格式）
+            if (Array.isArray(agentData.tools_config?.mcp_servers)) {
+              return agentData.tools_config.mcp_servers.length > 0
+            }
+            // 检查mcp_skills（字典格式）
+            if (agentData.tools_config?.mcp_skills && typeof agentData.tools_config.mcp_skills === 'object') {
+              return Object.keys(agentData.tools_config.mcp_skills).length > 0
+            }
+            return false
+          })(),
+          servers: (() => {
+            // 优先使用mcp_servers（列表格式）
+            if (Array.isArray(agentData.tools_config?.mcp_servers)) {
+              return agentData.tools_config.mcp_servers
+            }
+            // 如果mcp_skills是列表格式，直接使用
+            if (Array.isArray(agentData.tools_config?.mcp_skills)) {
+              return agentData.tools_config.mcp_skills
+            }
+            // 如果mcp_skills是字典格式，提取键名作为服务器列表
+            if (agentData.tools_config?.mcp_skills && typeof agentData.tools_config.mcp_skills === 'object' && !Array.isArray(agentData.tools_config.mcp_skills)) {
+              return Object.keys(agentData.tools_config.mcp_skills)
+            }
+            return []
+          })()
         },
         tools_config: agentData.tools_config || []
       }

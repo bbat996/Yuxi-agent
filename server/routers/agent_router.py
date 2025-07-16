@@ -362,12 +362,20 @@ async def update_agent(agent_id: str, request: AgentUpdateRequest, current_user:
             agent.model_config = current_model_config
 
         # 更新工具配置
-        if any(field in update_data for field in ["tools", "mcp_skills"]):
+        if any(field in update_data for field in ["tools", "mcp_skills", "mcp_servers"]):
             current_tools_config = agent.tools_config or {}
             if "tools" in update_data:
                 current_tools_config["builtin_tools"] = update_data["tools"]
             if "mcp_skills" in update_data:
                 current_tools_config["mcp_skills"] = update_data["mcp_skills"]
+            if "mcp_servers" in update_data:
+                # 将MCP服务器列表转换为列表格式，与chatbot.private.yaml一致
+                mcp_servers = update_data["mcp_servers"]
+                if isinstance(mcp_servers, list):
+                    # 直接使用列表格式，与chatbot.private.yaml中的格式一致
+                    current_tools_config["mcp_skills"] = mcp_servers
+                else:
+                    current_tools_config["mcp_skills"] = mcp_servers
             agent.tools_config = current_tools_config
 
         # 更新知识库配置
@@ -384,27 +392,72 @@ async def update_agent(agent_id: str, request: AgentUpdateRequest, current_user:
         # === 新增：保存配置到YAML文件 ===
         import yaml
         import os
-        # 组装格式
-        config = {
-            "name": agent.name,
-            "description": agent.description or "",
-            "system_prompt": agent.system_prompt or "",
-            "provider": (agent.model_config or {}).get("provider", ""),
-            "model_name": (agent.model_config or {}).get("model_name", ""),
-            "model_parameters": (agent.model_config or {}).get("parameters", {}),
-            "tools": (agent.tools_config or {}).get("builtin_tools", []),
-            "mcp_skills": (agent.tools_config or {}).get("mcp_skills", []),
-            "knowledge_databases": (agent.knowledge_config or {}).get("databases", []),
-            "retrieval_params": (agent.knowledge_config or {}).get("retrieval_params", {}),
-        }
+        
+        # 构建YAML配置，格式与chatbot.private.yaml一致
+        # 注意：这里只是注释，实际写入文件时使用自定义格式
+        
         # 文件名处理，前缀加@，防止特殊字符
         safe_name = agent.name.replace("/", "_").replace("\\", "_").replace(" ", "_")
         file_name = f"@{safe_name}.private.yaml"
         config_dir = os.path.join(os.path.dirname(__file__), "../config/agents")
         os.makedirs(config_dir, exist_ok=True)
         file_path = os.path.join(config_dir, file_name)
+        
+        # 自定义YAML格式，保持与chatbot.private.yaml一致的结构
         with open(file_path, "w", encoding="utf-8") as f:
-            yaml.dump(config, f, allow_unicode=True, sort_keys=False)
+            f.write(f'name: "{agent.name}"\n')
+            f.write(f'description: "{agent.description or ""}"\n')
+            f.write(f'system_prompt: "{agent.system_prompt or ""}"\n')
+            
+            # 模型配置
+            provider = agent.model_config.get("provider", "") if agent.model_config else ""
+            model_name = agent.model_config.get("model_name", "") if agent.model_config else ""
+            model_parameters = agent.model_config.get("parameters", {}) if agent.model_config else {}
+            
+            f.write(f'provider: {provider}\n')
+            f.write(f'model_name: {model_name}\n')
+            f.write('model_parameters:\n')
+            for key, value in model_parameters.items():
+                f.write(f'  {key}: {value}\n')
+            
+            # 工具配置
+            tools = agent.tools_config.get("builtin_tools", []) if agent.tools_config else []
+            f.write('tools: []\n' if not tools else f'tools:\n' + ''.join([f'  - "{tool}"\n' for tool in tools]))
+            
+            # MCP技能配置
+            mcp_skills = agent.tools_config.get("mcp_skills", {}) if agent.tools_config else {}
+            if mcp_skills:
+                # 如果是字典格式，按字典格式写入
+                if isinstance(mcp_skills, dict):
+                    f.write('mcp_skills:\n')
+                    for server_name, server_config in mcp_skills.items():
+                        f.write(f'  {server_name}:\n')
+                        if isinstance(server_config, dict):
+                            for key, value in server_config.items():
+                                if isinstance(value, str):
+                                    f.write(f'    {key}: "{value}"\n')
+                                else:
+                                    f.write(f'    {key}: {value}\n')
+                        else:
+                            f.write(f'    enabled: {server_config}\n')
+                # 如果是列表格式，按列表格式写入
+                elif isinstance(mcp_skills, list):
+                    f.write('mcp_skills:\n')
+                    for server_name in mcp_skills:
+                        f.write(f'  - "{server_name}"\n')
+                else:
+                    f.write('mcp_skills: {}\n')
+            else:
+                f.write('mcp_skills: {}\n')
+            
+            # 知识库配置
+            knowledge_databases = agent.knowledge_config.get("databases", []) if agent.knowledge_config else []
+            retrieval_params = agent.knowledge_config.get("retrieval_params", {}) if agent.knowledge_config else {}
+            
+            f.write('knowledge_databases: []\n' if not knowledge_databases else f'knowledge_databases:\n' + ''.join([f'  - "{db}"\n' for db in knowledge_databases]))
+            f.write('retrieval_params:\n')
+            for key, value in retrieval_params.items():
+                f.write(f'  {key}: {value}\n')
         # === END ===
 
         logger.info(f"用户 {current_user.username} 更新了智能体: {agent.name}")
@@ -647,6 +700,108 @@ async def get_agent_config(agent_id: str, current_user: User = Depends(get_requi
                 "description": agent.description,
                 "agent_type": agent.agent_type,
                 "config": config,
+            },
+        }
+
+
+@agent_router.get("/{agent_id}/yaml", summary="获取智能体YAML配置")
+async def get_agent_yaml(agent_id: str, current_user: User = Depends(get_required_user)):
+    """获取智能体的YAML格式配置"""
+    with db_manager.get_session_context() as session:
+        # 查询智能体
+        agent = session.query(CustomAgent).filter(and_(CustomAgent.agent_id == agent_id, CustomAgent.deleted_at.is_(None))).first()
+
+        if not agent:
+            raise HTTPException(status_code=404, detail="智能体不存在")
+
+        # 权限检查：只能查看自己的或公开的智能体
+        if agent.created_by != current_user.id and not agent.is_public:
+            raise HTTPException(status_code=403, detail="无权限访问此智能体")
+
+        # 构建YAML配置
+        yaml_content = []
+        yaml_content.append(f'name: "{agent.name}"')
+        yaml_content.append(f'description: "{agent.description or ""}"')
+        yaml_content.append(f'system_prompt: "{agent.system_prompt or ""}"')
+        yaml_content.append('')
+        yaml_content.append('# 模型配置 - 分开配置')
+        
+        # 模型配置
+        provider = agent.model_config.get("provider", "") if agent.model_config else ""
+        model_name = agent.model_config.get("model_name", "") if agent.model_config else ""
+        model_parameters = agent.model_config.get("parameters", {}) if agent.model_config else {}
+        
+        yaml_content.append(f'provider: {provider}')
+        yaml_content.append(f'model_name: {model_name}')
+        yaml_content.append('model_parameters:')
+        for key, value in model_parameters.items():
+            yaml_content.append(f'  {key}: {value}')
+        
+        yaml_content.append('')
+        yaml_content.append('# 工具配置')
+        
+        # 工具配置
+        tools = agent.tools_config.get("builtin_tools", []) if agent.tools_config else []
+        if tools:
+            yaml_content.append('tools:')
+            for tool in tools:
+                yaml_content.append(f'  - "{tool}"')
+        else:
+            yaml_content.append('tools: []')
+        
+        yaml_content.append('')
+        yaml_content.append('# MCP技能配置 - 字典格式')
+        
+        # MCP技能配置
+        mcp_skills = agent.tools_config.get("mcp_skills", {}) if agent.tools_config else {}
+        if mcp_skills:
+            # 如果是字典格式，按字典格式写入
+            if isinstance(mcp_skills, dict):
+                yaml_content.append('mcp_skills:')
+                for server_name, server_config in mcp_skills.items():
+                    yaml_content.append(f'  {server_name}:')
+                    if isinstance(server_config, dict):
+                        for key, value in server_config.items():
+                            if isinstance(value, str):
+                                yaml_content.append(f'    {key}: "{value}"')
+                            else:
+                                yaml_content.append(f'    {key}: {value}')
+                    else:
+                        yaml_content.append(f'    enabled: {server_config}')
+            # 如果是列表格式，按列表格式写入
+            elif isinstance(mcp_skills, list):
+                yaml_content.append('mcp_skills:')
+                for server_name in mcp_skills:
+                    yaml_content.append(f'  - "{server_name}"')
+            else:
+                yaml_content.append('mcp_skills: {}')
+        else:
+            yaml_content.append('mcp_skills: {}')
+        
+        yaml_content.append('')
+        yaml_content.append('# 知识库配置')
+        
+        # 知识库配置
+        knowledge_databases = agent.knowledge_config.get("databases", []) if agent.knowledge_config else []
+        retrieval_params = agent.knowledge_config.get("retrieval_params", {}) if agent.knowledge_config else {}
+        
+        if knowledge_databases:
+            yaml_content.append('knowledge_databases:')
+            for db in knowledge_databases:
+                yaml_content.append(f'  - "{db}"')
+        else:
+            yaml_content.append('knowledge_databases: []')
+        
+        yaml_content.append('retrieval_params:')
+        for key, value in retrieval_params.items():
+            yaml_content.append(f'  {key}: {value}')
+
+        return {
+            "success": True,
+            "data": {
+                "agent_id": agent.agent_id,
+                "name": agent.name,
+                "yaml_content": '\n'.join(yaml_content),
             },
         }
 
