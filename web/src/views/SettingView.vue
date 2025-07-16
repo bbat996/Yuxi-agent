@@ -145,7 +145,10 @@ const preHandleChange = (key, e) => {
   if (key == 'enable_reranker'
     || key == 'embed_model'
     || key == 'reranker'
-    || key == 'model_local_paths') {
+    || key == 'model_local_paths'
+    || key == 'enable_web_search'
+    || key == 'tavily_api_key'
+    || key == 'tavily_base_url') {
     isNeedRestart.value = true
     notification.info({
       message: '需要重新加载模型',

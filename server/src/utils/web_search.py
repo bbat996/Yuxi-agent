@@ -4,11 +4,20 @@ from src.utils.logging_config import logger
 
 
 class WebSearcher:
-    def __init__(self):
-        api_key = os.getenv("TAVILY_API_KEY")
+    def __init__(self, api_key=None, base_url=None):
+        # 优先使用传入的参数，其次使用环境变量
+        if api_key is None:
+            api_key = os.getenv("TAVILY_API_KEY")
+        
         if not api_key:
-            raise ValueError("TAVILY_API_KEY environment variable is not set")
-        self.client = TavilyClient(api_key)
+            raise ValueError("TAVILY_API_KEY is not set")
+        
+        # 设置客户端参数
+        client_kwargs = {"api_key": api_key}
+        if base_url:
+            client_kwargs["base_url"] = base_url
+        
+        self.client = TavilyClient(**client_kwargs)
         logger.info("WebSearcher initialized with Tavily client")
 
     def search(self, query: str, max_results: int = 1) -> list[dict]:

@@ -1,10 +1,15 @@
 import os
 import json
+from fastapi import logger
 import yaml
 from pathlib import Path
-from src.utils.logging_config import logger
 from dotenv import load_dotenv
 from .constant import CONFIG_PATH, MODELS_PATH, MODELS_PRIVATE_PATH, PROJECT_DIR, SELECTED_CONFIG_PATH, SITE_INFO_PATH
+
+# 延迟导入logger以避免循环导入
+def get_logger():
+    from src.utils.logging_config import logger
+    return logger
 
 DEFAULT_MOCK_API = "this_is_mock_api_key_in_frontend"
 # 加载 .env 文件
@@ -30,7 +35,22 @@ class SimpleConfig(dict):
         return self.get(self.__key(key))
 
     def __setitem__(self, key, value):
-        return super().__setitem__(self.__key(key), value)
+        key = self.__key(key)
+        super().__setitem__(key, value)
+        
+        # 特殊处理tavily配置
+        if key == 'tavily_api_key' and value:
+            os.environ["TAVILY_API_KEY"] = value
+            get_logger().info("Tavily API Key已同步到环境变量")
+        elif key == 'enable_web_search' and value:
+            # 如果启用了web_search但没有API key，尝试从环境变量获取
+            if not hasattr(self, 'tavily_api_key') or not self.tavily_api_key:
+                env_api_key = os.getenv("TAVILY_API_KEY")
+                if env_api_key:
+                    self.tavily_api_key = env_api_key
+                    get_logger().info("从环境变量获取Tavily API Key")
+        
+        return value
 
     def __dict__(self):
         return {k: v for k, v in self.items()}
@@ -57,8 +77,12 @@ class Config(SimpleConfig):
         self.add_item(
             "enable_web_search",
             default=False,
-            des="是否开启网页搜索（注：现阶段会根据 TAVILY_API_KEY 自动开启，无法手动配置，将会在下个版本移除此配置项）",
+            des="是否开启网页搜索",
         )  # noqa: E501
+
+        # Web搜索配置
+        self.add_item("tavily_api_key", default="", des="Tavily API Key")
+        self.add_item("tavily_base_url", default="https://api.tavily.com", des="Tavily API基础URL")
 
         # 模型配置
         ## 注意这里是模型名，而不是具体的模型路径，默认使用 HuggingFace 的路径
@@ -84,7 +108,7 @@ class Config(SimpleConfig):
         
         # 确保model_names已经初始化
         if not hasattr(self, 'model_names') or self.model_names is None:
-            logger.warning("model_names not initialized, skipping provider_enabled_status initialization")
+            get_logger().warning("model_names not initialized, skipping provider_enabled_status initialization")
             return
         
         # 为所有模型提供商设置默认启用状态
@@ -110,7 +134,7 @@ class Config(SimpleConfig):
         
         self.provider_enabled_status[provider] = enabled
         self.save()
-        logger.info(f"模型提供商 {provider} 启用状态已设置为: {enabled}")
+        get_logger().info(f"模型提供商 {provider} 启用状态已设置为: {enabled}")
 
     def toggle_provider_status(self, provider: str, enabled: bool):
         """切换提供商启用状态"""
@@ -180,7 +204,7 @@ class Config(SimpleConfig):
         
         # 保存到配置文件
         self._save_models_to_file()
-        logger.info(f"模型提供商 {provider} 配置已更新")
+        get_logger().info(f"模型提供商 {provider} 配置已更新")
 
     def add_provider_model(self, provider: str, model_name: str):
         """为模型提供商添加模型"""
@@ -193,7 +217,7 @@ class Config(SimpleConfig):
         if model_name not in self.model_names[provider]["models"]:
             self.model_names[provider]["models"].append(model_name)
             self._save_models_to_file()
-            logger.info(f"模型 {model_name} 已添加到 {provider}")
+            get_logger().info(f"模型 {model_name} 已添加到 {provider}")
             return True
         else:
             raise ValueError(f"模型 {model_name} 已存在于 {provider} 中")
@@ -209,7 +233,7 @@ class Config(SimpleConfig):
         if model_name in self.model_names[provider]["models"]:
             self.model_names[provider]["models"].remove(model_name)
             self._save_models_to_file()
-            logger.info(f"模型 {model_name} 已从 {provider} 中删除")
+            get_logger().info(f"模型 {model_name} 已从 {provider} 中删除")
             return True
         else:
             raise ValueError(f"模型 {model_name} 不存在于 {provider} 中")
@@ -218,7 +242,7 @@ class Config(SimpleConfig):
         """重新加载模型配置"""
         self._update_models_from_file()
         self.handle_self()
-        logger.info("模型配置已重新加载")
+        get_logger().info("模型配置已重新加载")
 
     def get_provider_config(self, provider: str):
         """获取模型提供商配置"""
@@ -244,9 +268,9 @@ class Config(SimpleConfig):
 
         if self.model_dir:
             if os.path.exists(self.model_dir):
-                logger.debug(f"The model directory （{self.model_dir}） contains the following folders: {os.listdir(self.model_dir)}")
+                get_logger().debug(f"The model directory （{self.model_dir}） contains the following folders: {os.listdir(self.model_dir)}")
             else:
-                logger.warning(
+                get_logger().warning(
                     f"Warning: The model directory （{self.model_dir}） does not exist. If not configured, please ignore it. If configured, please check if the configuration is correct;"
                     "For example, the mapping in the docker-compose file"
                 )
@@ -259,15 +283,24 @@ class Config(SimpleConfig):
             conds_bool = [bool(os.getenv(_k)) for _k in conds[provider]]
             self.model_provider_status[provider] = all(conds_bool)
 
+        # 处理Tavily配置
         if os.getenv("TAVILY_API_KEY"):
-            self.enable_web_search = True
+            self.tavily_api_key = os.getenv("TAVILY_API_KEY")
+            # 如果配置了API Key但enable_web_search为False，则自动启用
+            if not self.enable_web_search:
+                self.enable_web_search = True
+                get_logger().info("检测到TAVILY_API_KEY环境变量，自动启用网页搜索功能")
+        
+        # 如果配置了tavily_api_key，同步到环境变量
+        if hasattr(self, 'tavily_api_key') and self.tavily_api_key:
+            os.environ["TAVILY_API_KEY"] = self.tavily_api_key
 
         self.valuable_model_provider = [k for k, v in self.model_provider_status.items() if v]
         assert len(self.valuable_model_provider) > 0, f"No model provider available, please check your `.env` file. API_KEY_LIST: {conds}"
 
     def load(self):
         """根据传入的文件覆盖掉默认配置"""
-        logger.info(f"Loading config from {self.config_file}")
+        get_logger().info(f"Loading config from {self.config_file}")
         if self.config_file is not None and os.path.exists(self.config_file):
             if self.config_file.endswith(".yaml"):
                 with open(self.config_file) as f:
@@ -287,18 +320,18 @@ class Config(SimpleConfig):
                     else:
                         print(f"{self.config_file} is empty.")
             else:
-                logger.warning(f"Unknown config file type {self.config_file}")
+                get_logger().warning(f"Unknown config file type {self.config_file}")
 
     def save(self):
-        logger.info(f"Saving config to {self.config_file}")
+        get_logger().info(f"Saving config to {self.config_file}")
         if self.config_file.endswith(".yaml"):
             with open(self.config_file, "w+") as f:
                 yaml.dump(self.__dict__(), f, indent=2, allow_unicode=True)
         else:
-            logger.warning(f"Unknown config file type {self.config_file}, save as yaml")
+            get_logger().warning(f"Unknown config file type {self.config_file}, save as yaml")
             with open(self.config_file, "w+") as f:
                 yaml.dump(self.__dict__(), f, indent=2, allow_unicode=True)
-        logger.info(f"Config file {self.config_file} saved")
+        get_logger().info(f"Config file {self.config_file} saved")
 
     def dump_config(self):
         return json.loads(str(self))
@@ -320,3 +353,6 @@ class Config(SimpleConfig):
                     value[i]["api_key"] = current_api_key
 
         return value
+
+# 创建全局配置实例
+config = Config()
