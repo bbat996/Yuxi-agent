@@ -35,7 +35,7 @@ const props = defineProps({
 
 <style scoped lang="less">
 .header-container {
-  background-color: var(--gray-200);
+  background-color: white;
   backdrop-filter: blur(10px);
   padding: 16px 24px;
   border-bottom: 1px solid #f0f0f0;
