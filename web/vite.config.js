@@ -1,19 +1,19 @@
 import { fileURLToPath, URL } from 'node:url'
 import { defineConfig, loadEnv } from 'vite'
 import vue from '@vitejs/plugin-vue'
-import Inspector from 'vite-plugin-vue-inspector'
+import Inspector from "vite-plugin-vue-inspector"
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '')
+
   return {
     plugins: [
       vue(),
-      Inspector({
-        toggleButtonVisibility: 'always',
-        toggleComboKey: 'control-shift',
-        toggleButtonPos: 'bottom-right',
-        launchEditor: 'cursor'
-      } )
+      Inspector(
+        {
+          launchEditor: 'cursor'
+        }
+      )
     ],
     resolve: {
       alias: {

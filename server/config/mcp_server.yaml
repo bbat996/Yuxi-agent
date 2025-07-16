@@ -1,287 +1,277 @@
-# MCP服务器配置文件
-# 用于配置各种MCP工具服务器
+# MCP工具配置文件
+# 简化为只包含MCP服务器配置信息
 
-# 内置服务器配置
-builtin_servers:
-  math:
+# 全局配置
+global:
+  timeout: 30
+  max_connections: 10
+  log_level: "INFO"
+  rate_limit:
+    per_minute: 100
+    per_hour: 1000
+    concurrent: 5
+
+# MCP服务器配置
+servers:
+  # 数学计算工具
+  math_tools:
     enabled: true
-    name: "Math Tools Server"
-    description: "数学计算工具服务器"
-    server_type: "builtin"
     module_path: "src.mcp_server.math_tools"
     class_name: "mcp"
     tools:
-      basic_math:
-        enabled: true
-        description: "基础数学运算"
-        tools:
-          - "add"
-          - "sub"
-          - "multiply"
-          - "divide"
-          - "power"
-          - "sqrt"
-      conversion:
-        enabled: true
-        description: "单位转换"
-        tools:
-          - "convert_temperature"
-          - "convert_length"
+      - name: "add"
+        description: "计算两个数的和"
+        parameters:
+          a: {"type": "number", "description": "第一个数"}
+          b: {"type": "number", "description": "第二个数"}
+      - name: "sub"
+        description: "计算两个数的差"
+        parameters:
+          a: {"type": "number", "description": "被减数"}
+          b: {"type": "number", "description": "减数"}
+      - name: "multiply"
+        description: "计算两个数的积"
+        parameters:
+          a: {"type": "number", "description": "第一个数"}
+          b: {"type": "number", "description": "第二个数"}
+      - name: "divide"
+        description: "计算两个数的商"
+        parameters:
+          a: {"type": "number", "description": "被除数"}
+          b: {"type": "number", "description": "除数"}
+      - name: "power"
+        description: "计算一个数的幂"
+        parameters:
+          base: {"type": "number", "description": "底数"}
+          exponent: {"type": "number", "description": "指数"}
+      - name: "sqrt"
+        description: "计算一个数的平方根"
+        parameters:
+          number: {"type": "number", "description": "要计算平方根的数"}
+      - name: "convert_temperature"
+        description: "在不同温度单位间转换"
+        parameters:
+          value: {"type": "number", "description": "温度值"}
+          from_unit: {"type": "string", "description": "源单位 (celsius/fahrenheit/kelvin)"}
+          to_unit: {"type": "string", "description": "目标单位 (celsius/fahrenheit/kelvin)"}
+      - name: "convert_length"
+        description: "在不同长度单位间转换"
+        parameters:
+          value: {"type": "number", "description": "长度值"}
+          from_unit: {"type": "string", "description": "源单位 (m/km/cm/mm/mile/yard/foot/inch)"}
+          to_unit: {"type": "string", "description": "目标单位 (m/km/cm/mm/mile/yard/foot/inch)"}
 
-  time:
+  # 时间日期工具
+  time_tools:
     enabled: true
-    name: "Time Tools Server"
-    description: "时间日期处理工具服务器"
-    server_type: "builtin"
     module_path: "src.mcp_server.time_tools"
     class_name: "mcp"
     tools:
-      time_utils:
-        enabled: true
-        description: "时间工具"
-        tools:
-          - "get_time"
-          - "get_date_info"
-          - "calculate_date_difference"
-          - "add_days_to_date"
-          - "get_week_info"
+      - name: "get_time"
+        description: "获取当前时间信息"
+        parameters: {}
+      - name: "get_date_info"
+        description: "获取指定日期的详细信息"
+        parameters:
+          date: {"type": "string", "description": "日期字符串 (YYYY-MM-DD)，默认为今天", "required": false}
+      - name: "calculate_date_difference"
+        description: "计算两个日期之间的差值"
+        parameters:
+          date1: {"type": "string", "description": "第一个日期 (YYYY-MM-DD)"}
+          date2: {"type": "string", "description": "第二个日期 (YYYY-MM-DD)"}
+      - name: "add_days_to_date"
+        description: "在指定日期上加减天数"
+        parameters:
+          date: {"type": "string", "description": "基准日期 (YYYY-MM-DD)"}
+          days: {"type": "number", "description": "要加减的天数（正数为加，负数为减）"}
+      - name: "get_week_info"
+        description: "获取指定日期所在周的信息"
+        parameters:
+          date: {"type": "string", "description": "日期字符串 (YYYY-MM-DD)，默认为今天", "required": false}
 
-  network:
+  # 网络工具
+  network_tools:
     enabled: true
-    name: "Network Tools Server"
-    description: "网络工具服务器"
-    server_type: "builtin"
     module_path: "src.mcp_server.network_tools"
     class_name: "mcp"
     tools:
-      web_utils:
-        enabled: true
-        description: "网络工具"
-        tools:
-          - "get_weather"
-          - "check_url_status"
-          - "get_ip_info"
-          - "url_encode"
-          - "url_decode"
-          - "http_get"
-          - "http_post"
-          - "validate_url"
+      - name: "get_weather"
+        description: "获取指定城市的天气信息"
+        parameters:
+          city: {"type": "string", "description": "城市名称"}
+      - name: "check_url_status"
+        description: "检查URL的可访问性和状态码"
+        parameters:
+          url: {"type": "string", "description": "要检查的URL"}
+      - name: "get_ip_info"
+        description: "获取IP地址的地理位置信息"
+        parameters:
+          ip: {"type": "string", "description": "IP地址，默认为当前IP", "required": false}
+      - name: "url_encode"
+        description: "对字符串进行URL编码"
+        parameters:
+          text: {"type": "string", "description": "要编码的文本"}
+      - name: "url_decode"
+        description: "对URL编码的字符串进行解码"
+        parameters:
+          text: {"type": "string", "description": "要解码的文本"}
+      - name: "http_get"
+        description: "发送HTTP GET请求"
+        parameters:
+          url: {"type": "string", "description": "请求URL"}
+          headers: {"type": "object", "description": "请求头", "required": false}
+      - name: "http_post"
+        description: "发送HTTP POST请求"
+        parameters:
+          url: {"type": "string", "description": "请求URL"}
+          data: {"type": "object", "description": "请求数据", "required": false}
+          headers: {"type": "object", "description": "请求头", "required": false}
+      - name: "validate_url"
+        description: "验证URL格式是否正确"
+        parameters:
+          url: {"type": "string", "description": "要验证的URL"}
 
-  file:
+  # 文件操作工具
+  file_tools:
     enabled: true
-    name: "File Tools Server"
-    description: "文件操作工具服务器"
-    server_type: "builtin"
     module_path: "src.mcp_server.file_tools"
     class_name: "mcp"
     tools:
-      file_ops:
-        enabled: true
-        description: "文件操作"
-        tools:
-          - "read_file"
-          - "write_file"
-          - "list_directory"
-          - "get_file_info"
-          - "create_directory"
-          - "delete_file"
-      data_utils:
-        enabled: true
-        description: "数据处理"
-        tools:
-          - "json_parse"
-          - "json_stringify"
-          - "text_to_base64"
-          - "base64_to_text"
-          - "calculate_hash"
+      - name: "read_file"
+        description: "读取指定文件的内容"
+        parameters:
+          file_path: {"type": "string", "description": "文件路径"}
+          encoding: {"type": "string", "description": "文件编码，默认为utf-8", "required": false}
+      - name: "write_file"
+        description: "将内容写入指定文件"
+        parameters:
+          file_path: {"type": "string", "description": "文件路径"}
+          content: {"type": "string", "description": "要写入的内容"}
+          encoding: {"type": "string", "description": "文件编码，默认为utf-8", "required": false}
+      - name: "list_directory"
+        description: "列出指定目录下的文件和子目录"
+        parameters:
+          directory_path: {"type": "string", "description": "目录路径"}
+      - name: "get_file_info"
+        description: "获取文件的详细信息"
+        parameters:
+          file_path: {"type": "string", "description": "文件路径"}
+      - name: "create_directory"
+        description: "创建新目录"
+        parameters:
+          directory_path: {"type": "string", "description": "目录路径"}
+      - name: "delete_file"
+        description: "删除指定文件"
+        parameters:
+          file_path: {"type": "string", "description": "文件路径"}
+      - name: "json_parse"
+        description: "解析JSON字符串"
+        parameters:
+          json_string: {"type": "string", "description": "JSON字符串"}
+      - name: "json_stringify"
+        description: "将对象序列化为JSON字符串"
+        parameters:
+          data: {"type": "object", "description": "要序列化的数据"}
+          indent: {"type": "number", "description": "缩进空格数，默认为2", "required": false}
+      - name: "text_to_base64"
+        description: "将文本转换为Base64编码"
+        parameters:
+          text: {"type": "string", "description": "要编码的文本"}
+      - name: "base64_to_text"
+        description: "将Base64编码转换为文本"
+        parameters:
+          base64_string: {"type": "string", "description": "Base64编码字符串"}
+      - name: "calculate_hash"
+        description: "计算字符串的哈希值"
+        parameters:
+          text: {"type": "string", "description": "要计算哈希的文本"}
+          algorithm: {"type": "string", "description": "哈希算法 (md5/sha1/sha256)，默认为md5", "required": false}
 
-  text:
+  # 文本处理工具
+  text_tools:
     enabled: true
-    name: "Text Tools Server"
-    description: "文本处理工具服务器"
-    server_type: "builtin"
     module_path: "src.mcp_server.text_tools"
     class_name: "mcp"
     tools:
-      text_processing:
-        enabled: true
-        description: "文本处理"
-        tools:
-          - "text_search"
-          - "text_replace"
-          - "text_split"
-          - "text_join"
-          - "extract_numbers"
-          - "extract_urls"
-          - "count_words"
-          - "text_case_convert"
-      validation:
-        enabled: true
-        description: "数据验证"
-        tools:
-          - "validate_email"
-          - "validate_phone"
+      - name: "text_search"
+        description: "在文本中搜索指定内容"
+        parameters:
+          text: {"type": "string", "description": "要搜索的文本"}
+          pattern: {"type": "string", "description": "搜索模式"}
+          case_sensitive: {"type": "boolean", "description": "是否区分大小写，默认为false", "required": false}
+      - name: "text_replace"
+        description: "在文本中替换指定内容"
+        parameters:
+          text: {"type": "string", "description": "原文本"}
+          old_text: {"type": "string", "description": "要替换的文本"}
+          new_text: {"type": "string", "description": "替换后的文本"}
+      - name: "text_split"
+        description: "按指定分隔符分割文本"
+        parameters:
+          text: {"type": "string", "description": "要分割的文本"}
+          separator: {"type": "string", "description": "分隔符"}
+      - name: "text_join"
+        description: "将字符串数组连接为单个字符串"
+        parameters:
+          strings: {"type": "array", "description": "要连接的字符串数组"}
+          separator: {"type": "string", "description": "连接符，默认为空字符串", "required": false}
+      - name: "extract_numbers"
+        description: "从文本中提取所有数字"
+        parameters:
+          text: {"type": "string", "description": "要提取数字的文本"}
+      - name: "extract_urls"
+        description: "从文本中提取所有URL"
+        parameters:
+          text: {"type": "string", "description": "要提取URL的文本"}
+      - name: "count_words"
+        description: "统计文本中的单词数量"
+        parameters:
+          text: {"type": "string", "description": "要统计的文本"}
+      - name: "text_case_convert"
+        description: "转换文本的大小写"
+        parameters:
+          text: {"type": "string", "description": "要转换的文本"}
+          case_type: {"type": "string", "description": "转换类型 (lower/upper/title/camel)"}
+      - name: "validate_email"
+        description: "验证邮箱格式是否正确"
+        parameters:
+          email: {"type": "string", "description": "要验证的邮箱地址"}
+      - name: "validate_phone"
+        description: "验证手机号格式是否正确"
+        parameters:
+          phone: {"type": "string", "description": "要验证的手机号"}
 
-  system:
+  # 系统信息工具
+  system_tools:
     enabled: true
-    name: "System Tools Server"
-    description: "系统信息工具服务器"
-    server_type: "builtin"
     module_path: "src.mcp_server.system_tools"
     class_name: "mcp"
     tools:
-      system_info:
-        enabled: true
-        description: "系统信息"
-        tools:
-          - "get_system_info"
-          - "get_memory_info"
-          - "get_disk_info"
-          - "get_cpu_info"
-          - "get_network_info"
-          - "get_environment_variables"
-          - "get_current_working_directory"
-      process_management:
-        enabled: true
-        description: "进程管理"
-        tools:
-          - "get_process_info"
-          - "list_processes"
-
-# 外部服务器配置
-external_servers: {}
-  # 示例外部服务器配置
-  # example_external:
-  #   enabled: false
-  #   name: "Example External Server"
-  #   description: "外部服务器示例"
-  #   server_type: "external"
-  #   transport: "stdio"
-  #   command: "python"
-  #   args: ["-m", "external_server_module"]
-  #   env:
-  #     PYTHONPATH: "/path/to/external/server"
-
-# 全局配置
-global_config:
-  default_servers:
-    - "math"
-    - "time"
-    - "network"
-    - "file"
-    - "text"
-    - "system"
-  connection_timeout: 30
-  max_connections: 10
-  log_level: "INFO"
-  
-  # 工具调用限制
-  tool_limits:
-    max_calls_per_minute: 100
-    max_calls_per_hour: 1000
-    max_concurrent_calls: 5
-    
-  # 安全配置
-  security:
-    allowed_origins: ["*"]
-    require_authentication: false
-    rate_limiting: true
-
-# 环境变量配置
-environment_variables:
-  PYTHONPATH: "${PYTHONPATH}"
-  LOG_LEVEL: "INFO"
-  DEBUG: "false"
-
-# 工具分类配置（用于前端展示）
-tool_categories:
-  基础数学运算:
-    description: "基本的数学计算工具"
-    servers: ["math"]
-    tools:
-      - "add"
-      - "sub"
-      - "multiply"
-      - "divide"
-      - "power"
-      - "sqrt"
-      - "convert_temperature"
-      - "convert_length"
-  
-  时间日期工具:
-    description: "时间日期相关的处理工具"
-    servers: ["time"]
-    tools:
-      - "get_time"
-      - "get_date_info"
-      - "calculate_date_difference"
-      - "add_days_to_date"
-      - "get_week_info"
-  
-  网络工具:
-    description: "网络相关的工具"
-    servers: ["network"]
-    tools:
-      - "get_weather"
-      - "check_url_status"
-      - "get_ip_info"
-      - "url_encode"
-      - "url_decode"
-      - "http_get"
-      - "http_post"
-      - "validate_url"
-  
-  文件操作工具:
-    description: "文件和目录操作工具"
-    servers: ["file"]
-    tools:
-      - "read_file"
-      - "write_file"
-      - "list_directory"
-      - "get_file_info"
-      - "create_directory"
-      - "delete_file"
-  
-  数据处理工具:
-    description: "数据格式转换和处理工具"
-    servers: ["file"]
-    tools:
-      - "json_parse"
-      - "json_stringify"
-      - "text_to_base64"
-      - "base64_to_text"
-      - "calculate_hash"
-  
-  文本处理工具:
-    description: "文本搜索、替换和分割工具"
-    servers: ["text"]
-    tools:
-      - "text_search"
-      - "text_replace"
-      - "text_split"
-      - "text_join"
-      - "extract_numbers"
-      - "extract_urls"
-      - "count_words"
-      - "text_case_convert"
-  
-  系统信息工具:
-    description: "系统信息和监控工具"
-    servers: ["system"]
-    tools:
-      - "get_system_info"
-      - "get_memory_info"
-      - "get_disk_info"
-      - "get_cpu_info"
-      - "get_network_info"
-      - "get_process_info"
-      - "list_processes"
-      - "get_environment_variables"
-      - "get_current_working_directory"
-  
-  数据验证工具:
-    description: "数据格式验证工具"
-    servers: ["text"]
-    tools:
-      - "validate_email"
-      - "validate_phone" 
+      - name: "get_system_info"
+        description: "获取系统基本信息"
+        parameters: {}
+      - name: "get_memory_info"
+        description: "获取系统内存使用情况"
+        parameters: {}
+      - name: "get_disk_info"
+        description: "获取磁盘使用情况"
+        parameters: {}
+      - name: "get_cpu_info"
+        description: "获取CPU使用情况"
+        parameters: {}
+      - name: "get_network_info"
+        description: "获取网络使用情况"
+        parameters: {}
+      - name: "get_environment_variables"
+        description: "获取系统环境变量"
+        parameters: {}
+      - name: "get_current_working_directory"
+        description: "获取当前工作目录路径"
+        parameters: {}
+      - name: "get_process_info"
+        description: "获取指定进程的详细信息"
+        parameters:
+          pid: {"type": "number", "description": "进程ID，默认为当前进程", "required": false}
+      - name: "list_processes"
+        description: "列出系统中的所有进程"
+        parameters: {} 

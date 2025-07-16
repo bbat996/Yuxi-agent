@@ -1,22 +1,5 @@
-import { apiGet, apiPost, apiPut, apiDelete } from './base'
-import { useUserStore } from '@/stores/user'
-
-/**
- * MCP工具管理API模块
- * 只有管理员和超级管理员可以访问的API
- * 权限要求: admin 或 superadmin
- *
- * 注意: 请确保在使用这些API之前检查用户是否具有管理员权限
- */
-
-// 检查当前用户是否有管理员权限
-const checkAdminPermission = () => {
-  const userStore = useUserStore()
-  if (!userStore.isAdmin) {
-    throw new Error('需要管理员权限')
-  }
-  return true
-}
+import { apiGet, apiPost } from './base.js'
+import { checkAdminPermission, checkUserPermission } from '../utils/auth.js'
 
 // MCP工具管理API
 export const mcpToolsApi = {
@@ -24,20 +7,25 @@ export const mcpToolsApi = {
    * 获取MCP工具分类列表
    * @returns {Promise} - 工具分类信息
    */
-  getToolCategories: async () => {
+  getCategories: async () => {
     checkAdminPermission()
     return apiGet('/api/mcp/tools/categories', {}, true)
   },
 
   /**
    * 获取MCP工具列表
-   * @param {string} category - 工具分类，可选
+   * @param {string} category - 工具分类（服务器名称），可选
+   * @param {string} server - 服务器名称，可选
    * @returns {Promise} - 工具列表
    */
-  getToolsList: async (category = null) => {
+  getToolsList: async (category = null, server = null) => {
     checkAdminPermission()
-    const params = category ? `?category=${encodeURIComponent(category)}` : ''
-    return apiGet(`/api/mcp/tools/list${params}`, {}, true)
+    const params = new URLSearchParams()
+    if (category) params.append('category', category)
+    if (server) params.append('server', server)
+    const queryString = params.toString()
+    const url = queryString ? `/api/mcp/tools/list?${queryString}` : '/api/mcp/tools/list'
+    return apiGet(url, {}, true)
   },
 
   /**
@@ -71,7 +59,7 @@ export const mcpToolsApi = {
 
   /**
    * 获取指定分类的MCP工具列表
-   * @param {string} categoryName - 分类名称
+   * @param {string} categoryName - 分类名称（服务器名称）
    * @returns {Promise} - 该分类下的工具列表
    */
   getToolsByCategory: async (categoryName) => {
@@ -87,11 +75,10 @@ export const mcpToolsApi = {
    */
   getRandomTools: async (count = 5, category = null) => {
     checkAdminPermission()
-    let params = `?count=${count}`
-    if (category) {
-      params += `&category=${encodeURIComponent(category)}`
-    }
-    return apiGet(`/api/mcp/tools/random${params}`, {}, true)
+    const params = new URLSearchParams()
+    params.append('count', count)
+    if (category) params.append('category', category)
+    return apiGet(`/api/mcp/tools/random?${params.toString()}`, {}, true)
   }
 }
 
@@ -108,12 +95,12 @@ export const mcpConfigApi = {
 
   /**
    * 获取MCP服务器列表
-   * @param {string} serverType - 服务器类型：builtin或external，可选
+   * @param {boolean} enabledOnly - 是否只返回已启用的服务器，可选
    * @returns {Promise} - MCP服务器列表
    */
-  getServers: async (serverType = null) => {
+  getServers: async (enabledOnly = false) => {
     checkAdminPermission()
-    const params = serverType ? `?server_type=${serverType}` : ''
+    const params = enabledOnly ? '?enabled_only=true' : ''
     return apiGet(`/api/mcp/config/servers${params}`, {}, true)
   },
 
@@ -128,32 +115,56 @@ export const mcpConfigApi = {
   },
 
   /**
-   * 重新加载MCP配置
-   * @returns {Promise} - 重新加载结果
+   * 切换MCP服务器启用状态
+   * @param {string} serverName - 服务器名称
+   * @param {boolean} enabled - 是否启用
+   * @returns {Promise} - 切换结果
    */
-  reloadConfig: async () => {
+  toggleServerStatus: async (serverName, enabled) => {
     checkAdminPermission()
-    return apiPost('/api/mcp/config/reload', {}, {}, true)
+    return apiPost(`/api/mcp/config/servers/${encodeURIComponent(serverName)}/toggle`, { enabled }, {}, true)
   },
 
   /**
-   * 验证MCP配置
-   * @returns {Promise} - 配置验证结果
+   * 添加外部MCP服务器
+   * @param {Object} serverConfig - 服务器配置
+   * @returns {Promise} - 添加结果
    */
-  validateConfig: async () => {
+  addExternalServer: async (serverConfig) => {
     checkAdminPermission()
-    return apiGet('/api/mcp/config/validate', {}, true)
+    return apiPost('/api/mcp/config/servers/external', serverConfig, {}, true)
+  },
+
+  /**
+   * 更新MCP服务器配置
+   * @param {string} serverName - 服务器名称
+   * @param {Object} serverConfig - 服务器配置
+   * @returns {Promise} - 更新结果
+   */
+  updateServerConfig: async (serverName, serverConfig) => {
+    checkAdminPermission()
+    return apiPost(`/api/mcp/config/servers/${encodeURIComponent(serverName)}/update`, serverConfig, {}, true)
+  },
+
+  /**
+   * 删除MCP服务器
+   * @param {string} serverName - 服务器名称
+   * @returns {Promise} - 删除结果
+   */
+  deleteServer: async (serverName) => {
+    checkAdminPermission()
+    return apiPost(`/api/mcp/config/servers/${encodeURIComponent(serverName)}/delete`, {}, {}, true)
   }
 }
 
-// 技能管理API（管理员权限）
-export const skillManagementApi = {
+// 技能管理API
+export const skillsApi = {
   /**
    * 获取技能分类列表
    * @returns {Promise} - 技能分类信息
    */
-  getSkillCategories: async () => {
-    checkAdminPermission()
+  getCategories: async () => {
+    checkUserPermission()
     return apiGet('/api/skills/categories', {}, true)
   },
 
@@ -164,15 +175,13 @@ export const skillManagementApi = {
    * @returns {Promise} - 技能列表
    */
   getSkillsList: async (category = null, server = null) => {
-    checkAdminPermission()
-    let params = ''
-    if (category) {
-      params += `?category=${encodeURIComponent(category)}`
-    }
-    if (server) {
-      params += params ? `&server=${encodeURIComponent(server)}` : `?server=${encodeURIComponent(server)}`
-    }
-    return apiGet(`/api/skills/list${params}`, {}, true)
+    checkUserPermission()
+    const params = new URLSearchParams()
+    if (category) params.append('category', category)
+    if (server) params.append('server', server)
+    const queryString = params.toString()
+    const url = queryString ? `/api/skills/list?${queryString}` : '/api/skills/list'
+    return apiGet(url, {}, true)
   },
 
   /**
@@ -181,7 +190,7 @@ export const skillManagementApi = {
    * @returns {Promise} - 匹配的技能列表
    */
   searchSkills: async (keyword) => {
-    checkAdminPermission()
+    checkUserPermission()
     return apiGet(`/api/skills/search?keyword=${encodeURIComponent(keyword)}`, {}, true)
   },
 
@@ -191,7 +200,7 @@ export const skillManagementApi = {
    * @returns {Promise} - 技能详细信息
    */
   getSkillDetail: async (skillId) => {
-    checkAdminPermission()
+    checkUserPermission()
     return apiGet(`/api/skills/${encodeURIComponent(skillId)}`, {}, true)
   },
 
@@ -202,7 +211,7 @@ export const skillManagementApi = {
    * @returns {Promise} - 测试结果
    */
   testSkill: async (skillId, testParams) => {
-    checkAdminPermission()
+    checkUserPermission()
     return apiPost(`/api/skills/${encodeURIComponent(skillId)}/test`, testParams, {}, true)
   },
 
@@ -211,14 +220,14 @@ export const skillManagementApi = {
    * @returns {Promise} - 技能统计信息
    */
   getSkillsStats: async () => {
-    checkAdminPermission()
+    checkUserPermission()
     return apiGet('/api/skills/stats', {}, true)
   }
 }
 
 // 导出所有API
 export default {
-  mcpToolsApi,
-  mcpConfigApi,
-  skillManagementApi
+  tools: mcpToolsApi,
+  config: mcpConfigApi,
+  skills: skillsApi
 } 

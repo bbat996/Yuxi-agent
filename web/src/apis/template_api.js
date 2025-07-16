@@ -4,7 +4,7 @@
  */
 import { apiRequest, apiGet, apiPost, apiPut, apiDelete } from './base'
 import { skillApi } from './skill_api'
-import { skillManagementApi } from './mcp_api'
+import { skillsApi } from './mcp_api'
 
 // =============================================================================
 // 提示词模板相关API（只保留查询接口）
@@ -138,7 +138,7 @@ export const templateAPI = {
   updateMCPSkill,
   deleteMCPSkill,
   testMCPSkill,
-  
+
   // 通用
   getCategories,
   getTemplateStats

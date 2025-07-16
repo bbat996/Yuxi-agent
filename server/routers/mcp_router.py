@@ -15,7 +15,11 @@ from src.mcp_server.tools_config import (
     get_tools_by_category,
     get_all_tools,
     get_tool_info,
-    search_tools
+    search_tools,
+    get_servers,
+    get_enabled_servers,
+    get_server_config,
+    get_server_tools
 )
 from src.mcp_server.config_manager import get_mcp_config_manager
 from src.utils.logging_config import logger
@@ -50,14 +54,16 @@ async def get_mcp_tool_categories(
 
 @mcp_router.get("/mcp/tools/list")
 async def get_mcp_tools_list(
-    category: Optional[str] = Query(None, description="工具分类"),
+    category: Optional[str] = Query(None, description="工具分类（服务器名称）"),
+    server: Optional[str] = Query(None, description="服务器名称"),
     current_user: User = Depends(get_admin_user)
 ):
     """
     获取MCP工具列表
     
     Args:
-        category: 工具分类，可选
+        category: 工具分类（服务器名称），可选
+        server: 服务器名称，可选
         
     Returns:
         工具列表
@@ -65,8 +71,8 @@ async def get_mcp_tools_list(
     try:
         if category:
             tools = get_tools_by_category(category)
-            if not tools:
-                raise HTTPException(status_code=404, detail=f"找不到分类 '{category}' 的工具")
+        elif server:
+            tools = get_server_tools(server)
         else:
             tools = get_all_tools()
         
@@ -85,11 +91,10 @@ async def get_mcp_tools_list(
             "data": {
                 "tools": tools_info,
                 "total": len(tools_info),
-                "category": category
+                "category": category,
+                "server": server
             }
         }
-    except HTTPException:
-        raise
     except Exception as e:
         logger.error(f"获取MCP工具列表失败: {e}")
         logger.error(f"Traceback: {traceback.format_exc()}")
@@ -182,25 +187,12 @@ async def get_mcp_tools_overview(
         工具概览信息
     """
     try:
-        categories = get_tool_categories()
-        all_tools = get_all_tools()
-        
-        # 统计每个分类的工具数量
-        category_stats = {}
-        for category_name, category_info in categories.items():
-            category_stats[category_name] = {
-                "description": category_info["description"],
-                "tool_count": len(category_info["tools"])
-            }
+        config_manager = get_mcp_config_manager()
+        summary = config_manager.get_config_summary()
         
         return {
             "success": True,
-            "data": {
-                "total_tools": len(all_tools),
-                "total_categories": len(categories),
-                "categories": category_stats,
-                "available_categories": list(categories.keys())
-            }
+            "data": summary
         }
     except Exception as e:
         logger.error(f"获取MCP工具概览失败: {e}")
@@ -217,7 +209,7 @@ async def get_mcp_tools_by_category(
     获取指定分类的MCP工具列表
     
     Args:
-        category_name: 分类名称
+        category_name: 分类名称（服务器名称）
         
     Returns:
         该分类下的工具列表
@@ -278,10 +270,11 @@ async def get_random_mcp_tools(
         
         if category:
             tools = get_tools_by_category(category)
-            if not tools:
-                raise HTTPException(status_code=404, detail=f"找不到分类 '{category}' 的工具")
         else:
             tools = get_all_tools()
+        
+        if not tools:
+            raise HTTPException(status_code=404, detail="没有可用的工具")
         
         # 随机选择工具
         selected_tools = random.sample(tools, min(count, len(tools)))
@@ -343,36 +336,35 @@ async def get_mcp_config_summary(
 
 @mcp_router.get("/mcp/config/servers")
 async def get_mcp_servers(
-    server_type: Optional[str] = Query(None, description="服务器类型：builtin或external"),
+    enabled_only: bool = Query(False, description="是否只返回已启用的服务器"),
     current_user: User = Depends(get_admin_user)
 ):
     """
     获取MCP服务器列表
     
     Args:
-        server_type: 服务器类型筛选
+        enabled_only: 是否只返回已启用的服务器
         
     Returns:
         MCP服务器列表
     """
     try:
-        config_manager = get_mcp_config_manager()
-        
-        if server_type == "builtin":
-            servers = config_manager.get_builtin_servers() or {}
-        elif server_type == "external":
-            servers = config_manager.get_external_servers() or {}
+        if enabled_only:
+            server_names = get_enabled_servers()
+            servers = {}
+            for server_name in server_names:
+                server_config = get_server_config(server_name)
+                if server_config:
+                    servers[server_name] = server_config
         else:
-            builtin_servers = config_manager.get_builtin_servers() or {}
-            external_servers = config_manager.get_external_servers() or {}
-            servers = {**builtin_servers, **external_servers}
+            servers = get_servers()
         
         return {
             "success": True,
             "data": {
                 "servers": servers,
                 "total": len(servers),
-                "server_type": server_type
+                "enabled_only": enabled_only
             }
         }
     except Exception as e:
@@ -396,21 +388,26 @@ async def get_mcp_server_detail(
         服务器详细信息
     """
     try:
-        config_manager = get_mcp_config_manager()
-        server_config = config_manager.get_server_config(server_name)
+        server_config = get_server_config(server_name)
         
         if not server_config:
             raise HTTPException(status_code=404, detail=f"找不到服务器 '{server_name}'")
         
         # 获取服务器的工具信息
-        tools_by_category = config_manager.get_server_tools_by_category(server_name)
+        tools = get_server_tools(server_name)
+        tools_info = []
+        for tool_name in tools:
+            tool_info = get_tool_info(tool_name)
+            if tool_info:
+                tools_info.append(tool_info)
         
         return {
             "success": True,
             "data": {
                 "name": server_name,
                 **server_config,
-                "tools_by_category": tools_by_category
+                "tools": tools_info,
+                "tool_count": len(tools_info)
             }
         }
     except HTTPException:
@@ -495,8 +492,7 @@ async def get_skill_categories(
         技能分类信息
     """
     try:
-        config_manager = get_mcp_config_manager()
-        categories = config_manager.get_tool_categories()
+        categories = get_tool_categories()
         
         # 转换为技能分类格式
         skill_categories = []
@@ -538,39 +534,29 @@ async def get_skills_list(
         技能列表
     """
     try:
-        config_manager = get_mcp_config_manager()
-        
         if category:
             # 按分类获取工具
-            tools = config_manager.get_tools_by_category(category)
+            tools = get_tools_by_category(category)
         elif server:
             # 按服务器获取工具
-            tools = config_manager.get_enabled_tools(server)
+            tools = get_server_tools(server)
         else:
             # 获取所有工具
-            tools = config_manager.get_all_tools()
+            tools = get_all_tools()
         
         # 获取工具的详细信息
         skills_info = []
         for tool_name in tools:
             tool_info = get_tool_info(tool_name)
             if tool_info:
-                # 查找工具所属的服务器
-                tool_server = None
-                for server_name in config_manager.get_enabled_servers():
-                    server_tools = config_manager.get_enabled_tools(server_name)
-                    if tool_name in server_tools:
-                        tool_server = server_name
-                        break
-                
                 skills_info.append({
                     "skill_id": f"skill_{tool_name}",
                     "name": tool_info.get("name", tool_name),
                     "description": tool_info.get("description", ""),
-                    "category": tool_info.get("category", ""),
-                    "server": tool_server,
-                    "parameters": tool_info.get("parameters", []),
-                    "return_type": tool_info.get("return_type", ""),
+                    "category": tool_info.get("server", ""),  # 使用服务器名称作为分类
+                    "server": tool_info.get("server", ""),
+                    "parameters": tool_info.get("parameters", {}),
+                    "return_type": "string",  # 新配置格式中默认为string
                     "is_active": True,
                     "is_verified": True,
                     "created_at": "2024-01-01T00:00:00Z",
@@ -608,29 +594,20 @@ async def search_skills(
     """
     try:
         matching_tools = search_tools(keyword)
-        config_manager = get_mcp_config_manager()
         
         # 获取工具的详细信息
         skills_info = []
         for tool_name in matching_tools:
             tool_info = get_tool_info(tool_name)
             if tool_info:
-                # 查找工具所属的服务器
-                tool_server = None
-                for server_name in config_manager.get_enabled_servers():
-                    server_tools = config_manager.get_enabled_tools(server_name)
-                    if tool_name in server_tools:
-                        tool_server = server_name
-                        break
-                
                 skills_info.append({
                     "skill_id": f"skill_{tool_name}",
                     "name": tool_info.get("name", tool_name),
                     "description": tool_info.get("description", ""),
-                    "category": tool_info.get("category", ""),
-                    "server": tool_server,
-                    "parameters": tool_info.get("parameters", []),
-                    "return_type": tool_info.get("return_type", ""),
+                    "category": tool_info.get("server", ""),  # 使用服务器名称作为分类
+                    "server": tool_info.get("server", ""),
+                    "parameters": tool_info.get("parameters", {}),
+                    "return_type": "string",  # 新配置格式中默认为string
                     "is_active": True,
                     "is_verified": True,
                     "created_at": "2024-01-01T00:00:00Z",
@@ -676,25 +653,16 @@ async def get_skill_detail(
         if not tool_info:
             raise HTTPException(status_code=404, detail=f"找不到技能 '{skill_id}'")
         
-        # 查找工具所属的服务器
-        config_manager = get_mcp_config_manager()
-        tool_server = None
-        for server_name in config_manager.get_enabled_servers():
-            server_tools = config_manager.get_enabled_tools(server_name)
-            if tool_name in server_tools:
-                tool_server = server_name
-                break
-        
         return {
             "success": True,
             "data": {
                 "skill_id": skill_id,
                 "name": tool_info.get("name", tool_name),
                 "description": tool_info.get("description", ""),
-                "category": tool_info.get("category", ""),
-                "server": tool_server,
-                "parameters": tool_info.get("parameters", []),
-                "return_type": tool_info.get("return_type", ""),
+                "category": tool_info.get("server", ""),  # 使用服务器名称作为分类
+                "server": tool_info.get("server", ""),
+                "parameters": tool_info.get("parameters", {}),
+                "return_type": "string",  # 新配置格式中默认为string
                 "is_active": True,
                 "is_verified": True,
                 "created_at": "2024-01-01T00:00:00Z",

@@ -58,350 +58,274 @@ class MCPConfigManager:
     def _get_default_config(self) -> Dict[str, Any]:
         """获取默认配置"""
         return {
-            "builtin_servers": {
-                "math": {
-                    "enabled": True,
-                    "name": "Math Tools Server",
-                    "description": "数学计算工具服务器",
-                    "server_type": "builtin",
-                    "module_path": "src.mcp_server.math_tools",
-                    "class_name": "mcp"
-                },
-                "time": {
-                    "enabled": True,
-                    "name": "Time Tools Server",
-                    "description": "时间日期处理工具服务器",
-                    "server_type": "builtin",
-                    "module_path": "src.mcp_server.time_tools",
-                    "class_name": "mcp"
-                },
-                "network": {
-                    "enabled": True,
-                    "name": "Network Tools Server",
-                    "description": "网络工具服务器",
-                    "server_type": "builtin",
-                    "module_path": "src.mcp_server.network_tools",
-                    "class_name": "mcp"
-                },
-                "file": {
-                    "enabled": True,
-                    "name": "File Tools Server",
-                    "description": "文件操作工具服务器",
-                    "server_type": "builtin",
-                    "module_path": "src.mcp_server.file_tools",
-                    "class_name": "mcp"
-                },
-                "text": {
-                    "enabled": True,
-                    "name": "Text Tools Server",
-                    "description": "文本处理工具服务器",
-                    "server_type": "builtin",
-                    "module_path": "src.mcp_server.text_tools",
-                    "class_name": "mcp"
-                },
-                "system": {
-                    "enabled": True,
-                    "name": "System Tools Server",
-                    "description": "系统信息工具服务器",
-                    "server_type": "builtin",
-                    "module_path": "src.mcp_server.system_tools",
-                    "class_name": "mcp"
+            "global": {
+                "timeout": 30,
+                "max_connections": 10,
+                "log_level": "INFO",
+                "rate_limit": {
+                    "per_minute": 100,
+                    "per_hour": 1000,
+                    "concurrent": 5
                 }
             },
-            "external_servers": {},
-            "global_config": {
-                "default_servers": ["math", "time", "network", "file", "text", "system"],
-                "connection_timeout": 30,
-                "max_connections": 10,
-                "log_level": "INFO"
+            "servers": {
+                "math_tools": {
+                    "enabled": True,
+                    "module_path": "src.mcp_server.math_tools",
+                    "class_name": "mcp",
+                    "tools": [
+                        {
+                            "name": "add",
+                            "description": "计算两个数的和",
+                            "parameters": {
+                                "a": {"type": "number", "description": "第一个数"},
+                                "b": {"type": "number", "description": "第二个数"}
+                            }
+                        }
+                    ]
+                }
             }
         }
-    
-    def get_builtin_servers(self) -> Dict[str, Any]:
-        """获取内置服务器配置"""
-        if self.config is None:
-            return {}
-        result = self.config.get("builtin_servers", {})
-        return result if result is not None else {}
-    
-    def get_external_servers(self) -> Dict[str, Any]:
-        """获取外部服务器配置"""
-        if self.config is None:
-            logger.warning("get_external_servers: config is None, returning empty dict")
-            return {}
-        result = self.config.get("external_servers", {})
-        if result is None:
-            logger.warning("get_external_servers: external_servers is None, returning empty dict")
-            return {}
-        return result
     
     def get_global_config(self) -> Dict[str, Any]:
         """获取全局配置"""
         if self.config is None:
-            logger.warning("get_global_config: config is None, returning empty dict")
             return {}
-        result = self.config.get("global_config", {})
-        if result is None:
-            logger.warning("get_global_config: global_config is None, returning empty dict")
+        result = self.config.get("global", {})
+        return result if result is not None else {}
+    
+    def get_servers(self) -> Dict[str, Any]:
+        """获取服务器配置"""
+        if self.config is None:
             return {}
-        return result
+        servers = self.config.get("servers", {})
+        return servers if isinstance(servers, dict) else {}
     
     def get_enabled_servers(self) -> List[str]:
         """获取已启用的服务器列表"""
+        servers = self.get_servers()
         enabled_servers = []
         
-        try:
-            # 检查内置服务器
-            builtin_servers = self.get_builtin_servers()
-            if builtin_servers:
-                for server_name, server_config in builtin_servers.items():
-                    if isinstance(server_config, dict) and server_config.get("enabled", False):
-                        enabled_servers.append(server_name)
-            
-            # 检查外部服务器
-            external_servers = self.get_external_servers()
-            if external_servers:
-                for server_name, server_config in external_servers.items():
-                    if isinstance(server_config, dict) and server_config.get("enabled", False):
-                        enabled_servers.append(server_name)
-        except Exception as e:
-            logger.error(f"获取已启用服务器列表时出错: {e}")
-            # 返回空列表而不是抛出异常
+        for server_name, server_config in servers.items():
+            if isinstance(server_config, dict) and server_config.get("enabled", False):
+                enabled_servers.append(server_name)
         
         return enabled_servers
     
     def get_server_config(self, server_name: str) -> Optional[Dict[str, Any]]:
         """获取指定服务器的配置"""
-        # 先检查内置服务器
-        builtin_servers = self.get_builtin_servers()
-        if server_name in builtin_servers:
-            return builtin_servers[server_name]
-        
-        # 再检查外部服务器
-        external_servers = self.get_external_servers()
-        if server_name in external_servers:
-            return external_servers[server_name]
-        
-        return None
+        servers = self.get_servers()
+        return servers.get(server_name)
     
     def get_server_connections(self) -> Dict[str, Any]:
         """获取服务器连接配置（用于langchain-mcp-adapters）"""
         connections = {}
         
         try:
-            # 处理内置服务器
-            builtin_servers = self.get_builtin_servers()
-            if builtin_servers:
-                for server_name, server_config in builtin_servers.items():
-                    if isinstance(server_config, dict) and server_config.get("enabled", False):
-                        # 内置服务器使用stdio传输
-                        connections[server_name] = {
-                            "transport": "stdio",
-                            "command": "python",
-                            "args": ["-m", server_config["module_path"]]
+            servers = self.get_servers()
+            for server_name, server_config in servers.items():
+                if isinstance(server_config, dict) and server_config.get("enabled", False):
+                    # 内置服务器使用stdio传输
+                    connections[server_name] = {
+                        "transport": "stdio",
+                        "command": "python",
+                        "args": ["-m", server_config.get("module_path", "src.mcp_server.math_tools")],
+                        "env": {
+                            "PYTHONPATH": os.environ.get("PYTHONPATH", "")
                         }
-            
-            # 处理外部服务器
-            external_servers = self.get_external_servers()
-            if external_servers:
-                for server_name, server_config in external_servers.items():
-                    if isinstance(server_config, dict) and server_config.get("enabled", False):
-                        connections[server_name] = {
-                            "transport": server_config.get("transport", "stdio"),
-                            "command": server_config.get("command"),
-                            "args": server_config.get("args", []),
-                            "env": server_config.get("env", {})
-                        }
+                    }
         except Exception as e:
             logger.error(f"获取服务器连接配置时出错: {e}")
-            # 返回空字典而不是抛出异常
         
         return connections
     
+    def get_all_tools(self) -> List[str]:
+        """获取所有工具名称列表"""
+        tools = []
+        servers = self.get_servers()
+        
+        for server_name, server_config in servers.items():
+            if isinstance(server_config, dict) and server_config.get("enabled", False):
+                server_tools = server_config.get("tools", [])
+                for tool in server_tools:
+                    if isinstance(tool, dict) and "name" in tool:
+                        tools.append(tool["name"])
+        
+        return tools
+    
+    def get_enabled_tools(self, server_name: str = None) -> List[str]:
+        """获取已启用的工具列表"""
+        tools = []
+        servers = self.get_servers()
+        
+        for s_name, server_config in servers.items():
+            if server_name and s_name != server_name:
+                continue
+                
+            if isinstance(server_config, dict) and server_config.get("enabled", False):
+                server_tools = server_config.get("tools", [])
+                for tool in server_tools:
+                    if isinstance(tool, dict) and "name" in tool:
+                        tools.append(tool["name"])
+        
+        return tools
+    
+    def get_tool_info(self, tool_name: str) -> Optional[Dict[str, Any]]:
+        """获取指定工具的详细信息"""
+        servers = self.get_servers()
+        
+        for server_name, server_config in servers.items():
+            if isinstance(server_config, dict) and server_config.get("enabled", False):
+                server_tools = server_config.get("tools", [])
+                for tool in server_tools:
+                    if isinstance(tool, dict) and tool.get("name") == tool_name:
+                        return {
+                            "name": tool["name"],
+                            "description": tool.get("description", ""),
+                            "server": server_name,
+                            "parameters": tool.get("parameters", {}),
+                            "enabled": True
+                        }
+        
+        return None
+    
+    def search_tools(self, keyword: str) -> List[str]:
+        """搜索工具"""
+        matching_tools = []
+        servers = self.get_servers()
+        
+        for server_name, server_config in servers.items():
+            if isinstance(server_config, dict) and server_config.get("enabled", False):
+                server_tools = server_config.get("tools", [])
+                for tool in server_tools:
+                    if isinstance(tool, dict) and "name" in tool:
+                        tool_name = tool["name"]
+                        description = tool.get("description", "")
+                        
+                        # 搜索工具名称和描述
+                        if (keyword.lower() in tool_name.lower() or 
+                            keyword.lower() in description.lower()):
+                            matching_tools.append(tool_name)
+        
+        return matching_tools
+    
+    def get_tools_by_server(self, server_name: str) -> List[Dict[str, Any]]:
+        """获取指定服务器的工具列表"""
+        server_config = self.get_server_config(server_name)
+        if not server_config or not server_config.get("enabled", False):
+            return []
+        
+        tools = server_config.get("tools", [])
+        return [tool for tool in tools if isinstance(tool, dict)]
+    
+    def get_server_tools_by_category(self, server_name: str) -> Dict[str, List[Dict[str, Any]]]:
+        """获取服务器的工具分类（兼容旧接口）"""
+        tools = self.get_tools_by_server(server_name)
+        return {
+            "all": tools
+        }
+    
     def get_tool_categories(self) -> Dict[str, Any]:
-        """获取工具分类配置"""
-        if self.config is None:
-            return {}
-        return self.config.get("tool_categories", {})
-    
-    def get_tool_limits(self) -> Dict[str, Any]:
-        """获取工具调用限制配置"""
-        global_config = self.get_global_config()
-        return global_config.get("tool_limits", {})
-    
-    def get_security_config(self) -> Dict[str, Any]:
-        """获取安全配置"""
-        global_config = self.get_global_config()
-        return global_config.get("security", {})
-    
-    def get_environment_variables(self) -> Dict[str, str]:
-        """获取环境变量配置"""
-        if self.config is None:
-            return {}
-        env_config = self.config.get("environment_variables", {})
+        """获取工具分类配置（兼容旧接口）"""
+        # 根据服务器名称生成分类
+        categories = {}
+        servers = self.get_servers()
         
-        # 处理环境变量替换
-        processed_env = {}
-        for key, value in env_config.items():
-            if isinstance(value, str) and value.startswith("${") and value.endswith("}"):
-                # 从环境变量中获取值
-                env_key = value[2:-1]
-                processed_env[key] = os.getenv(env_key, "")
-            else:
-                processed_env[key] = value
+        for server_name, server_config in servers.items():
+            if isinstance(server_config, dict) and server_config.get("enabled", False):
+                tools = server_config.get("tools", [])
+                tool_names = [tool["name"] for tool in tools if isinstance(tool, dict) and "name" in tool]
+                
+                categories[server_name] = {
+                    "description": f"{server_name} 工具集",
+                    "tools": tool_names,
+                    "servers": [server_name]
+                }
         
-        return processed_env
+        return categories
+    
+    def get_tools_by_category(self, category_name: str) -> List[str]:
+        """根据分类获取工具列表（兼容旧接口）"""
+        categories = self.get_tool_categories()
+        if category_name in categories:
+            return categories[category_name].get("tools", [])
+        return []
+    
+    def get_tool_by_id(self, tool_name: str) -> Optional[Dict[str, Any]]:
+        """根据ID获取工具信息（兼容旧接口）"""
+        return self.get_tool_info(tool_name)
+    
+    def get_enabled_tools_for_server(self, server_name: str) -> List[str]:
+        """获取指定服务器的已启用工具列表"""
+        return self.get_enabled_tools(server_name)
     
     def is_server_enabled(self, server_name: str) -> bool:
         """检查服务器是否启用"""
         server_config = self.get_server_config(server_name)
         return server_config is not None and server_config.get("enabled", False)
     
-    def get_enabled_tools(self, server_name: str) -> List[str]:
-        """获取指定服务器启用的工具列表"""
-        server_config = self.get_server_config(server_name)
-        if not server_config:
-            return []
-        
-        tools = []
-        tools_config = server_config.get("tools", {})
-        
-        for category_name, category_config in tools_config.items():
-            if category_config.get("enabled", True):
-                tools.extend(category_config.get("tools", []))
-        
-        return tools
-    
-    def get_server_tools_by_category(self, server_name: str) -> Dict[str, List[str]]:
-        """获取指定服务器按分类组织的工具"""
-        server_config = self.get_server_config(server_name)
-        if not server_config:
-            return {}
-        
-        tools_by_category = {}
-        tools_config = server_config.get("tools", {})
-        
-        for category_name, category_config in tools_config.items():
-            if category_config.get("enabled", True):
-                tools_by_category[category_name] = category_config.get("tools", [])
-        
-        return tools_by_category
-    
-    def get_all_tools(self) -> List[str]:
-        """获取所有启用的工具列表"""
-        all_tools = []
-        
-        for server_name in self.get_enabled_servers():
-            tools = self.get_enabled_tools(server_name)
-            all_tools.extend(tools)
-        
-        return all_tools
-    
-    def get_tools_by_category(self, category_name: str) -> List[str]:
-        """根据分类获取工具列表"""
-        tool_categories = self.get_tool_categories()
-        if category_name in tool_categories:
-            return tool_categories[category_name].get("tools", [])
-        return []
-    
-    def search_tools(self, keyword: str) -> List[str]:
-        """搜索工具"""
-        all_tools = self.get_all_tools()
-        matching_tools = []
-        
-        for tool in all_tools:
-            if keyword.lower() in tool.lower():
-                matching_tools.append(tool)
-        
-        return matching_tools
-    
     def validate_config(self) -> List[str]:
-        """验证配置文件的正确性"""
+        """验证配置"""
         errors = []
         
-        # 检查配置是否为None
-        if self.config is None:
-            errors.append("配置为空，无法验证")
-            return errors
-        
-        # 检查必要的配置项
-        if "builtin_servers" not in self.config:
-            errors.append("缺少 builtin_servers 配置项")
-        
-        if "external_servers" not in self.config:
-            errors.append("缺少 external_servers 配置项")
-        
-        if "global_config" not in self.config:
-            errors.append("缺少 global_config 配置项")
-        
-        # 检查内置服务器配置
-        builtin_servers = self.get_builtin_servers()
-        if builtin_servers is not None:
-            for server_name, server_config in builtin_servers.items():
+        try:
+            servers = self.get_servers()
+            
+            for server_name, server_config in servers.items():
                 if not isinstance(server_config, dict):
-                    errors.append(f"服务器 {server_name} 配置格式错误")
+                    errors.append(f"服务器 '{server_name}' 配置格式错误")
                     continue
                 
-                required_fields = ["enabled", "name", "description", "module_path", "class_name"]
-                for field in required_fields:
-                    if field not in server_config:
-                        errors.append(f"服务器 {server_name} 缺少必要字段: {field}")
-        
-        # 检查外部服务器配置
-        external_servers = self.get_external_servers()
-        if external_servers is not None:
-            for server_name, server_config in external_servers.items():
-                if not isinstance(server_config, dict):
-                    errors.append(f"外部服务器 {server_name} 配置格式错误")
-                    continue
+                # 检查必需字段
+                if "module_path" not in server_config:
+                    errors.append(f"服务器 '{server_name}' 缺少 module_path 配置")
                 
-                required_fields = ["enabled", "name", "description", "transport", "command"]
-                for field in required_fields:
-                    if field not in server_config:
-                        errors.append(f"外部服务器 {server_name} 缺少必要字段: {field}")
+                if "class_name" not in server_config:
+                    errors.append(f"服务器 '{server_name}' 缺少 class_name 配置")
+                
+                # 检查工具配置
+                tools = server_config.get("tools", [])
+                if not isinstance(tools, list):
+                    errors.append(f"服务器 '{server_name}' 的 tools 配置格式错误")
+                else:
+                    for i, tool in enumerate(tools):
+                        if not isinstance(tool, dict):
+                            errors.append(f"服务器 '{server_name}' 的第 {i+1} 个工具配置格式错误")
+                        elif "name" not in tool:
+                            errors.append(f"服务器 '{server_name}' 的第 {i+1} 个工具缺少 name 字段")
+                        elif "description" not in tool:
+                            errors.append(f"服务器 '{server_name}' 的工具 '{tool['name']}' 缺少 description 字段")
+        
+        except Exception as e:
+            errors.append(f"配置验证过程中发生错误: {str(e)}")
         
         return errors
     
     def reload_config(self):
         """重新加载配置"""
-        logger.info("重新加载MCP配置...")
         self.config = self._load_config()
-        
-        # 确保config不为None
-        if self.config is None:
-            logger.warning("配置重新加载失败，使用默认配置")
-            self.config = self._get_default_config()
-        
-        logger.info("MCP配置重新加载完成")
+        logger.info("MCP配置已重新加载")
     
     def get_config_summary(self) -> Dict[str, Any]:
-        """获取配置摘要信息"""
+        """获取配置摘要"""
+        servers = self.get_servers()
         enabled_servers = self.get_enabled_servers()
-        builtin_servers = self.get_builtin_servers()
-        external_servers = self.get_external_servers()
+        all_tools = self.get_all_tools()
         
-        summary = {
-            "total_servers": len(builtin_servers) + len(external_servers),
-            "enabled_servers": len(enabled_servers),
-            "builtin_servers": len(builtin_servers),
-            "external_servers": len(external_servers),
-            "enabled_server_names": enabled_servers,
-            "config_path": str(self.config_path),
-            "config_valid": len(self.validate_config()) == 0
-        }
-        
-        # 统计工具数量
-        total_tools = 0
-        tools_by_server = {}
+        # 统计每个服务器的工具数量
+        server_stats = {}
         for server_name in enabled_servers:
             tools = self.get_enabled_tools(server_name)
-            tools_by_server[server_name] = len(tools)
-            total_tools += len(tools)
+            server_stats[server_name] = len(tools)
         
-        summary["total_tools"] = total_tools
-        summary["tools_by_server"] = tools_by_server
-        
-        return summary
+        return {
+            "total_servers": len(servers),
+            "enabled_servers": len(enabled_servers),
+            "total_tools": len(all_tools),
+            "server_stats": server_stats,
+            "enabled_server_names": enabled_servers,
+            "all_server_names": list(servers.keys())
+        }
 
 
 # 全局配置管理器实例
@@ -411,13 +335,13 @@ def get_mcp_config_manager() -> MCPConfigManager:
     """获取MCP配置管理器实例"""
     global _config_manager
     if _config_manager is None:
-        logger.info("创建新的MCPConfigManager实例")
         _config_manager = MCPConfigManager()
-    else:
-        logger.debug("返回现有的MCPConfigManager实例")
     return _config_manager
 
 def reload_mcp_config():
     """重新加载MCP配置"""
-    config_manager = get_mcp_config_manager()
-    config_manager.reload_config() 
+    global _config_manager
+    if _config_manager is not None:
+        _config_manager.reload_config()
+    else:
+        _config_manager = MCPConfigManager() 

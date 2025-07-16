@@ -1,184 +1,124 @@
 <template>
   <div class="mcp-config-management">
 
-    <!-- 操作按钮 -->
-    <div class="action-bar">
-      <a-space>
-        <a-button @click="refreshAllData" :loading="loading.all" :icon="h(ReloadOutlined)">
-          刷新数据
-        </a-button>
-        <a-button @click="reloadConfig" :loading="loading.reload" :icon="h(SyncOutlined)">
-          重新加载配置
-        </a-button>
-        <a-button @click="validateConfig" :loading="loading.validation" :icon="h(SafetyOutlined)">
-          验证配置
-        </a-button>
-        <a-button @click="debugData" size="small" type="dashed">
-          调试数据
-        </a-button>
-      </a-space>
-
-      <!-- 统计信息 -->
-      <div class="stats-info">
-        <a-space>
-          <span>总计: {{ totalServersCount }} 个服务器</span>
-          <span>内部: {{ builtinServersCount }} 个</span>
-          <span>外部: {{ externalServersCount }} 个</span>
-          <span>功能函数: {{ totalFunctionsCount }} 个</span>
-        </a-space>
-      </div>
-    </div>
-
-
-
     <!-- MCP功能列表 -->
     <div class="mcp-functions-section">
       <div class="section-header">
         <h4>MCP功能列表</h4>
+        <div class="stats-info">
+          <a-space>
+            <span>总计: {{ totalServersCount }} 个服务器</span>
+            <span>功能函数: {{ totalFunctionsCount }} 个</span>
+          </a-space>
+        </div>
         <a-space>
-          <a-select v-model:value="selectedServerType" placeholder="服务器类型" style="width: 120px"
-            @change="handleServerTypeChange">
-            <a-select-option value="">全部</a-select-option>
-            <a-select-option value="builtin">内部</a-select-option>
-            <a-select-option value="external">外部</a-select-option>
-          </a-select>
+          <a-button type="primary" @click="showAddServerModal" :icon="h(PlusOutlined)">
+            添加外部MCP
+          </a-button>
           <a-input-search v-model:value="searchKeyword" placeholder="搜索MCP名称或描述" style="width: 200px"
             @search="handleSearch" @change="handleSearch" />
         </a-space>
       </div>
 
       <a-spin :spinning="loading.functions">
-        <a-row :gutter="[16, 16]">
-          <a-col v-for="server in filteredServers" :key="server.name" :xs="24" :sm="12" :md="8" :lg="6">
-            <a-card :title="server.name || server.server_name || '未知服务器'" class="mcp-server-card"
-              :class="{ 'disabled': !(server.enabled !== false) }" :hoverable="true">
-              <template #extra>
-                <div class="card-tags">
-                  <a-tag :color="(server.enabled !== false) ? 'green' : 'red'" size="small">
-                    {{ (server.enabled !== false) ? '启用' : '禁用' }}
+        <a-table :data-source="filteredServers" :columns="tableColumns" :pagination="false"
+          :row-key="(record) => record.serverKey" class="mcp-servers-table" :row-class-name="getRowClassName">
+          <template #bodyCell="{ column, record }">
+            <template v-if="column.key === 'name'">
+              <div class="server-name-cell">
+                <div class="server-name">{{ record.serverKey || '未知服务器' }}</div>
+                <div class="server-description">{{ record.module_path || '无描述' }}</div>
+                <div class="server-type">
+                  <a-tag :color="record.is_external ? 'orange' : 'blue'" size="small">
+                    {{ record.is_external ? '外部' : '内置' }}
                   </a-tag>
-                  <a-tag :color="(server.type || server.server_type) === 'builtin' ? 'blue' : 'orange'" size="small">
-                    {{ (server.type || server.server_type) === 'builtin' ? '内部' : '外部' }}
-                  </a-tag>
-                </div>
-              </template>
-
-              <div class="server-content">
-                <div class="server-description">
-                  <p>{{ server.description || server.server_description || '无描述' }}</p>
-                </div>
-
-                <div class="server-functions">
-                  <h5>功能函数 ({{ getFunctionsCount(server) }})</h5>
-                  <div class="functions-list">
-                    <div v-if="getServerTools(server).length > 0" class="functions-grid">
-                      <a-tag v-for="tool in getServerTools(server).slice(0, 3)"
-                        :key="tool.name || tool.function_name || tool.id" color="cyan" size="small">
-                        {{ getToolDisplayName(tool) }}
-                      </a-tag>
-                      <a-tag v-if="getServerTools(server).length > 3" color="default" size="small">
-                        +{{ getServerTools(server).length - 3 }}个
-                      </a-tag>
-                    </div>
-                    <div v-else class="no-functions">
-                      <span class="text-muted">暂无功能函数</span>
-                      <div class="debug-hint" v-if="process.env.NODE_ENV === 'development'">
-                        <small>提示: 点击"调试数据"按钮查看服务器原始数据</small>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <div class="server-actions">
-                  <a-space>
-                    <a-button size="small" type="primary" @click="viewServerDetail(server.name || server.server_name)"
-                      :icon="h(EyeOutlined)">
-                      详情
-                    </a-button>
-                    <a-button size="small" @click="viewFunctions(server)" :icon="h(FunctionOutlined)">
-                      功能
-                    </a-button>
-                  </a-space>
                 </div>
               </div>
-            </a-card>
-          </a-col>
-        </a-row>
+            </template>
+
+
+
+            <template v-else-if="column.key === 'status'">
+              <a-tag :color="(record.enabled !== false) ? 'green' : 'red'" size="small">
+                {{ (record.enabled !== false) ? '启用' : '禁用' }}
+              </a-tag>
+            </template>
+
+            <template v-else-if="column.key === 'functions'">
+              <div class="functions-cell">
+                <span class="functions-count">{{ getFunctionsCount(record) }} 个功能</span>
+                <div v-if="getServerTools(record).length > 0" class="functions-preview">
+                  <a-tag v-for="tool in getServerTools(record).slice(0, 2)"
+                    :key="tool.name || tool.function_name || tool.id" color="cyan" size="small">
+                    {{ getToolDisplayName(tool) }}
+                  </a-tag>
+                  <a-tag v-if="getServerTools(record).length > 2" color="default" size="small">
+                    +{{ getServerTools(record).length - 2 }}个
+                  </a-tag>
+                </div>
+                <div v-else class="no-functions">
+                  <span class="text-muted">暂无功能函数</span>
+                </div>
+              </div>
+            </template>
+
+            <template v-else-if="column.key === 'enabled'">
+              <a-switch :checked="record.enabled !== false"
+                :loading="loading.toggle && currentToggleServer === record.serverKey"
+                @change="(checked) => toggleServerStatus(record, checked)" size="small" />
+            </template>
+
+            <template v-else-if="column.key === 'actions'">
+              <a-space>
+                <a-button size="small" type="primary" @click="viewServerDetail(record)" :icon="h(EyeOutlined)">
+                  详情
+                </a-button>
+                <a-button v-if="!record.is_external" size="small" @click="editServer(record)" :icon="h(EditOutlined)">
+                  编辑
+                </a-button>
+                <a-button v-if="record.is_external" size="small" danger @click="deleteServer(record)" :icon="h(DeleteOutlined)">
+                  删除
+                </a-button>
+              </a-space>
+            </template>
+          </template>
+        </a-table>
       </a-spin>
 
       <!-- 空状态 -->
       <a-empty v-if="!loading.functions && filteredServers.length === 0" class="empty-state">
         <template #description>
-          <span v-if="searchKeyword || selectedServerType">没有找到符合条件的MCP服务器</span>
+          <span v-if="searchKeyword">没有找到符合条件的MCP服务器</span>
           <span v-else>没有可用的MCP服务器</span>
         </template>
       </a-empty>
     </div>
 
     <!-- 服务器详情模态框 -->
-    <a-modal v-model:open="serverDetailVisible" title="服务器详情" width="800px" :footer="null">
+    <a-modal v-model:open="serverDetailVisible" title="服务器详情" width="900px" :footer="null">
       <div v-if="currentServer">
-        <a-descriptions :column="2" bordered>
-          <a-descriptions-item label="服务器名称">{{ currentServer.name || currentServer.server_name || '未知服务器'
-          }}</a-descriptions-item>
-          <a-descriptions-item label="类型">
-            <a-tag :color="(currentServer.type || currentServer.server_type) === 'builtin' ? 'blue' : 'orange'">
-              {{ (currentServer.type || currentServer.server_type) === 'builtin' ? '内部' : '外部' }}
-            </a-tag>
-          </a-descriptions-item>
-          <a-descriptions-item label="描述">{{ currentServer.description || currentServer.server_description || '无描述'
-          }}</a-descriptions-item>
-          <a-descriptions-item label="状态">
+        <div class="server-detail-header">
+          <h4>{{ currentServer.serverKey || '未知服务器' }}</h4>
+          <div class="server-tags">
             <a-tag :color="(currentServer.enabled !== false) ? 'green' : 'red'">
               {{ (currentServer.enabled !== false) ? '启用' : '禁用' }}
             </a-tag>
-          </a-descriptions-item>
-        </a-descriptions>
-
-        <div v-if="currentServer.tools_by_category || getServerTools(currentServer).length > 0" class="tools-section">
-          <h4>功能函数分类:</h4>
-          <a-collapse v-if="currentServer.tools_by_category">
-            <a-collapse-panel v-for="(tools, category) in currentServer.tools_by_category" :key="category"
-              :header="`${category} (${tools.length})`">
-              <a-list :data-source="tools" size="small">
-                <template #renderItem="{ item }">
-                  <a-list-item>
-                    <a-list-item-meta>
-                      <template #title>{{ item.name || item.function_name }}</template>
-                      <template #description>{{ item.description || '无描述' }}</template>
-                    </a-list-item-meta>
-                  </a-list-item>
-                </template>
-              </a-list>
-            </a-collapse-panel>
-          </a-collapse>
-          <div v-else>
-            <a-list :data-source="getServerTools(currentServer)" size="small">
-              <template #renderItem="{ item }">
-                <a-list-item>
-                  <a-list-item-meta>
-                    <template #title>{{ getToolDisplayName(item) }}</template>
-                    <template #description>{{ item.description || '无描述' }}</template>
-                  </a-list-item-meta>
-                </a-list-item>
-              </template>
-            </a-list>
+            <a-tag :color="currentServer.is_external ? 'orange' : 'blue'">
+              {{ currentServer.is_external ? '外部' : '内置' }}
+            </a-tag>
           </div>
         </div>
-      </div>
-    </a-modal>
 
-    <!-- 功能函数详情模态框 -->
-    <a-modal v-model:open="functionsDetailVisible" title="功能函数详情" width="900px" :footer="null">
-      <div v-if="currentServerForFunctions">
-        <div class="functions-header">
-          <h4>{{ currentServerForFunctions.name || currentServerForFunctions.server_name || '未知服务器' }} - 功能函数列表</h4>
-          <p class="server-description">{{ currentServerForFunctions.description ||
-            currentServerForFunctions.server_description || '无描述' }}</p>
-        </div>
+        <a-descriptions :column="2" bordered class="server-info">
+          <a-descriptions-item label="服务器名称">{{ currentServer.serverKey || '未知服务器' }}</a-descriptions-item>
+          <a-descriptions-item label="模块路径">{{ currentServer.module_path || '无描述' }}</a-descriptions-item>
+          <a-descriptions-item label="类名">{{ currentServer.class_name || '无描述' }}</a-descriptions-item>
+          <a-descriptions-item label="配置路径">{{ currentServer.config_path || '无描述' }}</a-descriptions-item>
+        </a-descriptions>
 
-        <div v-if="getServerTools(currentServerForFunctions).length > 0" class="functions-list">
-          <a-list :data-source="getServerTools(currentServerForFunctions)" size="large">
+        <div v-if="getServerTools(currentServer).length > 0" class="functions-section">
+          <h4>功能函数列表 ({{ getServerTools(currentServer).length }} 个):</h4>
+          <a-list :data-source="getServerTools(currentServer)" size="large" class="functions-list">
             <template #renderItem="{ item }">
               <a-list-item>
                 <a-list-item-meta>
@@ -191,9 +131,9 @@
                   <template #description>
                     <div class="function-description">
                       <p>{{ item.description || '无描述' }}</p>
-                      <div v-if="item.inputSchema || item.schema" class="function-schema">
+                      <div v-if="item.parameters" class="function-schema">
                         <h6>输入参数:</h6>
-                        <pre>{{ JSON.stringify(item.inputSchema || item.schema, null, 2) }}</pre>
+                        <pre>{{ JSON.stringify(item.parameters, null, 2) }}</pre>
                       </div>
                     </div>
                   </template>
@@ -207,61 +147,131 @@
         </div>
       </div>
     </a-modal>
+
+    <!-- 添加/编辑服务器模态框 -->
+    <a-modal v-model:open="serverFormVisible" :title="serverFormMode === 'add' ? '添加外部MCP服务器' : '编辑MCP服务器'" 
+      width="600px" @ok="handleServerFormSubmit" @cancel="handleServerFormCancel" :confirmLoading="loading.submit">
+      <a-form ref="serverFormRef" :model="serverForm" :rules="serverFormRules" layout="vertical">
+        <a-form-item label="服务器名称" name="serverKey">
+          <a-input v-model:value="serverForm.serverKey" placeholder="请输入服务器名称" 
+            :disabled="serverFormMode === 'edit'" />
+        </a-form-item>
+        <a-form-item label="模块路径" name="module_path">
+          <a-input v-model:value="serverForm.module_path" placeholder="请输入模块路径" />
+        </a-form-item>
+        <a-form-item label="类名" name="class_name">
+          <a-input v-model:value="serverForm.class_name" placeholder="请输入类名" />
+        </a-form-item>
+        <a-form-item label="配置路径" name="config_path">
+          <a-input v-model:value="serverForm.config_path" placeholder="请输入配置路径" />
+        </a-form-item>
+        <a-form-item label="启用状态" name="enabled">
+          <a-switch v-model:checked="serverForm.enabled" />
+        </a-form-item>
+      </a-form>
+    </a-modal>
   </div>
 </template>
 
 <script setup>
 import { ref, reactive, computed, onMounted, h } from 'vue'
-import { message } from 'ant-design-vue'
+import { message, Modal } from 'ant-design-vue'
 import {
-  ReloadOutlined,
-  SafetyOutlined,
-  SyncOutlined,
   EyeOutlined,
-  FunctionOutlined
+  EditOutlined,
+  DeleteOutlined,
+  PlusOutlined
 } from '@ant-design/icons-vue'
 import { mcpConfigApi } from '@/apis/mcp_api'
 
 // 状态管理
 const loading = reactive({
-  all: false,
-  servers: false,
-  validation: false,
-  reload: false,
-  functions: false
+  functions: false,
+  toggle: false,
+  submit: false
 })
+
+// 当前正在切换状态的服务器
+const currentToggleServer = ref('')
 
 // 数据状态
 const servers = ref({})
-const configValid = ref(true)
-const validationErrors = ref([])
 const searchKeyword = ref('')
-const selectedServerType = ref('')
 
 // 模态框状态
 const serverDetailVisible = ref(false)
 const currentServer = ref(null)
-const functionsDetailVisible = ref(false)
-const currentServerForFunctions = ref(null)
+const serverFormVisible = ref(false)
+const serverFormMode = ref('add') // 'add' | 'edit'
+
+// 表单相关
+const serverFormRef = ref()
+const serverForm = reactive({
+  serverKey: '',
+  module_path: '',
+  class_name: '',
+  config_path: '',
+  enabled: true
+})
+
+const serverFormRules = {
+  serverKey: [
+    { required: true, message: '请输入服务器名称' },
+    { min: 1, max: 100, message: '服务器名称长度为1-100个字符' }
+  ],
+  module_path: [
+    { required: true, message: '请输入模块路径' }
+  ],
+  class_name: [
+    { required: true, message: '请输入类名' }
+  ]
+}
+
+// 表格列定义
+const tableColumns = [
+  {
+    title: '服务器名称',
+    key: 'name',
+    width: 300,
+    ellipsis: true
+  },
+  {
+    title: '功能函数',
+    key: 'functions',
+    width: 200,
+    ellipsis: true
+  },
+  {
+    title: '启用/禁用',
+    key: 'enabled',
+    width: 100,
+    align: 'center'
+  },
+  {
+    title: '状态',
+    key: 'status',
+    width: 80,
+    align: 'center'
+  },
+  {
+    title: '操作',
+    key: 'actions',
+    width: 180,
+    align: 'center',
+    fixed: 'right'
+  }
+]
 
 // 计算属性
+const isDevelopment = computed(() => {
+  return import.meta.env.MODE === 'development'
+})
+
 const totalServersCount = computed(() => {
   return Object.keys(servers.value).length
 })
 
-const builtinServersCount = computed(() => {
-  return Object.values(servers.value).filter(server => {
-    const serverType = server.type || server.server_type || 'external'
-    return serverType === 'builtin'
-  }).length
-})
 
-const externalServersCount = computed(() => {
-  return Object.values(servers.value).filter(server => {
-    const serverType = server.type || server.server_type || 'external'
-    return serverType === 'external'
-  }).length
-})
 
 const totalFunctionsCount = computed(() => {
   return Object.values(servers.value).reduce((sum, server) => {
@@ -270,26 +280,28 @@ const totalFunctionsCount = computed(() => {
 })
 
 const filteredServers = computed(() => {
-  let filtered = Object.values(servers.value)
+  // 将对象转换为数组，包含服务器名称
+  let filtered = Object.entries(servers.value).map(([key, server]) => ({
+    ...server,
+    serverKey: key // 添加服务器键名
+  }))
 
-  // 按服务器类型过滤
-  if (selectedServerType.value) {
-    filtered = filtered.filter(server => {
-      const serverType = server.type || server.server_type || 'external'
-      return serverType === selectedServerType.value
-    })
-  }
+  // 按服务器类型过滤（新数据结构中没有类型字段，暂时跳过）
+  // if (selectedServerType.value) {
+  //   filtered = filtered.filter(server => {
+  //     const serverType = server.type || server.server_type || 'external'
+  //     return serverType === selectedServerType.value
+  //   })
+  // }
 
   // 按搜索关键词过滤
   if (searchKeyword.value) {
     const keyword = searchKeyword.value.toLowerCase()
     filtered = filtered.filter(server => {
-      const name = server.name || server.server_name || ''
-      const description = server.description || server.server_description || ''
+      const name = server.serverKey || ''
       const tools = getServerTools(server)
 
       return name.toLowerCase().includes(keyword) ||
-        description.toLowerCase().includes(keyword) ||
         tools.some(tool => {
           const toolName = getToolDisplayName(tool).toLowerCase()
           const toolDesc = (tool.description || '').toLowerCase()
@@ -307,98 +319,47 @@ const getFunctionsCount = (server) => {
 }
 
 const getServerTools = (server) => {
-  // 尝试多种可能的数据结构
+  // 新的数据结构：直接使用 server.tools
   let tools = []
 
-  // 调试服务器数据结构
-  console.log('服务器数据结构:', {
-    name: server.name || server.server_name,
-    hasTools: !!server.tools,
-    hasFunctions: !!server.functions,
-    hasToolsByCategory: !!server.tools_by_category,
-    hasServerTools: !!server.server_tools,
-    hasServerFunctions: !!server.server_functions,
-    serverKeys: Object.keys(server)
-  })
+  // 调试服务器数据结构（仅在开发环境）
+  if (isDevelopment.value) {
+    console.log('服务器数据结构:', {
+      hasTools: !!server.tools,
+      serverKeys: Object.keys(server)
+    })
+  }
 
+  // 直接使用 tools 字段
   if (server.tools && Array.isArray(server.tools)) {
     tools = server.tools
-    console.log('使用 server.tools:', tools.length)
-  } else if (server.functions && Array.isArray(server.functions)) {
-    tools = server.functions
-    console.log('使用 server.functions:', tools.length)
-  } else if (server.tools_by_category && typeof server.tools_by_category === 'object') {
-    // 如果按分类组织，则展平所有工具
-    tools = Object.values(server.tools_by_category).flat()
-    console.log('使用 server.tools_by_category:', tools.length)
-  } else if (server.server_tools && Array.isArray(server.server_tools)) {
-    tools = server.server_tools
-    console.log('使用 server.server_tools:', tools.length)
-  } else if (server.server_functions && Array.isArray(server.server_functions)) {
-    tools = server.server_functions
-    console.log('使用 server.server_functions:', tools.length)
-  } else {
-    // 尝试查找其他可能的字段
-    const possibleFields = ['methods', 'capabilities', 'resources', 'handlers']
-    for (const field of possibleFields) {
-      if (server[field] && Array.isArray(server[field])) {
-        tools = server[field]
-        console.log(`使用 server.${field}:`, tools.length)
-        break
-      }
-    }
   }
 
   // 确保返回的是数组
   if (!Array.isArray(tools)) {
-    console.warn('服务器工具数据不是数组:', server.name || server.server_name, tools)
+    if (isDevelopment.value) {
+      console.warn('服务器工具数据不是数组:', tools)
+    }
     tools = []
   }
 
-  // 调试信息
-  if (tools.length > 0) {
-    console.log(`服务器 ${server.name || server.server_name} 有 ${tools.length} 个工具:`, tools.slice(0, 3))
-  } else {
-    console.warn(`服务器 ${server.name || server.server_name} 没有找到工具数据`)
+  // 调试信息（仅在开发环境）
+  if (isDevelopment.value && tools.length > 0) {
+    console.log(`服务器有 ${tools.length} 个工具:`, tools.slice(0, 3))
   }
 
   return tools
 }
 
 const getToolDisplayName = (tool) => {
-  // 尝试多种可能的名称字段
+  // 新的数据结构：直接使用 tool.name
   if (tool.name) {
     return tool.name
-  } else if (tool.function_name) {
-    return tool.function_name
-  } else if (tool.id) {
-    return tool.id
-  } else if (tool.title) {
-    return tool.title
-  } else if (tool.method) {
-    return tool.method
-  } else if (tool.handler) {
-    return tool.handler
-  } else if (tool.resource) {
-    return tool.resource
   } else {
-    console.warn('工具缺少名称字段:', tool)
+    if (isDevelopment.value) {
+      console.warn('工具缺少名称字段:', tool)
+    }
     return '未知工具'
-  }
-}
-
-const refreshAllData = async () => {
-  try {
-    loading.all = true
-    await Promise.all([
-      refreshServers(),
-      validateConfig()
-    ])
-  } catch (error) {
-    console.error('刷新数据失败:', error)
-    message.error('刷新数据失败')
-  } finally {
-    loading.all = false
   }
 }
 
@@ -407,20 +368,24 @@ const refreshServers = async () => {
     loading.functions = true
     const response = await mcpConfigApi.getServers()
     if (response.success) {
-      // 确保数据结构正确
-      servers.value = response.data.servers || response.data || {}
-      console.log('获取到的服务器数据:', servers.value)
-      console.log('服务器数量:', Object.keys(servers.value).length)
+      // 新的数据结构：直接使用 response.data.servers
+      servers.value = response.data.servers || {}
 
-      // 打印每个服务器的基本信息
-      Object.entries(servers.value).forEach(([key, server]) => {
-        console.log(`服务器 ${key}:`, {
-          name: server.name || server.server_name,
-          type: server.type || server.server_type,
-          enabled: server.enabled,
-          toolsCount: getServerTools(server).length
+      if (isDevelopment.value) {
+        console.log('获取到的服务器数据:', servers.value)
+        console.log('服务器数量:', Object.keys(servers.value).length)
+
+        // 打印每个服务器的基本信息
+        Object.entries(servers.value).forEach(([key, server]) => {
+          console.log(`服务器 ${key}:`, {
+            name: key, // 使用 key 作为服务器名称
+            enabled: server.enabled,
+            toolsCount: getServerTools(server).length
+          })
         })
-      })
+      }
+    } else {
+      message.error(response.message || '获取服务器列表失败')
     }
   } catch (error) {
     console.error('获取服务器列表失败:', error)
@@ -430,100 +395,150 @@ const refreshServers = async () => {
   }
 }
 
-const reloadConfig = async () => {
+const viewServerDetail = (server) => {
   try {
-    loading.reload = true
-    const response = await mcpConfigApi.reloadConfig()
-    if (response.success) {
-      message.success('配置重新加载成功')
-      await Promise.all([
-        refreshServers(),
-        validateConfig()
-      ])
-    }
+    console.log('查看服务器详情:', server.serverKey)
+    currentServer.value = server
+    serverDetailVisible.value = true
   } catch (error) {
-    console.error('重新加载配置失败:', error)
-    message.error('重新加载配置失败')
-  } finally {
-    loading.reload = false
+    console.error('显示服务器详情失败:', error)
+    message.error('显示服务器详情失败')
   }
 }
 
-const validateConfig = async () => {
-  try {
-    loading.validation = true
-    const response = await mcpConfigApi.validateConfig()
-    if (response.success) {
-      configValid.value = response.data.valid
-      validationErrors.value = response.data.errors || []
+const showAddServerModal = () => {
+  serverFormMode.value = 'add'
+  resetServerForm()
+  serverFormVisible.value = true
+}
 
-      if (configValid.value) {
-        message.success('配置验证通过')
-      } else {
-        message.warning(`配置验证失败，发现 ${validationErrors.value.length} 个错误`)
+const editServer = (server) => {
+  serverFormMode.value = 'edit'
+  resetServerForm()
+  
+  // 填充表单数据
+  serverForm.serverKey = server.serverKey
+  serverForm.module_path = server.module_path || ''
+  serverForm.class_name = server.class_name || ''
+  serverForm.config_path = server.config_path || ''
+  serverForm.enabled = server.enabled !== false
+  
+  serverFormVisible.value = true
+}
+
+const deleteServer = (server) => {
+  Modal.confirm({
+    title: '确认删除',
+    content: `确定要删除服务器 "${server.serverKey}" 吗？此操作不可恢复。`,
+    okText: '删除',
+    okType: 'danger',
+    cancelText: '取消',
+    onOk: async () => {
+      try {
+        const response = await mcpConfigApi.deleteServer(server.serverKey)
+        if (response.success) {
+          message.success('服务器删除成功')
+          await refreshServers()
+        } else {
+          message.error(response.message || '删除服务器失败')
+        }
+      } catch (error) {
+        console.error('删除服务器失败:', error)
+        message.error('删除服务器失败')
       }
     }
-  } catch (error) {
-    console.error('验证配置失败:', error)
-    message.error('验证配置失败')
-  } finally {
-    loading.validation = false
-  }
+  })
 }
 
-const viewServerDetail = async (serverName) => {
+const resetServerForm = () => {
+  serverForm.serverKey = ''
+  serverForm.module_path = ''
+  serverForm.class_name = ''
+  serverForm.config_path = ''
+  serverForm.enabled = true
+}
+
+const handleServerFormSubmit = async () => {
   try {
-    console.log('查看服务器详情:', serverName)
-    const response = await mcpConfigApi.getServerDetail(serverName)
+    await serverFormRef.value.validate()
+    loading.submit = true
+
+    const formData = {
+      serverKey: serverForm.serverKey,
+      module_path: serverForm.module_path,
+      class_name: serverForm.class_name,
+      config_path: serverForm.config_path,
+      enabled: serverForm.enabled,
+      is_external: serverFormMode.value === 'add'
+    }
+
+    let response
+    if (serverFormMode.value === 'add') {
+      response = await mcpConfigApi.addExternalServer(formData)
+    } else {
+      response = await mcpConfigApi.updateServerConfig(serverForm.serverKey, formData)
+    }
+
     if (response.success) {
-      currentServer.value = response.data
-      serverDetailVisible.value = true
+      message.success(`服务器${serverFormMode.value === 'add' ? '添加' : '更新'}成功`)
+      serverFormVisible.value = false
+      await refreshServers()
+    } else {
+      message.error(response.message || `服务器${serverFormMode.value === 'add' ? '添加' : '更新'}失败`)
     }
   } catch (error) {
-    console.error('获取服务器详情失败:', error)
-    message.error('获取服务器详情失败')
+    console.error('提交服务器表单失败:', error)
+    message.error(`服务器${serverFormMode.value === 'add' ? '添加' : '更新'}失败`)
+  } finally {
+    loading.submit = false
   }
 }
 
-const viewFunctions = (server) => {
-  currentServerForFunctions.value = server
-  functionsDetailVisible.value = true
+const handleServerFormCancel = () => {
+  serverFormVisible.value = false
+  resetServerForm()
 }
 
-const handleServerTypeChange = () => {
-  // 服务器类型改变时会自动触发 filteredServers 计算属性
-  console.log('服务器类型改变:', selectedServerType.value)
+const toggleServerStatus = async (server, checked) => {
+  const serverName = server.serverKey
+  try {
+    currentToggleServer.value = serverName
+    loading.toggle = true
+
+    const response = await mcpConfigApi.toggleServerStatus(serverName, checked)
+    
+    if (response.success) {
+      // 更新本地状态
+      server.enabled = checked
+      message.success(`${serverName} ${checked ? '启用' : '禁用'}成功`)
+    } else {
+      message.error(response.message || '切换服务器状态失败')
+    }
+  } catch (error) {
+    console.error('切换服务器状态失败:', error)
+    message.error('切换服务器状态失败')
+  } finally {
+    loading.toggle = false
+    currentToggleServer.value = ''
+  }
 }
+
+const getRowClassName = (record) => {
+  return record.enabled === false ? 'disabled-row' : ''
+}
+
+
 
 const handleSearch = () => {
   // 搜索处理会自动触发 filteredServers 计算属性
   console.log('搜索关键词:', searchKeyword.value)
 }
 
-const debugData = () => {
-  console.log('=== 调试数据 ===')
-  console.log('原始服务器数据:', servers.value)
-  console.log('服务器数量:', Object.keys(servers.value).length)
-  
-  Object.entries(servers.value).forEach(([key, server]) => {
-    console.log(`\n服务器 ${key}:`, {
-      name: server.name || server.server_name,
-      type: server.type || server.server_type,
-      enabled: server.enabled,
-      description: server.description || server.server_description,
-      allKeys: Object.keys(server),
-      toolsCount: getServerTools(server).length,
-      tools: getServerTools(server)
-    })
-  })
-  
-  // 显示在页面上
-  message.info('调试信息已输出到控制台，请查看浏览器开发者工具')
-}
+
 
 // 初始化
 onMounted(async () => {
-  await refreshAllData()
+  await refreshServers()
 })
 </script>
 
@@ -534,21 +549,15 @@ onMounted(async () => {
     margin-bottom: 24px;
   }
 
-  .action-bar {
+  .stats-info {
     margin-bottom: 24px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
     padding: 16px 20px;
     background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
     border-radius: 12px;
     border: 1px solid #e2e8f0;
-
-    .stats-info {
-      color: var(--gray-600);
-      font-size: 0.9em;
-      font-weight: 500;
-    }
+    color: var(--gray-600);
+    font-size: 0.9em;
+    font-weight: 500;
   }
 
   .stats-card {
@@ -571,173 +580,116 @@ onMounted(async () => {
       }
     }
 
-    .mcp-server-card {
-      height: 100%;
-      border: none;
-      border-radius: 16px;
-      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
-      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    .mcp-servers-table {
       background: #ffffff;
+      border-radius: 12px;
       overflow: hidden;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
 
-      &:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.12);
-      }
-
-      &.disabled {
-        opacity: 0.6;
-        cursor: not-allowed;
+      :deep(.ant-table-thead > tr > th) {
         background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
-
-        &:hover {
-          transform: none;
-          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
-        }
+        border-bottom: 1px solid #e2e8f0;
+        font-weight: 600;
+        color: #475569;
+        padding: 16px 12px;
       }
 
-      :deep(.ant-card-head) {
+      :deep(.ant-table-tbody > tr > td) {
+        padding: 16px 12px;
         border-bottom: 1px solid #f1f5f9;
-        padding: 16px 20px 12px;
-        min-height: auto;
-        display: flex;
-        align-items: center;
+        vertical-align: top;
+      }
 
-        .ant-card-head-title {
-          font-size: 16px;
+      :deep(.ant-table-tbody > tr:hover > td) {
+        background: #f8fafc;
+      }
+
+      :deep(.ant-table-tbody > tr.disabled-row > td) {
+        background: #f8fafc;
+        opacity: 0.6;
+      }
+
+      .server-name-cell {
+        .server-name {
           font-weight: 600;
           color: #1e293b;
+          margin-bottom: 4px;
+          font-size: 14px;
+        }
+
+        .server-description {
+          color: #64748b;
+          font-size: 12px;
           line-height: 1.4;
-          flex: 1;
-          margin-right: 16px;
+          display: -webkit-box;
+          -webkit-line-clamp: 2;
+          -webkit-box-orient: vertical;
           overflow: hidden;
-          text-overflow: ellipsis;
-          white-space: nowrap;
-          min-width: 0;
+          margin-bottom: 4px;
         }
 
-        .ant-card-extra {
-          flex-shrink: 0;
-          margin-left: auto;
-          min-width: 0;
+        .server-type {
+          display: flex;
+          gap: 4px;
         }
       }
 
-      :deep(.ant-card-body) {
-        padding: 0 20px 20px;
-      }
-
-      .server-content {
-        display: flex;
-        flex-direction: column;
-        height: 100%;
-      }
-
-      .server-description {
-        flex-grow: 1;
-        margin-bottom: 16px;
-        font-size: 14px;
-        color: #64748b;
-        line-height: 1.5;
-        display: -webkit-box;
-        -webkit-line-clamp: 2;
-        -webkit-box-orient: vertical;
-        overflow: hidden;
-      }
-
-      .server-functions {
-        margin-bottom: 16px;
-
-        h5 {
-          margin-bottom: 10px;
-          font-size: 13px;
-          font-weight: 600;
+      .functions-cell {
+        .functions-count {
+          display: block;
+          font-size: 12px;
           color: #475569;
-          text-transform: uppercase;
-          letter-spacing: 0.5px;
-        }
-
-        .functions-list {
-          .functions-grid {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 6px;
-          }
-
-          .no-functions {
-            font-size: 13px;
-            color: #94a3b8;
-            font-style: italic;
-            
-            .debug-hint {
-              margin-top: 4px;
-              font-size: 11px;
-              color: #cbd5e1;
-            }
-          }
-        }
-      }
-
-      .server-actions {
-        text-align: right;
-        margin-top: auto;
-
-        :deep(.ant-btn) {
-          border-radius: 8px;
+          margin-bottom: 6px;
           font-weight: 500;
-          height: 32px;
-          padding: 0 12px;
+        }
 
-          &.ant-btn-primary {
-            background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
-            border: none;
+        .functions-preview {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 4px;
+        }
 
-            &:hover {
-              background: linear-gradient(135deg, #2563eb 0%, #1e40af 100%);
-            }
-          }
-
-          &.ant-btn-default {
-            border: 1px solid #e2e8f0;
-            color: #475569;
-
-            &:hover {
-              border-color: #3b82f6;
-              color: #3b82f6;
-            }
-          }
+        .no-functions {
+          font-size: 12px;
+          color: #94a3b8;
+          font-style: italic;
         }
       }
     }
   }
 }
 
-.tools-section {
-  margin-top: 20px;
+.server-detail-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid #e2e8f0;
 
+  h4 {
+    margin: 0;
+    font-size: 20px;
+    font-weight: 600;
+    color: #1e293b;
+  }
+
+  .server-tags {
+    display: flex;
+    gap: 8px;
+  }
+}
+
+.server-info {
+  margin-bottom: 24px;
+}
+
+.functions-section {
   h4 {
     margin-bottom: 16px;
     font-size: 16px;
     font-weight: 600;
     color: #1e293b;
-  }
-}
-
-.functions-header {
-  margin-bottom: 20px;
-
-  h4 {
-    margin-bottom: 8px;
-    font-size: 18px;
-    font-weight: 600;
-    color: #1e293b;
-  }
-
-  .server-description {
-    color: #64748b;
-    margin: 0;
-    font-size: 14px;
-    line-height: 1.5;
   }
 }
 
@@ -837,24 +789,42 @@ onMounted(async () => {
   }
 }
 
-// 卡片标签样式
-.card-tags {
-  display: flex;
-  gap: 6px;
-  flex-wrap: nowrap;
-  align-items: center;
-}
+// 表格按钮样式
+:deep(.ant-table-tbody) {
+  .ant-btn {
+    border-radius: 6px;
+    font-weight: 500;
+    height: 28px;
+    padding: 0 10px;
+    font-size: 12px;
 
-// 确保卡片头部标签不会重叠
-:deep(.ant-card-extra) {
-  .card-tags {
-    .ant-tag {
-      flex-shrink: 0;
-      min-width: 0;
-      max-width: 60px;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
+    &.ant-btn-primary {
+      background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+      border: none;
+
+      &:hover {
+        background: linear-gradient(135deg, #2563eb 0%, #1e40af 100%);
+      }
+    }
+
+    &.ant-btn-default {
+      border: 1px solid #e2e8f0;
+      color: #475569;
+
+      &:hover {
+        border-color: #3b82f6;
+        color: #3b82f6;
+      }
+    }
+
+    &.ant-btn-dangerous {
+      background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+      border: none;
+      color: white;
+
+      &:hover {
+        background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
+      }
     }
   }
 }

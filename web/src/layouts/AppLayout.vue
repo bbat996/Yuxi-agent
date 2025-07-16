@@ -70,7 +70,7 @@
       </div>
       <a-tooltip placement="right">
           <template #title
-            >后端疑似没有正常启动或者正在繁忙中，请刷新一下或者检查 docker logs api-dev</template
+            >后端疑似没有正常启动或者正在繁忙中，请刷新一下或者检查接口是否正常</template
           >
           <div class="nav-item warning" v-if="!configStore.config._config_items">
             <component class="icon" :is="ExclamationCircleOutlined" />
