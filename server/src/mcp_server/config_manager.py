@@ -121,19 +121,30 @@ class MCPConfigManager:
         """获取内置服务器配置"""
         if self.config is None:
             return {}
-        return self.config.get("builtin_servers", {})
+        result = self.config.get("builtin_servers", {})
+        return result if result is not None else {}
     
     def get_external_servers(self) -> Dict[str, Any]:
         """获取外部服务器配置"""
         if self.config is None:
+            logger.warning("get_external_servers: config is None, returning empty dict")
             return {}
-        return self.config.get("external_servers", {})
+        result = self.config.get("external_servers", {})
+        if result is None:
+            logger.warning("get_external_servers: external_servers is None, returning empty dict")
+            return {}
+        return result
     
     def get_global_config(self) -> Dict[str, Any]:
         """获取全局配置"""
         if self.config is None:
+            logger.warning("get_global_config: config is None, returning empty dict")
             return {}
-        return self.config.get("global_config", {})
+        result = self.config.get("global_config", {})
+        if result is None:
+            logger.warning("get_global_config: global_config is None, returning empty dict")
+            return {}
+        return result
     
     def get_enabled_servers(self) -> List[str]:
         """获取已启用的服务器列表"""
@@ -325,27 +336,29 @@ class MCPConfigManager:
         
         # 检查内置服务器配置
         builtin_servers = self.get_builtin_servers()
-        for server_name, server_config in builtin_servers.items():
-            if not isinstance(server_config, dict):
-                errors.append(f"服务器 {server_name} 配置格式错误")
-                continue
-            
-            required_fields = ["enabled", "name", "description", "module_path", "class_name"]
-            for field in required_fields:
-                if field not in server_config:
-                    errors.append(f"服务器 {server_name} 缺少必要字段: {field}")
+        if builtin_servers is not None:
+            for server_name, server_config in builtin_servers.items():
+                if not isinstance(server_config, dict):
+                    errors.append(f"服务器 {server_name} 配置格式错误")
+                    continue
+                
+                required_fields = ["enabled", "name", "description", "module_path", "class_name"]
+                for field in required_fields:
+                    if field not in server_config:
+                        errors.append(f"服务器 {server_name} 缺少必要字段: {field}")
         
         # 检查外部服务器配置
         external_servers = self.get_external_servers()
-        for server_name, server_config in external_servers.items():
-            if not isinstance(server_config, dict):
-                errors.append(f"外部服务器 {server_name} 配置格式错误")
-                continue
-            
-            required_fields = ["enabled", "name", "description", "transport", "command"]
-            for field in required_fields:
-                if field not in server_config:
-                    errors.append(f"外部服务器 {server_name} 缺少必要字段: {field}")
+        if external_servers is not None:
+            for server_name, server_config in external_servers.items():
+                if not isinstance(server_config, dict):
+                    errors.append(f"外部服务器 {server_name} 配置格式错误")
+                    continue
+                
+                required_fields = ["enabled", "name", "description", "transport", "command"]
+                for field in required_fields:
+                    if field not in server_config:
+                        errors.append(f"外部服务器 {server_name} 缺少必要字段: {field}")
         
         return errors
     
@@ -398,7 +411,10 @@ def get_mcp_config_manager() -> MCPConfigManager:
     """获取MCP配置管理器实例"""
     global _config_manager
     if _config_manager is None:
+        logger.info("创建新的MCPConfigManager实例")
         _config_manager = MCPConfigManager()
+    else:
+        logger.debug("返回现有的MCPConfigManager实例")
     return _config_manager
 
 def reload_mcp_config():

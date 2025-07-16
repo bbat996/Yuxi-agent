@@ -1,5 +1,11 @@
 <template>
-  <a-dropdown trigger="click" :disabled="!modelKeys.length">
+  <!-- 当没有可用模型时，显示禁用状态 -->
+  <div v-if="!hasAvailableModels" class="model-select disabled">
+    <span class="model-text text">暂无可用模型</span>
+  </div>
+  
+  <!-- 当有可用模型时，显示下拉菜单 -->
+  <a-dropdown v-else trigger="click">
     <a class="model-select" @click.prevent>
       <!-- <BulbOutlined /> -->
       <a-tooltip :title="model_name" placement="right">
@@ -20,9 +26,6 @@
             custom/{{ model.custom_id }}
           </a-menu-item>
         </a-menu-item-group>
-        <a-menu-item v-if="!modelKeys.length && !customModels.length" disabled>
-          暂无可用模型
-        </a-menu-item>
       </a-menu>
     </template>
   </a-dropdown>
@@ -53,13 +56,27 @@ const modelNames = computed(() => {
   return configStore.config?.model_names
 })
 const modelStatus = computed(() => configStore.config?.model_provider_status)
+const providerEnabledStatus = computed(() => configStore.config?.provider_enabled_status || {})
 const customModels = computed(() => configStore.config?.custom_models || [])
 
-// 筛选 modelStatus 中为真的key
+// 判断提供商是否启用
+const isProviderEnabled = (provider) => {
+  // 如果配置中没有启用状态，默认启用
+  return providerEnabledStatus.value[provider] !== false
+}
+
+// 筛选已配置且启用的模型提供商
 const modelKeys = computed(() => {
-  const keys = Object.keys(modelStatus.value || {}).filter(key => modelStatus.value?.[key])
+  const keys = Object.keys(modelStatus.value || {}).filter(key => 
+    modelStatus.value?.[key] && isProviderEnabled(key)
+  )
   console.log('ModelSelector: modelKeys computed:', keys)
   return keys
+})
+
+// 检查是否有可用模型
+const hasAvailableModels = computed(() => {
+  return modelKeys.value.length > 0 || customModels.value.length > 0
 })
 
 // 选择模型的方法
@@ -102,6 +119,13 @@ const handleSelectModel = (provider, name) => {
     font-size: 12px;
     color: #8c8c8c;
     margin-left: 4px;
+  }
+
+  &.disabled {
+    cursor: not-allowed;
+    opacity: 0.6;
+    background-color: var(--gray-100);
+    color: var(--gray-500);
   }
 
 }

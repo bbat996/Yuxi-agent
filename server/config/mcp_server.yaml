@@ -149,7 +149,7 @@ builtin_servers:
           - "list_processes"
 
 # 外部服务器配置
-external_servers:
+external_servers: {}
   # 示例外部服务器配置
   # example_external:
   #   enabled: false

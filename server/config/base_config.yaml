@@ -1,0 +1,26 @@
+config_file: C:\Users\admin\github\Yuxi-agent\server\config\base_config.yaml
+embed_model: vllm/Qwen/Qwen3-Embedding-0.6B
+enable_reranker: false
+enable_web_search: true
+model_dir: ./Huggingface
+model_name: gpt-4o-mini
+model_provider: openai
+provider_enabled_status:
+  ark: true
+  dashscope: true
+  deepseek: false
+  openai: false
+  openrouter: true
+  siliconflow: false
+  together.ai: false
+  zhipu: false
+reranker: vllm/Qwen/Qwen3-Reranker-0.6B
+storage_dir: storage
+valuable_model_provider:
+- openai
+- deepseek
+- zhipu
+- siliconflow
+- together.ai
+- dashscope
+- ark

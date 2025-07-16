@@ -79,8 +79,13 @@ class Config(SimpleConfig):
 
     def _init_provider_enabled_status(self):
         """初始化提供商启用状态"""
-        if not hasattr(self, 'provider_enabled_status'):
+        if not hasattr(self, 'provider_enabled_status') or self.provider_enabled_status is None:
             self.provider_enabled_status = {}
+        
+        # 确保model_names已经初始化
+        if not hasattr(self, 'model_names') or self.model_names is None:
+            logger.warning("model_names not initialized, skipping provider_enabled_status initialization")
+            return
         
         # 为所有模型提供商设置默认启用状态
         for provider in self.model_names.keys():
@@ -90,6 +95,10 @@ class Config(SimpleConfig):
 
     def get_provider_enabled_status(self, provider: str = None):
         """获取提供商启用状态"""
+        # 确保provider_enabled_status是字典类型
+        if not hasattr(self, 'provider_enabled_status') or self.provider_enabled_status is None:
+            self.provider_enabled_status = {}
+        
         if provider:
             return self.provider_enabled_status.get(provider, True)
         return self.provider_enabled_status
@@ -269,7 +278,12 @@ class Config(SimpleConfig):
                         
                         # 加载provider_enabled_status
                         if 'provider_enabled_status' in local_config:
-                            self.provider_enabled_status = local_config['provider_enabled_status']
+                            loaded_status = local_config['provider_enabled_status']
+                            # 确保provider_enabled_status是字典类型，避免None值
+                            if loaded_status is not None:
+                                self.provider_enabled_status = loaded_status
+                            else:
+                                self.provider_enabled_status = {}
                     else:
                         print(f"{self.config_file} is empty.")
             else:

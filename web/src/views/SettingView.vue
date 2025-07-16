@@ -50,6 +50,46 @@
             </a-select>
           </div>
         </div>
+
+        <h3>功能配置</h3>
+        <div class="section">
+          <div class="card card-select">
+            <span class="label">{{ items?.enable_reranker.des }}</span>
+            <a-switch
+              :checked="configStore.config?.enable_reranker"
+              @change="handleChange('enable_reranker', $event)"
+            />
+          </div>
+          <div class="card card-select">
+            <span class="label">{{ items?.enable_web_search.des }}</span>
+            <a-switch
+              :checked="configStore.config?.enable_web_search"
+              @change="handleChange('enable_web_search', $event)"
+            />
+          </div>
+        </div>
+
+        <h3>Web搜索配置</h3>
+        <div class="section">
+          <div class="card card-select">
+            <span class="label">Tavily API Key</span>
+            <a-input-password
+              style="width: 300px"
+              :value="configStore.config?.tavily_api_key || ''"
+              @change="handleChange('tavily_api_key', $event.target.value)"
+              placeholder="请输入Tavily API Key"
+            />
+          </div>
+          <div class="card card-select">
+            <span class="label">Tavily Base URL</span>
+            <a-input
+              style="width: 300px"
+              :value="configStore.config?.tavily_base_url || 'https://api.tavily.com'"
+              @change="handleChange('tavily_base_url', $event.target.value)"
+              placeholder="Tavily API基础URL"
+            />
+          </div>
+        </div>
       </div>
       <div class="setting" v-if="(state.windowWidth <= 520 || state.section === 'model') && userStore.isSuperAdmin">
         <ModelProvidersComponent />

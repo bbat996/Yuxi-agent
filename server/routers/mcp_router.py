@@ -359,12 +359,12 @@ async def get_mcp_servers(
         config_manager = get_mcp_config_manager()
         
         if server_type == "builtin":
-            servers = config_manager.get_builtin_servers()
+            servers = config_manager.get_builtin_servers() or {}
         elif server_type == "external":
-            servers = config_manager.get_external_servers()
+            servers = config_manager.get_external_servers() or {}
         else:
-            builtin_servers = config_manager.get_builtin_servers()
-            external_servers = config_manager.get_external_servers()
+            builtin_servers = config_manager.get_builtin_servers() or {}
+            external_servers = config_manager.get_external_servers() or {}
             servers = {**builtin_servers, **external_servers}
         
         return {
