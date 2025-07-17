@@ -51,8 +51,8 @@ class ChatbotConfiguration(Configuration):
                 agent_config_dict = {k: v for k, v in config.items()
                                    if k not in ['configurable', 'recursion_limit', 'max_concurrency']}
                 # Ensure nested configs are correct types
-                if 'model_config' in agent_config_dict and isinstance(agent_config_dict['model_config'], dict):
-                    agent_config_dict['model_config'] = ModelConfig(**agent_config_dict['model_config'])
+                if 'llm_config' in agent_config_dict and isinstance(agent_config_dict['llm_config'], dict):
+                    agent_config_dict['llm_config'] = ModelConfig(**agent_config_dict['llm_config'])
                 if 'knowledge_config' in agent_config_dict and isinstance(agent_config_dict['knowledge_config'], dict):
                     agent_config_dict['knowledge_config'] = KnowledgeConfig(**agent_config_dict['knowledge_config'])
                 if 'mcp_config' in agent_config_dict and isinstance(agent_config_dict['mcp_config'], dict):
@@ -84,6 +84,8 @@ class ChatbotConfiguration(Configuration):
                 agent_config.description = db_record.description
             if hasattr(db_record, "system_prompt") and db_record.system_prompt:
                 agent_config.system_prompt = db_record.system_prompt
+            else:
+                agent_config.system_prompt = ""
 
         return cls(agent_config)
 
@@ -94,7 +96,7 @@ class ChatbotConfiguration(Configuration):
     def __getattr__(self, name):
         """代理到 agent_config 的属性"""
         value = getattr(self.agent_config, name)
-        if name == 'model_config':
+        if name == 'llm_config':
             from config.agent_config import ModelConfig
             if isinstance(value, dict):
                 return ModelConfig(**value)
@@ -184,12 +186,12 @@ class ChatbotAgent(BaseAgent):
     async def _ainitialize_llm_and_tools(self):
         """异步初始化或重新初始化LLM、工具和绑定后的模型"""
         # 获取模型配置
-        model_config = self._get_model_config()
-        model_parameters = self.config_schema.model_config.config
+        llm_config = self._get_llm_config()
+        llm_parameters = self.config_schema.llm_config.config
 
         # 加载模型
-        logger.info(f"开始加载模型: {model_config.get('provider')}/{model_config.get('model')}")
-        self.model = load_chat_model(provider=model_config.get("provider"), model=model_config.get("model"), model_parameters=model_parameters)
+        logger.info(f"开始加载模型: {llm_config.get('provider')}/{llm_config.get('model')}")
+        self.model = load_chat_model(provider=llm_config.get("provider"), model=llm_config.get("model"), model_parameters=llm_parameters)
         logger.info("模型加载成功")
 
         # 获取工具
@@ -241,12 +243,12 @@ class ChatbotAgent(BaseAgent):
     def _initialize_llm_and_tools(self):
         """同步初始化LLM和工具（不支持异步的MCP工具）"""
         # 获取模型配置
-        model_config = self._get_model_config()
-        model_parameters = self.config_schema.model_config.config
+        llm_config = self._get_llm_config()
+        llm_parameters = self.config_schema.llm_config.config
 
         # 加载模型
-        logger.info(f"(同步) 开始加载模型: {model_config.get('provider')}/{model_config.get('model')}")
-        self.model = load_chat_model(provider=model_config.get("provider"), model=model_config.get("model"), model_parameters=model_parameters)
+        logger.info(f"(同步) 开始加载模型: {llm_config.get('provider')}/{llm_config.get('model')}")
+        self.model = load_chat_model(provider=llm_config.get("provider"), model=llm_config.get("model"), model_parameters=llm_parameters)
         logger.info("(同步) 模型加载成功")
 
         # 获取工具 (同步版本，跳过MCP)
@@ -300,11 +302,11 @@ class ChatbotAgent(BaseAgent):
                 logger.debug(f"添加MCP工具: {len(mcp_tools)} 个")
         return result_tools
 
-    def _get_model_config(self) -> Dict[str, Any]:
-        print('DEBUG: type of self.config_schema.model_config:', type(self.config_schema.model_config))
-        provider = self.config_schema.model_config.provider or "deepseek"
-        model = self.config_schema.model_config.model or "deepseek-chat"
-        model_parameters = self.config_schema.model_config.config or {}
+    def _get_llm_config(self) -> Dict[str, Any]:
+        print('DEBUG: type of self.config_schema.llm_config:', type(self.config_schema.llm_config))
+        provider = self.config_schema.llm_config.provider or "deepseek"
+        model = self.config_schema.llm_config.model or "deepseek-chat"
+        model_parameters = self.config_schema.llm_config.config or {}
         return {
             "provider": provider,
             "model": model,
@@ -414,8 +416,8 @@ class ChatbotAgent(BaseAgent):
 
     def check_requirements(self) -> bool:
         """检查环境要求（无数据库依赖）"""
-        model_config = self._get_model_config()
-        provider = model_config.get("provider")
+        llm_config = self._get_llm_config()
+        provider = llm_config.get("provider")
 
         # 根据不同的模型提供商检查API密钥
         if provider == "zhipu" and "ZHIPUAI_API_KEY" not in os.environ:

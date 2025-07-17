@@ -50,7 +50,7 @@
                                 <div class="form-item-label">
                                   <span>系统提示词</span>
                                   <div class="label-actions">
-                                    <a-button type="link" size="small"><template #icon>
+                                    <a-button type="link" size="small" @click="openTemplateModal"><template #icon>
                                         <FileTextOutlined />
                                       </template>模板</a-button>
                                     <a-button type="link" size="small"><template #icon>
@@ -59,10 +59,10 @@
                                   </div>
                                 </div>
                               </template>
-                              <a-textarea :value="form.system_prompt" @update:value="form.system_prompt = $event"
+                              <a-textarea v-model:value="form.system_prompt"
                                 :maxlength="30720" :auto-size="{ minRows: 4, maxRows: 8 }"
                                 placeholder="请输入系统提示词，定义智能体的行为和能力" />
-                              <div class="prompt-info">{{ form.system_prompt.length }} / 30720</div>
+                              <div class="prompt-info">{{ (form.system_prompt || '').length }} / 30720</div>
                             </a-form-item>
                             <div class="model-config-section">
                               <div class="model-selector-wrapper">
@@ -186,6 +186,9 @@
     </div>
 
     <!-- 模型配置弹窗 -->
+    <!-- 模板选择弹窗 -->
+    <TemplateModal v-model="showTemplateModal" @select="handleTemplateSelect" />
+
     <a-modal :visible="showModelConfigModal" @update:visible="showModelConfigModal = $event" title="模型推理参数配置"
       width="600px" @ok="handleModelConfigSave" @cancel="handleModelConfigCancel">
       <div class="model-config-modal">
@@ -283,7 +286,8 @@
 </template>
 
 <script setup>
-import { ref, onMounted, watch, computed } from 'vue'
+import { ref, onMounted, watch, computed } from 'vue';
+import TemplateModal from '@/components/prompt/TemplateModal.vue';
 import { useRoute, useRouter } from 'vue-router'
 import { message } from 'ant-design-vue'
 import { DownOutlined, UpOutlined, SettingOutlined, SearchOutlined, EditOutlined, FileTextOutlined, BulbOutlined, PlusOutlined, DeleteOutlined, BookOutlined, ThunderboltOutlined } from '@ant-design/icons-vue'
@@ -484,6 +488,17 @@ const handleEditInfoSave = (updatedAgent) => {
 
 const handleEditInfoCancel = () => {
   showEditInfoModal.value = false
+};
+
+const showTemplateModal = ref(false);
+
+const openTemplateModal = () => {
+  showTemplateModal.value = true;
+};
+
+const handleTemplateSelect = (prompt) => {
+  form.value.system_prompt = prompt;
+  showTemplateModal.value = false;
 };
 
 const handleKnowledgeConfigSave = (config) => {
@@ -721,7 +736,7 @@ const handleKnowledgeSelect = (selectedItems) => {
 };
 
 const openMCPSkillModal = () => {
-  selectedMCPKeys.value = [...form.value.mcp_config.skills];
+  selectedMCPKeys.value = [...form.value.mcp_config.servers];
   showMCPSkillModal.value = true;
 };
 
@@ -730,7 +745,7 @@ const onMCPSelectionChange = (selectedRowKeys) => {
 };
 
 const handleMCPSkillSelect = () => {
-  form.value.mcp_config.skills = [...selectedMCPKeys.value];
+  form.value.mcp_config.servers = [...selectedMCPKeys.value];
   form.value.mcp_config.enabled = selectedMCPKeys.value.length > 0;
   showMCPSkillModal.value = false;
   message.success('MCP服务器选择已保存');
@@ -741,7 +756,7 @@ const handleMCPSkillCancel = () => {
 };
 
 const isServerSelected = (serverName) => {
-  return form.value.mcp_config.skills.includes(serverName);
+  return form.value.mcp_config.servers.includes(serverName);
 };
 
 const getServerDisplayName = (serverName) => {
@@ -809,6 +824,9 @@ const onSave = async () => {
       tools: [],
       publish_config: form.value.publish_config
     };
+    
+    console.log('保存智能体数据:', saveData);
+    
     const response = await updateAgent(agentId.value, saveData);
     if (response.success) {
       message.success('保存成功');

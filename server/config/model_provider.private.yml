@@ -14,6 +14,8 @@ MODEL_NAMES:
     api_key: '123123'
   siliconflow:
     api_key: '32132123'
+  zhipu:
+    api_key: 'your_zhipu_api_key_here'
 RERANKER_LIST:
   siliconflow/BAAI/bge-reranker-v2-m3:
     api_key: SILICONFLOW_API_KEY

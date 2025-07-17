@@ -42,7 +42,12 @@ def load_chat_model(provider: str, model: str, **kwargs) -> BaseChatModel:
     model_info = config.model_names.get(provider, None)
     if model_info is None:
         raise ValueError(f"Model provider {provider} not found in config.model_names")
+    
+    # Get API key with proper validation
     api_key = os.getenv(model_info.env[0], model_info.api_key)
+    if not api_key:
+        raise ValueError(f"API key not found for provider {provider}. Please set the {model_info.env[0]} environment variable or configure it in the private config file.")
+    
     base_url = get_docker_safe_url(model_info.base_url)
 
     if provider in ["deepseek", "dashscope"]:

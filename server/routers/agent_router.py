@@ -12,7 +12,7 @@ from models.agent_models import CustomAgent, AgentInstance
 from models.user_model import User
 from utils.auth_middleware import get_required_user
 from src.utils import logger
-from config.agent_config import AgentConfig
+from config.agent_config import AgentConfig, ModelConfig, KnowledgeConfig, McpConfig
 
 # 创建路由器
 agent_router = APIRouter(prefix="/agents", tags=["agents"])
@@ -135,15 +135,15 @@ class AgentConfigOverride(BaseModel):
     }
 
 
-def _build_model_config(provider: str = None, model_name: str = None, model_parameters: Dict[str, Any] = None) -> Dict[str, Any]:
+def _build_llm_config(provider: str = None, model_name: str = None, model_parameters: Dict[str, Any] = None) -> Dict[str, Any]:
     """构建模型配置字典"""
     config = {}
     if provider:
         config["provider"] = provider
     if model_name:
-        config["model_name"] = model_name
+        config["model"] = model_name  # 修正字段名为model
     if model_parameters:
-        config["parameters"] = model_parameters
+        config["config"] = model_parameters  # 修正字段名为config
     return config
 
 
@@ -163,7 +163,7 @@ def _build_knowledge_config(knowledge_databases: List[str] = None, retrieval_par
     if knowledge_databases is not None:
         config["databases"] = knowledge_databases
     if retrieval_params is not None:
-        config["retrieval_params"] = retrieval_params
+        config["retrieval_config"] = retrieval_params  # 修正字段名为retrieval_config
     return config
 
 
@@ -275,7 +275,7 @@ async def create_agent(request: AgentCreateRequest, current_user: User = Depends
             raise HTTPException(status_code=400, detail="智能体名称已存在")
 
         # 构建配置字典
-        model_config = _build_model_config(provider=request.provider, model_name=request.model_name, model_parameters=request.model_parameters)
+        llm_config = _build_llm_config(provider=request.provider, model_name=request.model_name, model_parameters=request.model_parameters)
 
         tools_config = _build_tools_config(tools=request.tools, mcp_skills=request.mcp_skills)
 
@@ -289,7 +289,7 @@ async def create_agent(request: AgentCreateRequest, current_user: User = Depends
             agent_type=request.agent_type,
             avatar=request.avatar,
             system_prompt=request.system_prompt,
-            model_config=model_config,
+            llm_config=llm_config,
             tools_config=tools_config,
             knowledge_config=knowledge_config,
             tags=request.tags,
@@ -343,48 +343,88 @@ async def update_agent(agent_id: str, request: AgentUpdateRequest, background_ta
         if agent.created_by != current_user.id:
             raise HTTPException(status_code=403, detail="无权限修改此智能体")
 
-        # 1. 直接从 agent 对象创建 AgentConfig
-        try:
-            current_agent_config = AgentConfig(
-                name=agent.name,
-                description=agent.description,
-                system_prompt=agent.system_prompt,
-                model_config=agent.model_config or {},
-                knowledge_config=agent.knowledge_config or {},
-                mcp_config={"servers": agent.tools_config.get("mcp_skills", []) if agent.tools_config else []},
-                tools=agent.tools_config.get("builtin_tools", []) if agent.tools_config else []
-            )
-        except Exception as e:
-            logger.error(f"创建现有智能体配置失败: {e}")
-            raise HTTPException(status_code=500, detail=f"创建现有配置失败: {e}")
-
-        # 2. 使用Pydantic的model_copy进行智能更新（自动处理嵌套模型）
+        # 直接更新基础字段
         update_data = request.model_dump(exclude_unset=True)
+        
+        logger.info(f"更新智能体 {agent_id}，接收到的数据: {update_data}")
+        
+        # 更新基础信息
+        if "name" in update_data:
+            agent.name = update_data["name"]
+        if "description" in update_data:
+            agent.description = update_data["description"]
+        if "system_prompt" in update_data:
+            agent.system_prompt = update_data["system_prompt"]
+        if "avatar" in update_data:
+            agent.avatar = update_data["avatar"]
+        if "agent_type" in update_data:
+            agent.agent_type = update_data["agent_type"]
+        if "tags" in update_data:
+            agent.tags = update_data["tags"]
+        if "is_public" in update_data:
+            agent.is_public = update_data["is_public"]
 
-        try:
-            agent_config = current_agent_config.model_copy(update=update_data)
-        except Exception as e:
-            logger.error(f"更新智能体配置验证失败: {e}")
-            raise HTTPException(status_code=400, detail=f"配置验证失败: {e}")
+        # 更新模型配置
+        if any(key in update_data for key in ["provider", "model_name", "model_parameters"]):
+            if not agent.llm_config:
+                agent.llm_config = {}
+            if "provider" in update_data:
+                agent.llm_config["provider"] = update_data["provider"]
+            if "model_name" in update_data:
+                agent.llm_config["model_name"] = update_data["model_name"]
+            if "model_parameters" in update_data:
+                agent.llm_config["parameters"] = update_data["model_parameters"]
+            # 清理旧字段，避免字段重复
+            if "model" in agent.llm_config:
+                del agent.llm_config["model"]
+            if "config" in agent.llm_config:
+                del agent.llm_config["config"]
 
-        # 3. 将更新后的 AgentConfig 属性同步回 CustomAgent
-        agent.name = agent_config.name
-        agent.description = agent_config.description
-        agent.system_prompt = agent_config.system_prompt
-        agent.model_config = agent_config.model_config.model_dump()
-        agent.knowledge_config = agent_config.knowledge_config.model_dump()
-        agent.tools_config = {
-            "builtin_tools": agent_config.tools,
-            "mcp_skills": agent_config.mcp_config.servers
-        }
+        # 更新工具配置
+        if any(key in update_data for key in ["tools", "mcp_skills"]):
+            if not agent.tools_config:
+                agent.tools_config = {}
+            if "tools" in update_data:
+                agent.tools_config["builtin_tools"] = update_data["tools"]
+            if "mcp_skills" in update_data:
+                agent.tools_config["mcp_skills"] = update_data["mcp_skills"]
+
+        # 更新知识库配置
+        if any(key in update_data for key in ["knowledge_databases", "retrieval_params"]):
+            if not agent.knowledge_config:
+                agent.knowledge_config = {}
+            if "knowledge_databases" in update_data:
+                agent.knowledge_config["databases"] = update_data["knowledge_databases"]
+            if "retrieval_params" in update_data:
+                agent.knowledge_config["retrieval_params"] = update_data["retrieval_params"]
+            # 清理旧字段，避免字段重复
+            if "enabled" in agent.knowledge_config:
+                del agent.knowledge_config["enabled"]
+            if "retrieval_config" in agent.knowledge_config:
+                del agent.knowledge_config["retrieval_config"]
 
         agent.updated_at = datetime.utcnow()
 
-        # 5. 保存到数据库和YAML文件
+        logger.info(f"更新后的智能体配置: llm_config={agent.llm_config}, tools_config={agent.tools_config}, knowledge_config={agent.knowledge_config}")
+
+        # 保存到数据库
         session.commit()
         session.flush()
 
-        background_tasks.add_task(agent_config.save_to_yaml)
+        # 创建AgentConfig用于保存YAML文件
+        try:
+            agent_config = AgentConfig(
+                name=agent.name,
+                description=agent.description or "",
+                system_prompt=agent.system_prompt or "",
+                llm_config=ModelConfig(**(agent.llm_config or {})),
+                knowledge_config=KnowledgeConfig(**(agent.knowledge_config or {})),
+                mcp_config=McpConfig(servers=agent.tools_config.get("mcp_skills", []) if agent.tools_config else []),
+                tools=agent.tools_config.get("builtin_tools", []) if agent.tools_config else []
+            )
+            background_tasks.add_task(agent_config.save_to_yaml)
+        except Exception as e:
+            logger.error(f"保存YAML文件失败: {e}")
 
         logger.info(f"用户 {current_user.username} 更新了智能体: {agent.name}")
 
@@ -476,7 +516,7 @@ async def duplicate_agent(
             agent_type=original_agent.agent_type,
             avatar=original_agent.avatar,
             system_prompt=original_agent.system_prompt,
-            model_config=original_agent.model_config,
+            llm_config=original_agent.llm_config,
             tools_config=original_agent.tools_config,
             knowledge_config=original_agent.knowledge_config,
             tags=original_agent.tags,
@@ -651,11 +691,11 @@ async def get_agent_yaml(agent_id: str, current_user: User = Depends(get_require
         yaml_content.append('# 模型配置')
         
         # 模型配置
-        provider = agent.model_config.get("provider", "") if agent.model_config else ""
-        model_name = agent.model_config.get("model_name", "") if agent.model_config else ""
-        model_parameters = agent.model_config.get("parameters", {}) if agent.model_config else {}
+        provider = agent.llm_config.get("provider", "") if agent.llm_config else ""
+        model_name = agent.llm_config.get("model_name", "") if agent.llm_config else "" # 修正字段名
+        model_parameters = agent.llm_config.get("parameters", {}) if agent.llm_config else {} # 修正字段名
         
-        yaml_content.append('model_config:')
+        yaml_content.append('llm_config:')
         yaml_content.append(f'  provider: "{provider}"')
         yaml_content.append(f'  model: "{model_name}"')
         yaml_content.append('  config:')
@@ -702,7 +742,7 @@ async def get_agent_yaml(agent_id: str, current_user: User = Depends(get_require
         
         # 知识库配置
         knowledge_databases = agent.knowledge_config.get("databases", []) if agent.knowledge_config else []
-        retrieval_params = agent.knowledge_config.get("retrieval_params", {}) if agent.knowledge_config else {}
+        retrieval_params = agent.knowledge_config.get("retrieval_params", {}) if agent.knowledge_config else {} # 修正字段名
         
         yaml_content.append('knowledge_config:')
         if knowledge_databases:
@@ -754,3 +794,62 @@ async def get_agent_stats(agent_id: str, current_user: User = Depends(get_requir
             "instance_count": instance_count,
         }
         return {"success": True, "data": stats}
+
+
+@agent_router.get("/{agent_id}/publish", summary="获取智能体发布配置")
+async def get_agent_publish_config(agent_id: str, current_user: User = Depends(get_required_user)):
+    """获取智能体的发布配置"""
+    with db_manager.get_session_context() as session:
+        agent = session.query(CustomAgent).filter(and_(CustomAgent.agent_id == agent_id, CustomAgent.deleted_at.is_(None))).first()
+
+        if not agent:
+            raise HTTPException(status_code=404, detail="智能体不存在")
+
+        # 权限检查：只能查看自己的或公开的智能体
+        if agent.created_by != current_user.id and not agent.is_public:
+            raise HTTPException(status_code=403, detail="无权限访问此智能体")
+
+        # 返回默认的发布配置
+        default_publish_config = {
+            "channels": [],
+            "api_settings": {
+                "enabled": False,
+                "api_key": "",
+                "rate_limit": 60,
+                "ip_whitelist_mode": "none",
+                "ip_whitelist": "",
+                "origin_mode": "none",
+                "origin_whitelist": ""
+            },
+            "embed_settings": {
+                "enabled": False,
+                "mode": "chat",
+                "allowed_domains": "",
+                "theme_color": "1890ff",
+                "position": "bottom-right",
+                "welcome_message": "您好！有什么可以帮助您的吗？",
+                "button_text": "联系客服",
+                "window_title": "智能客服"
+            }
+        }
+
+        return {"success": True, "data": default_publish_config}
+
+
+@agent_router.put("/{agent_id}/publish", summary="更新智能体发布配置")
+async def update_agent_publish_config(agent_id: str, config: dict = Body(...), current_user: User = Depends(get_required_user)):
+    """更新智能体的发布配置"""
+    with db_manager.get_session_context() as session:
+        agent = session.query(CustomAgent).filter(and_(CustomAgent.agent_id == agent_id, CustomAgent.deleted_at.is_(None))).first()
+
+        if not agent:
+            raise HTTPException(status_code=404, detail="智能体不存在")
+
+        if agent.created_by != current_user.id:
+            raise HTTPException(status_code=403, detail="无权限修改此智能体")
+
+        # 这里可以添加发布配置的验证逻辑
+        # 暂时只记录日志，不保存到数据库
+        logger.info(f"用户 {current_user.username} 更新了智能体 {agent_id} 的发布配置: {config}")
+
+        return {"success": True, "message": "发布配置更新成功", "data": config}

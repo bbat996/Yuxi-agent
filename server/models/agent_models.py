@@ -18,7 +18,7 @@ class CustomAgent(Base):
     
     # 配置字段
     system_prompt = Column(Text, nullable=True)  # 系统提示词
-    model_config = Column(JSON, nullable=True)  # 模型配置 {"provider": "zhipu", "model_name": "glm-4-plus", "parameters": {}}
+    llm_config = Column(JSON, nullable=True)  # 模型配置 {"provider": "zhipu", "model_name": "glm-4-plus", "parameters": {}}
     tools_config = Column(JSON, nullable=True)  # 工具配置 {"builtin_tools": [], "mcp_skills": []}
     knowledge_config = Column(JSON, nullable=True)  # 知识库配置 {"databases": [], "retrieval_params": {}}
     
@@ -56,7 +56,7 @@ class CustomAgent(Base):
         if include_config:
             result.update({
                 "system_prompt": self.system_prompt,
-                "model_config": self.model_config or {},
+                "llm_config": self.llm_config or {},
                 "tools_config": self.tools_config or {},
                 "knowledge_config": self.knowledge_config or {}
             })
@@ -76,15 +76,15 @@ class CustomAgent(Base):
         agent_config.system_prompt = self.system_prompt or ""
         
         # 模型配置
-        if self.model_config:
-            model_config = ModelConfig()
-            if "provider" in self.model_config:
-                model_config.provider = self.model_config["provider"]
-            if "model_name" in self.model_config:
-                model_config.model = self.model_config["model_name"]
-            if "parameters" in self.model_config:
-                model_config.config = self.model_config["parameters"]
-            agent_config.model_config = model_config
+        if self.llm_config:
+            llm_config = ModelConfig()
+            if "provider" in self.llm_config:
+                llm_config.provider = self.llm_config["provider"]
+            if "model_name" in self.llm_config:
+                llm_config.model = self.llm_config["model_name"]
+            if "parameters" in self.llm_config:
+                llm_config.config = self.llm_config["parameters"]
+            agent_config.llm_config = llm_config
         
         # 工具配置
         if self.tools_config:

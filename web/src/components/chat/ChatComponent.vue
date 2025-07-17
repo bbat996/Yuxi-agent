@@ -157,6 +157,7 @@ import RefsSidebar from '@/components/message/RefsSidebar.vue'
 import ModelSelectorComponent from '@/components/model/ModelSelectorComponent.vue'
 import { chatApi } from '@/apis/auth_api'
 import { knowledgeBaseApi } from '@/apis/admin_api'
+import ErrorHandler from '@/utils/errorHandler'
 
 const props = defineProps({
   conv: Object,
@@ -580,16 +581,15 @@ const fetchChatResponse = (user_input, cur_res_id) => {
     } else {
       console.error('聊天请求错误:', error);
 
-      // 检查是否是认证错误
-      if (error.message.includes('未授权') || error.message.includes('令牌已过期')) {
-        // 已在上面处理，这里不需要重复处理
-      } else {
-        updateMessage({
-          id: cur_res_id,
-          status: "error",
-          message: error.message || '请求失败',
-        });
-      }
+      // 使用统一的错误处理
+      ErrorHandler.handleError(error, '请求失败', configStore.config?.model_provider);
+      
+      // 更新消息状态
+      updateMessage({
+        id: cur_res_id,
+        status: "error",
+        message: error.message || '请求失败',
+      });
     }
     isStreaming.value = false;
   });

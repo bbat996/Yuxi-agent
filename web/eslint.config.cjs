@@ -22,7 +22,8 @@ module.exports = [
     rules: {
       // Vue specific rules
       'vue/multi-word-component-names': 'off',
-      'vue/no-unused-vars': 'error'
+      'vue/no-unused-vars': 'error',
+      'vue/no-v-model-argument': 'off'
     }
   },
   {

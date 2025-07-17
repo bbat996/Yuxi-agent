@@ -52,7 +52,17 @@ class ChatbotAgent(BaseAgent):
         conf = self.config_schema.from_runnable_config(config, agent_name=self.name)
 
         system_prompt = f"{conf.system_prompt} Now is {get_cur_time_with_utc()}"
-        model = load_chat_model(conf.model)
+        
+        # Parse model string to get provider and model name
+        # Expected format: "provider/model" or just "model" (default to deepseek)
+        model_str = conf.model
+        if "/" in model_str:
+            provider, model_name = model_str.split("/", 1)
+        else:
+            provider = "deepseek"  # Default provider
+            model_name = model_str
+        
+        model = load_chat_model(provider=provider, model=model_name)
 
         if tools := self._get_tools(conf.tools):
             model = model.bind_tools(tools)

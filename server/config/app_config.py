@@ -9,7 +9,7 @@ from pydantic_settings import BaseSettings
 CONFIG_PATH = Path(__file__).parent / "base_config.yaml"
 MODELS_PATH = Path(__file__).parent / "model_provider.yaml"
 MODELS_PRIVATE_PATH = Path(__file__).parent / "model_provider.private.yml"
-
+STORAGE_PATH = Path(__file__).parent.parent / "storage"
 
 # 模型提供商配置模型
 class ModelProvider(BaseModel):
@@ -52,7 +52,7 @@ class AppConfig(BaseSettings):
     
     # 基础配置
     config_file: Optional[str] = None
-    storage_dir: str = Field(default="storage", description="存储目录")
+    storage_dir: str = Field(default=str(STORAGE_PATH), description="存储目录")
     model_dir: str = Field(default="", description="模型目录")
     
     # 功能开关

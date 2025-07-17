@@ -1,4 +1,4 @@
-import { request } from './base.js'
+import { apiGet, apiPost, apiPut, apiDelete } from './base.js'
 
 /**
  * 提示词模板API
@@ -8,14 +8,14 @@ export const promptApi = {
    * 获取所有提示词分类
    */
   getCategories() {
-    return request.get('/prompts/categories')
+    return apiGet('/prompts/categories')
   },
 
   /**
    * 获取所有提示词模板
    */
   getAllTemplates() {
-    return request.get('/prompts/templates')
+    return apiGet('/prompts/templates')
   },
 
   /**
@@ -23,7 +23,7 @@ export const promptApi = {
    * @param {string} category 分类键
    */
   getTemplatesByCategory(category) {
-    return request.get(`/prompts/templates/${category}`)
+    return apiGet(`/prompts/templates/${category}`)
   },
 
   /**
@@ -32,7 +32,7 @@ export const promptApi = {
    * @param {string} templateKey 模板键
    */
   getTemplate(category, templateKey) {
-    return request.get(`/prompts/templates/${category}/${templateKey}`)
+    return apiGet(`/prompts/templates/${category}/${templateKey}`)
   },
 
   /**
@@ -42,7 +42,7 @@ export const promptApi = {
    * @param {Object} template 模板数据
    */
   createTemplate(category, templateKey, template) {
-    return request.post(`/prompts/templates/${category}/${templateKey}`, template)
+    return apiPost(`/prompts/templates/${category}/${templateKey}`, template, {}, true)
   },
 
   /**
@@ -52,7 +52,7 @@ export const promptApi = {
    * @param {Object} template 模板数据
    */
   updateTemplate(category, templateKey, template) {
-    return request.put(`/prompts/templates/${category}/${templateKey}`, template)
+    return apiPut(`/prompts/templates/${category}/${templateKey}`, template, {}, true)
   },
 
   /**
@@ -61,7 +61,7 @@ export const promptApi = {
    * @param {string} templateKey 模板键
    */
   deleteTemplate(category, templateKey) {
-    return request.delete(`/prompts/templates/${category}/${templateKey}`)
+    return apiDelete(`/prompts/templates/${category}/${templateKey}`, {}, true)
   },
 
   /**
@@ -69,7 +69,7 @@ export const promptApi = {
    * @param {Object} category 分类数据
    */
   createCategory(category) {
-    return request.post('/prompts/categories', category)
+    return apiPost('/prompts/categories', category, {}, true)
   },
 
   /**
@@ -77,7 +77,7 @@ export const promptApi = {
    * @param {string} categoryKey 分类键
    */
   deleteCategory(categoryKey) {
-    return request.delete(`/prompts/categories/${categoryKey}`)
+    return apiDelete(`/prompts/categories/${categoryKey}`, {}, true)
   },
 
   /**
@@ -90,14 +90,14 @@ export const promptApi = {
     if (category) {
       params.append('category', category)
     }
-    return request.get(`/prompts/search?${params.toString()}`)
+    return apiGet(`/prompts/search?${params.toString()}`)
   },
 
   /**
    * 获取提示词模板统计信息
    */
   getStats() {
-    return request.get('/prompts/stats')
+    return apiGet('/prompts/stats')
   }
 }
 

@@ -1,39 +1,39 @@
 import yaml
 from pathlib import Path
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import List, Dict, Any, Optional
 
 # 模型配置
 class ModelConfig(BaseModel):
-    provider: str = ""
-    model: str = ""
-    config: Dict[str, Any] = {"temperature": 0.7, "max_tokens": 2048}
+    provider: str = Field(default="", description="模型提供商")
+    model: str = Field(default="", description="模型名称")
+    config: Dict[str, Any] = Field(default={"temperature": 0.7, "max_tokens": 2048}, description="模型参数配置")
 
 # 知识库检索配置
 class RetrievalConfig(BaseModel):
-    top_k: int = 3
-    similarity_threshold: float = 0.5
+    top_k: int = Field(default=3, description="检索返回的文档数量")
+    similarity_threshold: float = Field(default=0.5, description="相似度阈值")
 
 # 知识库配置
 class KnowledgeConfig(BaseModel):
-    enabled: bool = False
-    databases: List[str] = []
-    retrieval_config: RetrievalConfig = RetrievalConfig()
+    enabled: bool = Field(default=False, description="是否启用知识库")
+    databases: List[str] = Field(default_factory=list, description="知识库数据库列表")
+    retrieval_config: RetrievalConfig = Field(default_factory=RetrievalConfig, description="检索配置")
 
 # MCP配置
 class McpConfig(BaseModel):
-    enabled: bool = False
-    servers: List[str] = []
+    enabled: bool = Field(default=False, description="是否启用MCP服务")
+    servers: List[str] = Field(default_factory=list, description="MCP服务器列表")
 
 # 智能体配置
 class AgentConfig(BaseModel):
-    name: str = ""
-    description: str = ""
-    system_prompt: str = ""
-    model_config: ModelConfig = ModelConfig()
-    knowledge_config: KnowledgeConfig = KnowledgeConfig()
-    mcp_config: McpConfig = McpConfig()
-    tools: List[str] = []
+    name: str = Field(default="", description="智能体名称")
+    description: str = Field(default="", description="智能体描述")
+    system_prompt: str = Field(default="", description="系统提示词")
+    llm_config: ModelConfig = Field(default_factory=ModelConfig, description="语言模型配置")
+    knowledge_config: KnowledgeConfig = Field(default_factory=KnowledgeConfig, description="知识库配置")
+    mcp_config: McpConfig = Field(default_factory=McpConfig, description="MCP配置")
+    tools: List[str] = Field(default_factory=list, description="工具列表")
     
     def save_to_yaml(self, agents_dir: str = None):
         """将智能体配置保存为YAML文件
@@ -87,7 +87,7 @@ if __name__ == "__main__":
         name="test_agent",
         description="This is a test agent",
         system_prompt="You are a helpful assistant.",
-        model_config=ModelConfig(
+        llm_config=ModelConfig(
             provider="openai",
             model="gpt-3.5-turbo",
             config={"temperature": 0.7, "max_tokens": 2048}
