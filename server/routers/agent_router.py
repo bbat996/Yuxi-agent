@@ -4,12 +4,15 @@ from typing import List, Optional, Dict, Any
 import uuid
 from datetime import datetime
 from pydantic import BaseModel, Field
+import yaml
+import os
 
 from db_manager import DBManager
 from models.agent_models import CustomAgent, AgentInstance
 from models.user_model import User
 from utils.auth_middleware import get_required_user
 from src.utils import logger
+from config.agent_config import AgentConfig
 
 # 创建路由器
 agent_router = APIRouter(prefix="/agents", tags=["agents"])
@@ -332,137 +335,84 @@ async def get_agent(agent_id: str, current_user: User = Depends(get_required_use
 async def update_agent(agent_id: str, request: AgentUpdateRequest, current_user: User = Depends(get_required_user)):
     """更新智能体信息"""
     with db_manager.get_session_context() as session:
-        # 查询智能体
         agent = session.query(CustomAgent).filter(and_(CustomAgent.agent_id == agent_id, CustomAgent.deleted_at.is_(None))).first()
 
         if not agent:
             raise HTTPException(status_code=404, detail="智能体不存在")
 
-        # 权限检查：只能修改自己的智能体
         if agent.created_by != current_user.id:
             raise HTTPException(status_code=403, detail="无权限修改此智能体")
 
-        # 更新基础字段
+        # 1. 将现有配置加载到Pydantic模型中
+        config_dict = agent.to_chatbot_config()
+
+        # 数据清洗：确保 mcp_skills 是列表，以兼容旧数据格式
+        if isinstance(config_dict.get('mcp_skills'), dict):
+            config_dict['mcp_skills'] = []
+
+        try:
+            current_agent_config = AgentConfig(**config_dict)
+        except Exception as e:
+            logger.error(f"加载现有智能体配置失败: {e}")
+            raise HTTPException(status_code=500, detail=f"加载现有配置失败: {e}")
+
+        # 2. 使用Pydantic的model_copy进行智能更新（自动处理嵌套模型）
         update_data = request.model_dump(exclude_unset=True)
-        basic_fields = ["name", "description", "agent_type", "avatar", "system_prompt", "tags", "is_public"]
 
-        for field in basic_fields:
-            if field in update_data:
-                setattr(agent, field, update_data[field])
+        try:
+            agent_config = current_agent_config.model_copy(update=update_data)
+        except Exception as e:
+            logger.error(f"更新智能体配置验证失败: {e}")
+            raise HTTPException(status_code=400, detail=f"配置验证失败: {e}")
 
-        # 更新模型配置
-        if any(field in update_data for field in ["provider", "model_name", "model_parameters"]):
-            current_model_config = agent.model_config or {}
-            if "provider" in update_data:
-                current_model_config["provider"] = update_data["provider"]
-            if "model_name" in update_data:
-                current_model_config["model_name"] = update_data["model_name"]
-            if "model_parameters" in update_data:
-                current_model_config["parameters"] = update_data["model_parameters"]
-            agent.model_config = current_model_config
+        # 3. 使用更新后的Pydantic模型更新数据库对象
+        update_dict = agent_config.model_dump()
+        for field, value in update_dict.items():
+            if hasattr(agent, field):
+                setattr(agent, field, value)
 
-        # 更新工具配置
-        if any(field in update_data for field in ["tools", "mcp_skills", "mcp_servers"]):
-            current_tools_config = agent.tools_config or {}
-            if "tools" in update_data:
-                current_tools_config["builtin_tools"] = update_data["tools"]
-            if "mcp_skills" in update_data:
-                current_tools_config["mcp_skills"] = update_data["mcp_skills"]
-            if "mcp_servers" in update_data:
-                # 将MCP服务器列表转换为列表格式，与chatbot.private.yaml一致
-                mcp_servers = update_data["mcp_servers"]
-                if isinstance(mcp_servers, list):
-                    # 直接使用列表格式，与chatbot.private.yaml中的格式一致
-                    current_tools_config["mcp_skills"] = mcp_servers
-                else:
-                    current_tools_config["mcp_skills"] = mcp_servers
-            agent.tools_config = current_tools_config
-
-        # 更新知识库配置
-        if any(field in update_data for field in ["knowledge_databases", "retrieval_params"]):
-            current_knowledge_config = agent.knowledge_config or {}
-            if "knowledge_databases" in update_data:
-                current_knowledge_config["databases"] = update_data["knowledge_databases"]
-            if "retrieval_params" in update_data:
-                current_knowledge_config["retrieval_params"] = update_data["retrieval_params"]
-            agent.knowledge_config = current_knowledge_config
+        agent.model_config = _build_model_config(
+            provider=agent_config.provider,
+            model_name=agent_config.model_name,
+            model_parameters=update_dict.get("model_parameters")
+        )
+        agent.tools_config = _build_tools_config(
+            tools=agent_config.tools,
+            mcp_skills=agent_config.mcp_skills
+        )
+        agent.knowledge_config = _build_knowledge_config(
+            knowledge_databases=agent_config.knowledge_databases,
+            retrieval_params=update_dict.get("retrieval_params")
+        )
 
         agent.updated_at = datetime.utcnow()
 
-        # === 新增：保存配置到YAML文件 ===
-        import yaml
-        import os
-        
-        # 构建YAML配置，格式与chatbot.private.yaml一致
-        # 注意：这里只是注释，实际写入文件时使用自定义格式
-        
-        # 文件名处理，前缀加@，防止特殊字符
-        safe_name = agent.name.replace("/", "_").replace("\\", "_").replace(" ", "_")
-        file_name = f"@{safe_name}.private.yaml"
-        config_dir = os.path.join(os.path.dirname(__file__), "../config/agents")
-        os.makedirs(config_dir, exist_ok=True)
-        file_path = os.path.join(config_dir, file_name)
-        
-        # 自定义YAML格式，保持与chatbot.private.yaml一致的结构
-        with open(file_path, "w", encoding="utf-8") as f:
-            f.write(f'name: "{agent.name}"\n')
-            f.write(f'description: "{agent.description or ""}"\n')
-            f.write(f'system_prompt: "{agent.system_prompt or ""}"\n')
-            
-            # 模型配置
-            provider = agent.model_config.get("provider", "") if agent.model_config else ""
-            model_name = agent.model_config.get("model_name", "") if agent.model_config else ""
-            model_parameters = agent.model_config.get("parameters", {}) if agent.model_config else {}
-            
-            f.write(f'provider: {provider}\n')
-            f.write(f'model_name: {model_name}\n')
-            f.write('model_parameters:\n')
-            for key, value in model_parameters.items():
-                f.write(f'  {key}: {value}\n')
-            
-            # 工具配置
-            tools = agent.tools_config.get("builtin_tools", []) if agent.tools_config else []
-            f.write('tools: []\n' if not tools else f'tools:\n' + ''.join([f'  - "{tool}"\n' for tool in tools]))
-            
-            # MCP技能配置
-            mcp_skills = agent.tools_config.get("mcp_skills", {}) if agent.tools_config else {}
-            if mcp_skills:
-                # 如果是字典格式，按字典格式写入
-                if isinstance(mcp_skills, dict):
-                    f.write('mcp_skills:\n')
-                    for server_name, server_config in mcp_skills.items():
-                        f.write(f'  {server_name}:\n')
-                        if isinstance(server_config, dict):
-                            for key, value in server_config.items():
-                                if isinstance(value, str):
-                                    f.write(f'    {key}: "{value}"\n')
-                                else:
-                                    f.write(f'    {key}: {value}\n')
-                        else:
-                            f.write(f'    enabled: {server_config}\n')
-                # 如果是列表格式，按列表格式写入
-                elif isinstance(mcp_skills, list):
-                    f.write('mcp_skills:\n')
-                    for server_name in mcp_skills:
-                        f.write(f'  - "{server_name}"\n')
-                else:
-                    f.write('mcp_skills: {}\n')
-            else:
-                f.write('mcp_skills: {}\n')
-            
-            # 知识库配置
-            knowledge_databases = agent.knowledge_config.get("databases", []) if agent.knowledge_config else []
-            retrieval_params = agent.knowledge_config.get("retrieval_params", {}) if agent.knowledge_config else {}
-            
-            f.write('knowledge_databases: []\n' if not knowledge_databases else f'knowledge_databases:\n' + ''.join([f'  - "{db}"\n' for db in knowledge_databases]))
-            f.write('retrieval_params:\n')
-            for key, value in retrieval_params.items():
-                f.write(f'  {key}: {value}\n')
-        # === END ===
+        # 5. 保存到数据库和YAML文件
+        session.commit()
+        session.flush()
+
+        _save_agent_config_to_yaml(agent_config)
 
         logger.info(f"用户 {current_user.username} 更新了智能体: {agent.name}")
 
         return {"success": True, "message": "智能体更新成功", "data": agent.to_dict()}
+
+
+def _save_agent_config_to_yaml(agent_config: AgentConfig):
+    """将智能体配置保存到YAML文件"""
+    # 使用Pydantic模型生成干净的、结构一致的字典
+    config_data = agent_config.model_dump(exclude_none=True)
+
+    # 文件名处理，前缀加@，防止特殊字符
+    safe_name = agent_config.name.replace("/", "_").replace("\\", "_").replace(" ", "_")
+    file_name = f"@{safe_name}.private.yaml"
+    config_dir = os.path.join(os.path.dirname(__file__), "../config/agents")
+    os.makedirs(config_dir, exist_ok=True)
+    file_path = os.path.join(config_dir, file_name)
+
+    # 使用PyYAML写入文件
+    with open(file_path, "w", encoding="utf-8") as f:
+        yaml.dump(config_data, f, allow_unicode=True, default_flow_style=False, sort_keys=False)
 
 
 @agent_router.delete("/{agent_id}", summary="删除智能体")
@@ -476,7 +426,7 @@ async def delete_agent(agent_id: str, current_user: User = Depends(get_required_
             raise HTTPException(status_code=404, detail="智能体不存在")
 
         # 权限检查：只能删除自己的智能体
-        if agent.created_by != str(current_user.id) and not current_user.is_admin:
+        if agent.created_by != str(current_user.id) and current_user.role not in ['admin', 'superadmin']:
             raise HTTPException(status_code=403, detail="无权限删除此智能体")
 
         # 软删除

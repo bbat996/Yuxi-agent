@@ -80,10 +80,14 @@ class AgentManager:
 
             if not db_record:
                 return None
+                
+            # 在会话关闭前获取所有需要的数据
+            agent_id = db_record.agent_id
+            config = db_record.to_chatbot_config()
 
         # 使用异步工厂创建实例
-        agent = await ChatbotAgent.create(agent_id=db_record.agent_id, config=db_record.to_chatbot_config())
-        self._instances[db_record.agent_id] = agent
+        agent = await ChatbotAgent.create(agent_id=agent_id, config=config)
+        self._instances[agent_id] = agent
         return agent
 
     def get_agent_by_identifier(self, identifier, **kwargs):

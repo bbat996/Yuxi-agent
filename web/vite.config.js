@@ -11,7 +11,7 @@ export default defineConfig(({ mode }) => {
       vue(),
       Inspector(
         {
-          launchEditor: 'cursor'
+          launchEditor: 'windsurf'
         }
       )
     ],

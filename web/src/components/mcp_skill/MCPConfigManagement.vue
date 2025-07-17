@@ -12,11 +12,11 @@
           </a-space>
         </div>
         <a-space>
+          <a-input-search v-model:value="searchKeyword" placeholder="搜索MCP名称或描述" style="width: 200px"
+            @search="handleSearch" @change="handleSearch" />
           <a-button type="primary" @click="showAddServerModal" :icon="h(PlusOutlined)">
             添加外部MCP
           </a-button>
-          <a-input-search v-model:value="searchKeyword" placeholder="搜索MCP名称或描述" style="width: 200px"
-            @search="handleSearch" @change="handleSearch" />
         </a-space>
       </div>
 
@@ -76,7 +76,8 @@
                 <a-button v-if="!record.is_external" size="small" @click="editServer(record)" :icon="h(EditOutlined)">
                   编辑
                 </a-button>
-                <a-button v-if="record.is_external" size="small" danger @click="deleteServer(record)" :icon="h(DeleteOutlined)">
+                <a-button v-if="record.is_external" size="small" danger @click="deleteServer(record)"
+                  :icon="h(DeleteOutlined)">
                   删除
                 </a-button>
               </a-space>
@@ -149,12 +150,11 @@
     </a-modal>
 
     <!-- 添加/编辑服务器模态框 -->
-    <a-modal v-model:open="serverFormVisible" :title="serverFormMode === 'add' ? '添加外部MCP服务器' : '编辑MCP服务器'" 
+    <a-modal v-model:open="serverFormVisible" :title="serverFormMode === 'add' ? '添加外部MCP服务器' : '编辑MCP服务器'"
       width="600px" @ok="handleServerFormSubmit" @cancel="handleServerFormCancel" :confirmLoading="loading.submit">
       <a-form ref="serverFormRef" :model="serverForm" :rules="serverFormRules" layout="vertical">
         <a-form-item label="服务器名称" name="serverKey">
-          <a-input v-model:value="serverForm.serverKey" placeholder="请输入服务器名称" 
-            :disabled="serverFormMode === 'edit'" />
+          <a-input v-model:value="serverForm.serverKey" placeholder="请输入服务器名称" :disabled="serverFormMode === 'edit'" />
         </a-form-item>
         <a-form-item label="模块路径" name="module_path">
           <a-input v-model:value="serverForm.module_path" placeholder="请输入模块路径" />
@@ -415,14 +415,14 @@ const showAddServerModal = () => {
 const editServer = (server) => {
   serverFormMode.value = 'edit'
   resetServerForm()
-  
+
   // 填充表单数据
   serverForm.serverKey = server.serverKey
   serverForm.module_path = server.module_path || ''
   serverForm.class_name = server.class_name || ''
   serverForm.config_path = server.config_path || ''
   serverForm.enabled = server.enabled !== false
-  
+
   serverFormVisible.value = true
 }
 
@@ -506,7 +506,7 @@ const toggleServerStatus = async (server, checked) => {
     loading.toggle = true
 
     const response = await mcpConfigApi.toggleServerStatus(serverName, checked)
-    
+
     if (response.success) {
       // 更新本地状态
       server.enabled = checked

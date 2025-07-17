@@ -10,8 +10,14 @@
         <slot name="left"></slot>
       </div>
       <div class="header-title">
-        <h1>{{ title }}</h1>
+        <div class="title-line">
+          <h1>{{ title }}</h1>
+          <slot name="title-action"></slot>
+        </div>
         <p v-if="description">{{ description }}</p>
+      </div>
+      <div class="header-tab-switch" v-if="$slots.tabSwitch">
+        <slot name="tabSwitch"></slot>
       </div>
       <div class="header-actions" v-if="showSaveButton || $slots.actions">
         <a-button v-if="showSaveButton" type="primary" :loading="saving" @click="onSave">
@@ -81,11 +87,18 @@ const onSave = () => {
   justify-content: space-between;
   align-items: center;
   gap: 10px;
+  position: relative;
 }
 
 .header-title {
   flex: 1;
   width: 100%;
+
+  .title-line {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
   font-size: 13px;
   color: rgba(0, 0, 0, 0.45);
 
@@ -104,5 +117,13 @@ const onSave = () => {
 .header-actions {
   display: flex;
   gap: 8px;
+}
+
+.header-tab-switch {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 10;
 }
 </style>
