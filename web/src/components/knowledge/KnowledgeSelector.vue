@@ -21,6 +21,7 @@
           :columns="columns" 
           :data-source="filteredKnowledgeList"
           :row-selection="{ 
+            type: 'checkbox',
             selectedRowKeys: selectedKeys, 
             onChange: onSelectionChange,
             getCheckboxProps: (record) => ({
@@ -30,6 +31,7 @@
           :pagination="false" 
           size="small"
           :loading="loading"
+          row-key="db_id"
         >
           <template #bodyCell="{ column, record }">
             <template v-if="column.key === 'action'">
@@ -128,6 +130,7 @@ const loadKnowledgeBases = async () => {
     const response = await knowledgeBaseApi.getDatabases()
     if (response.databases) {
       knowledgeList.value = response.databases.map(db => ({
+        key: db.db_id, // Add key property for Ant Design table
         db_id: db.db_id,
         name: db.name,
         description: db.description,
@@ -157,7 +160,8 @@ const searchKnowledgeBases = () => {
 
 // 知识库选择变化
 const onSelectionChange = (selectedRowKeys) => {
-  selectedKeys.value = selectedRowKeys
+  console.log('Selected row keys:', selectedRowKeys);
+  selectedKeys.value = selectedRowKeys;
 }
 
 // 预览知识库
@@ -168,9 +172,14 @@ const previewKnowledge = (record) => {
 
 // 确认选择
 const handleSelect = () => {
+  console.log('Selected keys:', selectedKeys.value);
+  console.log('Knowledge list:', knowledgeList.value);
+  
   const selectedItems = knowledgeList.value.filter(item => 
     selectedKeys.value.includes(item.db_id)
   )
+  
+  console.log('Selected items:', selectedItems);
   emit('select', selectedItems)
   emit('update:modelValue', false)
 }

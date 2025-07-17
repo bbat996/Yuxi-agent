@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, Query, Body
+from fastapi import APIRouter, Depends, HTTPException, Query, Body, BackgroundTasks
 from sqlalchemy import desc, asc, and_, or_
 from typing import List, Optional, Dict, Any
 import uuid
@@ -332,7 +332,7 @@ async def get_agent(agent_id: str, current_user: User = Depends(get_required_use
 
 
 @agent_router.put("/{agent_id}", summary="更新智能体")
-async def update_agent(agent_id: str, request: AgentUpdateRequest, current_user: User = Depends(get_required_user)):
+async def update_agent(agent_id: str, request: AgentUpdateRequest, background_tasks: BackgroundTasks, current_user: User = Depends(get_required_user)):
     """更新智能体信息"""
     with db_manager.get_session_context() as session:
         agent = session.query(CustomAgent).filter(and_(CustomAgent.agent_id == agent_id, CustomAgent.deleted_at.is_(None))).first()
@@ -343,18 +343,20 @@ async def update_agent(agent_id: str, request: AgentUpdateRequest, current_user:
         if agent.created_by != current_user.id:
             raise HTTPException(status_code=403, detail="无权限修改此智能体")
 
-        # 1. 将现有配置加载到Pydantic模型中
-        config_dict = agent.to_chatbot_config()
-
-        # 数据清洗：确保 mcp_skills 是列表，以兼容旧数据格式
-        if isinstance(config_dict.get('mcp_skills'), dict):
-            config_dict['mcp_skills'] = []
-
+        # 1. 直接从 agent 对象创建 AgentConfig
         try:
-            current_agent_config = AgentConfig(**config_dict)
+            current_agent_config = AgentConfig(
+                name=agent.name,
+                description=agent.description,
+                system_prompt=agent.system_prompt,
+                model_config=agent.model_config or {},
+                knowledge_config=agent.knowledge_config or {},
+                mcp_config={"servers": agent.tools_config.get("mcp_skills", []) if agent.tools_config else []},
+                tools=agent.tools_config.get("builtin_tools", []) if agent.tools_config else []
+            )
         except Exception as e:
-            logger.error(f"加载现有智能体配置失败: {e}")
-            raise HTTPException(status_code=500, detail=f"加载现有配置失败: {e}")
+            logger.error(f"创建现有智能体配置失败: {e}")
+            raise HTTPException(status_code=500, detail=f"创建现有配置失败: {e}")
 
         # 2. 使用Pydantic的model_copy进行智能更新（自动处理嵌套模型）
         update_data = request.model_dump(exclude_unset=True)
@@ -365,25 +367,16 @@ async def update_agent(agent_id: str, request: AgentUpdateRequest, current_user:
             logger.error(f"更新智能体配置验证失败: {e}")
             raise HTTPException(status_code=400, detail=f"配置验证失败: {e}")
 
-        # 3. 使用更新后的Pydantic模型更新数据库对象
-        update_dict = agent_config.model_dump()
-        for field, value in update_dict.items():
-            if hasattr(agent, field):
-                setattr(agent, field, value)
-
-        agent.model_config = _build_model_config(
-            provider=agent_config.provider,
-            model_name=agent_config.model_name,
-            model_parameters=update_dict.get("model_parameters")
-        )
-        agent.tools_config = _build_tools_config(
-            tools=agent_config.tools,
-            mcp_skills=agent_config.mcp_skills
-        )
-        agent.knowledge_config = _build_knowledge_config(
-            knowledge_databases=agent_config.knowledge_databases,
-            retrieval_params=update_dict.get("retrieval_params")
-        )
+        # 3. 将更新后的 AgentConfig 属性同步回 CustomAgent
+        agent.name = agent_config.name
+        agent.description = agent_config.description
+        agent.system_prompt = agent_config.system_prompt
+        agent.model_config = agent_config.model_config.model_dump()
+        agent.knowledge_config = agent_config.knowledge_config.model_dump()
+        agent.tools_config = {
+            "builtin_tools": agent_config.tools,
+            "mcp_skills": agent_config.mcp_config.servers
+        }
 
         agent.updated_at = datetime.utcnow()
 
@@ -391,28 +384,11 @@ async def update_agent(agent_id: str, request: AgentUpdateRequest, current_user:
         session.commit()
         session.flush()
 
-        _save_agent_config_to_yaml(agent_config)
+        background_tasks.add_task(agent_config.save_to_yaml)
 
         logger.info(f"用户 {current_user.username} 更新了智能体: {agent.name}")
 
         return {"success": True, "message": "智能体更新成功", "data": agent.to_dict()}
-
-
-def _save_agent_config_to_yaml(agent_config: AgentConfig):
-    """将智能体配置保存到YAML文件"""
-    # 使用Pydantic模型生成干净的、结构一致的字典
-    config_data = agent_config.model_dump(exclude_none=True)
-
-    # 文件名处理，前缀加@，防止特殊字符
-    safe_name = agent_config.name.replace("/", "_").replace("\\", "_").replace(" ", "_")
-    file_name = f"@{safe_name}.private.yaml"
-    config_dir = os.path.join(os.path.dirname(__file__), "../config/agents")
-    os.makedirs(config_dir, exist_ok=True)
-    file_path = os.path.join(config_dir, file_name)
-
-    # 使用PyYAML写入文件
-    with open(file_path, "w", encoding="utf-8") as f:
-        yaml.dump(config_data, f, allow_unicode=True, default_flow_style=False, sort_keys=False)
 
 
 @agent_router.delete("/{agent_id}", summary="删除智能体")
@@ -672,18 +648,22 @@ async def get_agent_yaml(agent_id: str, current_user: User = Depends(get_require
         yaml_content.append(f'description: "{agent.description or ""}"')
         yaml_content.append(f'system_prompt: "{agent.system_prompt or ""}"')
         yaml_content.append('')
-        yaml_content.append('# 模型配置 - 分开配置')
+        yaml_content.append('# 模型配置')
         
         # 模型配置
         provider = agent.model_config.get("provider", "") if agent.model_config else ""
         model_name = agent.model_config.get("model_name", "") if agent.model_config else ""
         model_parameters = agent.model_config.get("parameters", {}) if agent.model_config else {}
         
-        yaml_content.append(f'provider: {provider}')
-        yaml_content.append(f'model_name: {model_name}')
-        yaml_content.append('model_parameters:')
+        yaml_content.append('model_config:')
+        yaml_content.append(f'  provider: "{provider}"')
+        yaml_content.append(f'  model: "{model_name}"')
+        yaml_content.append('  config:')
         for key, value in model_parameters.items():
-            yaml_content.append(f'  {key}: {value}')
+            if isinstance(value, str):
+                yaml_content.append(f'    {key}: "{value}"')
+            else:
+                yaml_content.append(f'    {key}: {value}')
         
         yaml_content.append('')
         yaml_content.append('# 工具配置')
@@ -698,33 +678,24 @@ async def get_agent_yaml(agent_id: str, current_user: User = Depends(get_require
             yaml_content.append('tools: []')
         
         yaml_content.append('')
-        yaml_content.append('# MCP技能配置 - 字典格式')
+        yaml_content.append('# MCP配置')
         
         # MCP技能配置
-        mcp_skills = agent.tools_config.get("mcp_skills", {}) if agent.tools_config else {}
+        mcp_skills = agent.tools_config.get("mcp_skills", []) if agent.tools_config else []
         if mcp_skills:
-            # 如果是字典格式，按字典格式写入
-            if isinstance(mcp_skills, dict):
-                yaml_content.append('mcp_skills:')
-                for server_name, server_config in mcp_skills.items():
-                    yaml_content.append(f'  {server_name}:')
-                    if isinstance(server_config, dict):
-                        for key, value in server_config.items():
-                            if isinstance(value, str):
-                                yaml_content.append(f'    {key}: "{value}"')
-                            else:
-                                yaml_content.append(f'    {key}: {value}')
-                    else:
-                        yaml_content.append(f'    enabled: {server_config}')
-            # 如果是列表格式，按列表格式写入
-            elif isinstance(mcp_skills, list):
-                yaml_content.append('mcp_skills:')
+            yaml_content.append('mcp_config:')
+            yaml_content.append('  enabled: true')
+            yaml_content.append('  servers:')
+            if isinstance(mcp_skills, list):
                 for server_name in mcp_skills:
-                    yaml_content.append(f'  - "{server_name}"')
-            else:
-                yaml_content.append('mcp_skills: {}')
+                    yaml_content.append(f'    - "{server_name}"')
+            elif isinstance(mcp_skills, dict):
+                for server_name in mcp_skills.keys():
+                    yaml_content.append(f'    - "{server_name}"')
         else:
-            yaml_content.append('mcp_skills: {}')
+            yaml_content.append('mcp_config:')
+            yaml_content.append('  enabled: false')
+            yaml_content.append('  servers: []')
         
         yaml_content.append('')
         yaml_content.append('# 知识库配置')
@@ -733,16 +704,22 @@ async def get_agent_yaml(agent_id: str, current_user: User = Depends(get_require
         knowledge_databases = agent.knowledge_config.get("databases", []) if agent.knowledge_config else []
         retrieval_params = agent.knowledge_config.get("retrieval_params", {}) if agent.knowledge_config else {}
         
+        yaml_content.append('knowledge_config:')
         if knowledge_databases:
-            yaml_content.append('knowledge_databases:')
+            yaml_content.append('  enabled: true')
+            yaml_content.append('  databases:')
             for db in knowledge_databases:
-                yaml_content.append(f'  - "{db}"')
+                yaml_content.append(f'    - "{db}"')
         else:
-            yaml_content.append('knowledge_databases: []')
+            yaml_content.append('  enabled: false')
+            yaml_content.append('  databases: []')
         
-        yaml_content.append('retrieval_params:')
+        yaml_content.append('  retrieval_config:')
         for key, value in retrieval_params.items():
-            yaml_content.append(f'  {key}: {value}')
+            if isinstance(value, str):
+                yaml_content.append(f'    {key}: "{value}"')
+            else:
+                yaml_content.append(f'    {key}: {value}')
 
         return {
             "success": True,
@@ -763,6 +740,8 @@ async def get_agent_stats(agent_id: str, current_user: User = Depends(get_requir
         ).first()
         if not agent:
             raise HTTPException(status_code=404, detail="智能体不存在")
+
+
 
         # 统计该 agent 的实例数量
         instance_count = session.query(AgentInstance).filter(AgentInstance.agent_id == agent_id).count()

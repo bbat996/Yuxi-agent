@@ -175,7 +175,12 @@
           </div>
         </div>
         <div v-show="activeTab === 'publish'" class="publish-container">
-          <p>发布渠道功能正在开发中...</p>
+          <PublishManagerComponent 
+            :agent-id="agentId" 
+            :publish-config="form.publish_config"
+            @update:publishConfig="updatePublishConfig"
+            @change="handlePublishConfigChange"
+          />
         </div>
       </div>
     </div>
@@ -289,10 +294,12 @@ import ModelSelectorComponent from '@/components/model/ModelSelectorComponent.vu
 import AgentModal from '@/components/agent/AgentModal.vue'
 import KnowledgeSelector from '@/components/knowledge/KnowledgeSelector.vue'
 import { KnowledgeConfig } from '@/components/knowledge'
+import { PublishManagerComponent } from '@/components/publish'
 import { getAgent, updateAgent } from '@/apis/agent_api'
 import { knowledgeBaseApi } from '@/apis/admin_api'
 import { templateAPI } from '@/apis/template_api'
 import { mcpConfigApi } from '@/apis/mcp_api'
+import { publishAPI } from '@/apis/publish_api'
 import { useConfigStore } from '@/stores/config'
 import { useAgentStore } from '@/stores/agent'
 
@@ -417,6 +424,28 @@ const form = ref({
   mcp_config: {
     enabled: false,
     servers: []
+  },
+  publish_config: {
+    channels: [],
+    api_settings: {
+      enabled: false,
+      api_key: '',
+      rate_limit: 60,
+      ip_whitelist_mode: 'none',
+      ip_whitelist: '',
+      origin_mode: 'none',
+      origin_whitelist: ''
+    },
+    embed_settings: {
+      enabled: false,
+      mode: 'chat',
+      allowed_domains: '',
+      theme_color: '1890ff',
+      position: 'bottom-right',
+      welcome_message: '您好！有什么可以帮助您的吗？',
+      button_text: '联系客服',
+      window_title: '智能客服'
+    }
   }
 })
 
@@ -522,10 +551,35 @@ const loadAgentData = async () => {
           }
         },
         mcp_config: {
-          enabled: agentData.tools_config?.mcp_servers?.length > 0,
-          servers: agentData.tools_config?.mcp_servers || []
+          enabled: agentData.tools_config?.mcp_skills?.length > 0,
+          servers: agentData.tools_config?.mcp_skills || []
+        },
+        publish_config: agentData.publish_config || {
+          channels: [],
+          api_settings: {
+            enabled: false,
+            api_key: '',
+            rate_limit: 60,
+            ip_whitelist_mode: 'none',
+            ip_whitelist: '',
+            origin_mode: 'none',
+            origin_whitelist: ''
+          },
+          embed_settings: {
+            enabled: false,
+            mode: 'chat',
+            allowed_domains: '',
+            theme_color: '1890ff',
+            position: 'bottom-right',
+            welcome_message: '您好！有什么可以帮助您的吗？',
+            button_text: '联系客服',
+            window_title: '智能客服'
+          }
         }
       };
+      
+      // 加载发布配置
+      loadPublishConfig();
     } else {
       message.error(response.message || '加载智能体数据失败');
     }
@@ -538,7 +592,21 @@ const loadAgentData = async () => {
 };
 
 const loadKnowledgeBases = async () => {
-  // ... (implementation details)
+  try {
+    const response = await knowledgeBaseApi.getDatabases();
+    if (response.databases) {
+      knowledgeList.value = response.databases.map(db => ({
+        db_id: db.db_id,
+        name: db.name,
+        description: db.description,
+        embed_model: db.embed_model,
+        dimension: db.dimension
+      }));
+    }
+  } catch (error) {
+    console.error('加载知识库列表失败:', error);
+    message.error('加载知识库列表失败');
+  }
 };
 
 const loadMCPServers = async () => {
@@ -595,7 +663,8 @@ const handleModelConfigCancel = () => {
   showModelConfigModal.value = false;
 };
 
-const openKnowledgeModal = () => {
+const openKnowledgeModal = async () => {
+  await loadKnowledgeBases();
   showKnowledgeModal.value = true;
 };
 
@@ -627,11 +696,32 @@ const removeKnowledge = (dbId) => {
 };
 
 const handleKnowledgeSelect = (selectedItems) => {
-  // ... (implementation details)
+  console.log('AgentEditView - Selected items received:', selectedItems);
+  
+  // Ensure selectedItems is an array
+  if (!Array.isArray(selectedItems)) {
+    console.error('handleKnowledgeSelect: selectedItems is not an array', selectedItems);
+    message.error('选择知识库失败：数据格式错误');
+    return;
+  }
+  
+  // Update the knowledge databases in the form
+  form.value.knowledge_config.databases = selectedItems.map(item => item.db_id);
+  console.log('AgentEditView - Updated databases:', form.value.knowledge_config.databases);
+  
+  // Make sure the knowledge config is enabled if databases are selected
+  if (selectedItems.length > 0) {
+    form.value.knowledge_config.enabled = true;
+  }
+  
+  // Close the modal
+  showKnowledgeModal.value = false;
+  
+  message.success(`已选择 ${selectedItems.length} 个知识库`);
 };
 
 const openMCPSkillModal = () => {
-  selectedMCPKeys.value = [...form.value.mcp_config.servers];
+  selectedMCPKeys.value = [...form.value.mcp_config.skills];
   showMCPSkillModal.value = true;
 };
 
@@ -640,7 +730,7 @@ const onMCPSelectionChange = (selectedRowKeys) => {
 };
 
 const handleMCPSkillSelect = () => {
-  form.value.mcp_config.servers = [...selectedMCPKeys.value];
+  form.value.mcp_config.skills = [...selectedMCPKeys.value];
   form.value.mcp_config.enabled = selectedMCPKeys.value.length > 0;
   showMCPSkillModal.value = false;
   message.success('MCP服务器选择已保存');
@@ -651,7 +741,7 @@ const handleMCPSkillCancel = () => {
 };
 
 const isServerSelected = (serverName) => {
-  return form.value.mcp_config.servers.includes(serverName);
+  return form.value.mcp_config.skills.includes(serverName);
 };
 
 const getServerDisplayName = (serverName) => {
@@ -664,6 +754,31 @@ const getServerDisplayToolsCount = (serverName) => {
   return server?.tools_count || 0;
 };
 
+// 加载发布配置
+const loadPublishConfig = async () => {
+  try {
+    if (!agentId.value) return;
+    
+    const response = await publishAPI.getPublishConfig(agentId.value);
+    if (response.success && response.data) {
+      form.value.publish_config = response.data;
+    }
+  } catch (error) {
+    console.error('加载发布配置失败:', error);
+    // 使用默认配置，不显示错误提示
+  }
+};
+
+// 更新发布配置
+const updatePublishConfig = (newConfig) => {
+  form.value.publish_config = newConfig;
+};
+
+// 处理发布配置变更
+const handlePublishConfigChange = (newConfig) => {
+  updatePublishConfig(newConfig);
+};
+
 onMounted(async () => {
   await configStore.refreshConfig();
   await loadAgentData();
@@ -671,9 +786,15 @@ onMounted(async () => {
   await loadKnowledgeBases();
 });
 
+// 表单引用
+const formRef = ref(null);
+
 const onSave = async () => {
   try {
-    await formRef.value.validate();
+    // 如果formRef存在则进行表单验证
+    if (formRef.value) {
+      await formRef.value.validate();
+    }
     saving.value = true;
     const saveData = {
       name: form.value.name,
@@ -685,7 +806,8 @@ const onSave = async () => {
       knowledge_databases: form.value.knowledge_config.enabled ? form.value.knowledge_config.databases : [],
       retrieval_params: form.value.knowledge_config.retrieval_config,
       mcp_skills: form.value.mcp_config.enabled ? form.value.mcp_config.servers : [],
-      tools: []
+      tools: [],
+      publish_config: form.value.publish_config
     };
     const response = await updateAgent(agentId.value, saveData);
     if (response.success) {
@@ -696,6 +818,7 @@ const onSave = async () => {
       message.error(response.message || '保存失败');
     }
   } catch (error) {
+    console.error('保存失败:', error);
     message.error('保存失败');
   } finally {
     saving.value = false;
@@ -910,6 +1033,13 @@ const onSave = async () => {
     align-items: center;
     gap: 0;
   }
+}
+
+.publish-container {
+  padding: 0;
+  height: calc(100vh - 160px);
+  overflow: hidden;
+  background-color: #f5f5f5;
 }
 
 /* 响应式设计 */

@@ -65,37 +65,54 @@ class CustomAgent(Base):
 
     def to_chatbot_config(self) -> dict:
         """转换为ChatbotConfiguration兼容的配置格式"""
-        config = {
-            "name": self.name,
-            "description": self.description,
-            "agent_type": self.agent_type,
-            "system_prompt": self.system_prompt,
-        }
+        from config.agent_config import AgentConfig, ModelConfig, KnowledgeConfig, McpConfig
+        
+        # 创建 AgentConfig 实例
+        agent_config = AgentConfig()
+        
+        # 基础信息
+        agent_config.name = self.name
+        agent_config.description = self.description
+        agent_config.system_prompt = self.system_prompt or ""
         
         # 模型配置
         if self.model_config:
+            model_config = ModelConfig()
             if "provider" in self.model_config:
-                config["provider"] = self.model_config["provider"]
+                model_config.provider = self.model_config["provider"]
             if "model_name" in self.model_config:
-                config["model_name"] = self.model_config["model_name"]
+                model_config.model = self.model_config["model_name"]
             if "parameters" in self.model_config:
-                config["model_parameters"] = self.model_config["parameters"]
+                model_config.config = self.model_config["parameters"]
+            agent_config.model_config = model_config
         
         # 工具配置
         if self.tools_config:
             if "builtin_tools" in self.tools_config:
-                config["tools"] = self.tools_config["builtin_tools"]
+                agent_config.tools = self.tools_config["builtin_tools"]
             if "mcp_skills" in self.tools_config:
-                config["mcp_skills"] = self.tools_config["mcp_skills"]
+                mcp_config = McpConfig()
+                mcp_skills = self.tools_config["mcp_skills"]
+                if isinstance(mcp_skills, list):
+                    mcp_config.servers = mcp_skills
+                    mcp_config.enabled = len(mcp_skills) > 0
+                elif isinstance(mcp_skills, dict):
+                    mcp_config.servers = list(mcp_skills.keys())
+                    mcp_config.enabled = len(mcp_skills) > 0
+                agent_config.mcp_config = mcp_config
         
         # 知识库配置
         if self.knowledge_config:
+            knowledge_config = KnowledgeConfig()
             if "databases" in self.knowledge_config:
-                config["knowledge_databases"] = self.knowledge_config["databases"]
+                knowledge_config.databases = self.knowledge_config["databases"]
+                knowledge_config.enabled = len(self.knowledge_config["databases"]) > 0
             if "retrieval_params" in self.knowledge_config:
-                config["retrieval_params"] = self.knowledge_config["retrieval_params"]
+                knowledge_config.retrieval_config = self.knowledge_config["retrieval_params"]
+            agent_config.knowledge_config = knowledge_config
         
-        return config
+        # 返回 AgentConfig 的字典格式
+        return agent_config.model_dump()
 
 class PromptTemplate(Base):
     """提示词模板模型"""
