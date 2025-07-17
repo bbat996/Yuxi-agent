@@ -12,6 +12,12 @@ from config import PROJECT_DIR
 
 class MCPConfigManager:
     """MCP配置管理器"""
+    _instance: Optional["MCPConfigManager"] = None
+
+    def __new__(cls, *args, **kwargs) -> "MCPConfigManager":
+        if cls._instance is None:
+            cls._instance = super().__new__(cls)
+        return cls._instance
     
     def __init__(self, config_path: str = None):
         """
@@ -20,6 +26,9 @@ class MCPConfigManager:
         Args:
             config_path: 配置文件路径，默认为config/mcp_server.yaml
         """
+        if hasattr(self, "config"):  # a more robust check for initialization
+            return
+
         if config_path is None:
             # 获取项目根目录
             config_path = PROJECT_DIR / "server" / "config" / "mcp_server.yaml"
@@ -71,20 +80,38 @@ class MCPConfigManager:
         connections = {}
         servers = self.get_enabled_servers()
         # 获取项目根目录，以便构建绝对路径
-        project_root = PROJECT_DIR
+        project_root = str(PROJECT_DIR.resolve())
+        server_root = os.path.join(project_root, 'server')
+
+        # 确保当前Python路径包含server目录
+        current_pythonpath = os.environ.get("PYTHONPATH", "")
+        if server_root not in current_pythonpath:
+            if current_pythonpath:
+                os.environ["PYTHONPATH"] = f"{server_root}{os.pathsep}{current_pythonpath}"
+            else:
+                os.environ["PYTHONPATH"] = server_root
+        
+        logger.info(f"Project root: {project_root}")
+        logger.info(f"Server root: {server_root}")
+        logger.info(f"Current PYTHONPATH: {os.environ['PYTHONPATH']}")
 
         for server_name in servers:
             server_config = self.get_server_config(server_name)
             if server_config:
-                # 优先使用yaml中的env字段，否则用os.environ
-                env = server_config.get("env")
-                if not env:
-                    env = {"PYTHONPATH": os.environ.get("PYTHONPATH", "")}
-                else:
-                    # 如果PYTHONPATH是相对路径 'server'，则转换为绝对路径
-                    if env.get("PYTHONPATH") == "server":
-                        server_path = os.path.join(project_root, 'server')
-                        env["PYTHONPATH"] = server_path
+                # 构建环境变量
+                env = dict(os.environ)  # 复制当前环境变量
+                custom_env = server_config.get("env", {})
+                env.update(custom_env)  # 更新自定义环境变量
+
+                # 确保PYTHONPATH包含server目录
+                if "PYTHONPATH" not in env:
+                    env["PYTHONPATH"] = server_root
+                elif server_root not in env["PYTHONPATH"]:
+                    env["PYTHONPATH"] = f"{server_root}{os.pathsep}{env['PYTHONPATH']}"
+
+                logger.info(f"Setting up MCP server '{server_name}':")
+                logger.info(f"  - Module path: {server_config.get('module_path')}")
+                logger.info(f"  - PYTHONPATH: {env['PYTHONPATH']}")
 
                 connections[server_name] = {
                     "transport": "stdio",
@@ -272,20 +299,10 @@ class MCPConfigManager:
         return list(servers.keys())
 
 
-# 全局配置管理器实例
-_config_manager = None
-
 def get_mcp_config_manager() -> MCPConfigManager:
     """获取MCP配置管理器实例"""
-    global _config_manager
-    if _config_manager is None:
-        _config_manager = MCPConfigManager()
-    return _config_manager
+    return MCPConfigManager()
 
 def reload_mcp_config():
     """重新加载MCP配置"""
-    global _config_manager
-    if _config_manager is not None:
-        _config_manager.reload_config()
-    else:
-        _config_manager = MCPConfigManager() 
+    get_mcp_config_manager().reload_config() 

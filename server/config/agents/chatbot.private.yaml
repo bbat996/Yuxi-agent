@@ -27,7 +27,7 @@ knowledge_config:
 
 # MCP技能配置
 mcp_config:
-  enabled: false
+  enabled: true
   servers:
     - "time_tools"
     - "system_tools"

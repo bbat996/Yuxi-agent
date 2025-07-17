@@ -582,13 +582,35 @@ watch(modalVisible, (newVal) => {
 // 初始化表单
 const initForm = () => {
   if (props.mode === 'edit' && props.agent) {
-    // 编辑模式，只填充基础字段
-    Object.assign(formData, {
-      name: props.agent.name || '',
-      description: props.agent.description || '',
-      agent_type: props.agent.agent_type || 'chatbot',
-      avatar: props.agent.avatar || null
-    })
+    // 编辑模式，完整填充所有字段
+    formData.value = {
+      ...defaultFormData,
+      ...props.agent,
+      llm_config: {
+        provider: props.agent.llm_config?.provider || defaultFormData.llm_config.provider,
+        model: props.agent.llm_config?.model || defaultFormData.llm_config.model,
+        config: {
+          temperature: props.agent.llm_config?.config?.temperature || defaultFormData.llm_config.config.temperature,
+          max_tokens: props.agent.llm_config?.config?.max_tokens || defaultFormData.llm_config.config.max_tokens,
+          top_p: props.agent.llm_config?.config?.top_p || defaultFormData.llm_config.config.top_p,
+          frequency_penalty: props.agent.llm_config?.config?.frequency_penalty || defaultFormData.llm_config.config.frequency_penalty,
+          presence_penalty: props.agent.llm_config?.config?.presence_penalty || defaultFormData.llm_config.config.presence_penalty
+        }
+      },
+      knowledge_config: {
+        enabled: props.agent.knowledge_config?.enabled || defaultFormData.knowledge_config.enabled,
+        databases: props.agent.knowledge_config?.databases || defaultFormData.knowledge_config.databases,
+        retrieval_config: {
+          top_k: props.agent.knowledge_config?.retrieval_config?.top_k || defaultFormData.knowledge_config.retrieval_config.top_k,
+          similarity_threshold: props.agent.knowledge_config?.retrieval_config?.similarity_threshold || defaultFormData.knowledge_config.retrieval_config.similarity_threshold
+        }
+      },
+      mcp_config: {
+        enabled: props.agent.mcp_config?.enabled || defaultFormData.mcp_config.enabled,
+        servers: props.agent.mcp_config?.servers || defaultFormData.mcp_config.servers
+      }
+    }
+    
     // 处理头像文件列表
     if (props.agent.avatar) {
       avatarFileList.value = [{
@@ -613,15 +635,16 @@ const initForm = () => {
 const resetForm = () => {
   if (props.mode === 'edit') {
     // 编辑模式，只重置基础字段
-    Object.assign(formData, {
+    formData.value = {
+      ...formData.value,
       name: '',
       description: '',
       agent_type: 'chatbot',
       avatar: null
-    })
+    }
   } else {
     // 创建模式，重置所有字段
-    Object.assign(formData, {
+    formData.value = {
       name: '',
       description: '',
       agent_type: 'custom',
@@ -650,7 +673,7 @@ const resetForm = () => {
         servers: []
       },
       avatar: null
-    })
+    }
   }
   avatarFileList.value = [] // 清空文件列表
   avatarPreview.value = null // 清空预览

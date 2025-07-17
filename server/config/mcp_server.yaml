@@ -18,6 +18,8 @@ servers:
     enabled: true
     module_path: "src.mcp_server.math_tools"
     class_name: "mcp"
+    env:
+      PYTHONPATH: "server"
     tools:
       - name: "add"
         description: "计算两个数的和"
@@ -66,6 +68,8 @@ servers:
     enabled: true
     module_path: "src.mcp_server.time_tools"
     class_name: "mcp"
+    env:
+      PYTHONPATH: "server"
     tools:
       - name: "get_time"
         description: "获取当前时间信息"
@@ -94,6 +98,8 @@ servers:
     enabled: true
     module_path: "src.mcp_server.network_tools"
     class_name: "mcp"
+    env:
+      PYTHONPATH: "server"
     tools:
       - name: "get_weather"
         description: "获取指定城市的天气信息"
@@ -136,6 +142,8 @@ servers:
     enabled: true
     module_path: "src.mcp_server.file_tools"
     class_name: "mcp"
+    env:
+      PYTHONPATH: "server"
     tools:
       - name: "read_file"
         description: "读取指定文件的内容"
@@ -192,6 +200,8 @@ servers:
     enabled: true
     module_path: "src.mcp_server.text_tools"
     class_name: "mcp"
+    env:
+      PYTHONPATH: "server"
     tools:
       - name: "text_search"
         description: "在文本中搜索指定内容"
@@ -246,32 +256,36 @@ servers:
     enabled: true
     module_path: "src.mcp_server.system_tools"
     class_name: "mcp"
+    env:
+      PYTHONPATH: "server"
     tools:
       - name: "get_system_info"
-        description: "获取系统基本信息"
+        description: "获取系统信息"
         parameters: {}
       - name: "get_memory_info"
-        description: "获取系统内存使用情况"
+        description: "获取内存信息"
         parameters: {}
       - name: "get_disk_info"
-        description: "获取磁盘使用情况"
-        parameters: {}
+        description: "获取磁盘信息"
+        parameters:
+          path: {"type": "string", "description": "磁盘路径，默认为根目录", "required": false}
       - name: "get_cpu_info"
-        description: "获取CPU使用情况"
+        description: "获取CPU信息"
         parameters: {}
       - name: "get_network_info"
-        description: "获取网络使用情况"
-        parameters: {}
-      - name: "get_environment_variables"
-        description: "获取系统环境变量"
-        parameters: {}
-      - name: "get_current_working_directory"
-        description: "获取当前工作目录路径"
+        description: "获取网络信息"
         parameters: {}
       - name: "get_process_info"
-        description: "获取指定进程的详细信息"
+        description: "获取进程信息"
         parameters:
           pid: {"type": "number", "description": "进程ID，默认为当前进程", "required": false}
       - name: "list_processes"
-        description: "列出系统中的所有进程"
+        description: "列出进程列表"
+        parameters:
+          limit: {"type": "number", "description": "返回的进程数量限制", "required": false}
+      - name: "get_environment_variables"
+        description: "获取环境变量"
+        parameters: {}
+      - name: "get_current_working_directory"
+        description: "获取当前工作目录"
         parameters: {} 

@@ -11,10 +11,10 @@ if server_dir not in sys.path:
     sys.path.insert(0, server_dir)
 
 # 现在可以安全地导入 src 下的模块了
-from src.agents.mcp_client import get_mcp_client
+from src.agents.mcp_client import MCPClient
 
 async def test_mcp_connection():
-    mcp_client = get_mcp_client()
+    mcp_client = MCPClient.get_instance()
     tools = await mcp_client.get_mcp_tools()
     print(f"获取到的MCP工具数量: {len(tools)}")
     for tool in tools:

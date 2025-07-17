@@ -234,54 +234,8 @@ onUnmounted(() => {
   }
 });
 
-// ==================== 智能体信息面板相关方法 ====================
 
-// 处理信息面板切换
-const handleInfoPanelToggle = (collapsed) => {
-  console.log('智能体信息面板切换:', collapsed);
-};
 
-// 添加MCP调用日志
-const addMcpLog = (skillName, input, output, error, status = 'success') => {
-  mcpLogs.value.push({
-    skillName,
-    input,
-    output,
-    error,
-    status,
-    timestamp: Date.now(),
-    duration: 0
-  });
-  
-  // 更新工具调用统计
-  chatStats.toolCalls++;
-};
-
-// 更新聊天统计
-const updateChatStats = (messageData) => {
-  if (!chatStats.startTime) {
-    chatStats.startTime = Date.now();
-  }
-  
-  chatStats.messageCount++;
-  
-  if (messageData.token_usage) {
-    chatStats.tokenCount += messageData.token_usage.total_tokens || 0;
-  }
-  
-  // 更新对话时长
-  chatStats.duration = Math.floor((Date.now() - chatStats.startTime) / 1000);
-};
-
-// 重置聊天统计
-const resetChatStats = () => {
-  chatStats.messageCount = 0;
-  chatStats.tokenCount = 0;
-  chatStats.toolCalls = 0;
-  chatStats.duration = 0;
-  chatStats.startTime = null;
-  mcpLogs.value = [];
-};
 
 // 组件卸载时清理定时器
 onUnmounted(() => {

@@ -127,14 +127,14 @@ class AgentManager:
     def get_agents_by_user(self, user_id, include_public=True):
         """获取指定用户的所有智能体（自己创建的+公开的），返回dict列表，避免DetachedInstanceError"""
         from sqlalchemy import or_
-        from models.agent_models import CustomAgent as CustomAgentModel
+        from models.agent_models import CustomAgent
         with self.db_manager.get_session_context() as session:
-            query = session.query(CustomAgentModel).filter(CustomAgentModel.deleted_at.is_(None))
+            query = session.query(CustomAgent).filter(CustomAgent.deleted_at.is_(None))
             if include_public:
-                query = query.filter(or_(CustomAgentModel.created_by == user_id, CustomAgentModel.is_public == True))
+                query = query.filter(or_(CustomAgent.created_by == user_id, CustomAgent.is_public == True))
             else:
-                query = query.filter(CustomAgentModel.created_by == user_id)
-            query = query.order_by(CustomAgentModel.created_at.desc())
+                query = query.filter(CustomAgent.created_by == user_id)
+            query = query.order_by(CustomAgent.created_at.desc())
             agents = query.all()
             return [agent.to_dict(include_config=False) for agent in agents]
 

@@ -7,7 +7,7 @@ EMBED_MODEL_INFO:
     api_key: no_api_key
 MODEL_NAMES:
   deepseek:
-    api_key: '3213123'
+    api_key: 'sk-1c092f1fb0714f139019ae5f1ee8dad8'
   ollama:
     api_key: '123'
   openai:

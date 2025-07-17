@@ -127,13 +127,7 @@
       @chat="handleStartChat"
     />
 
-    <!-- 编辑智能体模态框 -->
-    <AgentModal
-      v-model:visible="editModalVisible"
-      :agent="agents.find(a => a.agent_id === selectedAgentId)"
-      mode="edit"
-      @success="handleEditSuccess"
-    />
+    <!-- 编辑功能改为直接跳转到编辑页面 -->
   </div>
 </template>
 
@@ -144,7 +138,6 @@ import { message, Modal } from 'ant-design-vue'
 import { PlusOutlined, RobotOutlined, ToolOutlined, UserOutlined, UploadOutlined } from '@ant-design/icons-vue'
 import { getAgents, deleteAgent as deleteAgentApi, duplicateAgent, createAgent } from '@/apis/agent_api'
 import AgentDetailModal from '@/components/agent/AgentDetailModal.vue'
-import AgentModal from '@/components/agent/AgentModal.vue'
 import HeaderComponent from '@/components/HeaderComponent.vue'
 
 const router = useRouter()
@@ -167,7 +160,6 @@ const avatarFile = ref(null)
 
 const detailModalVisible = ref(false)
 const selectedAgentId = ref('')
-const editModalVisible = ref(false)
 
 // 获取智能体类型标签
 const getAgentTypeLabel = (type) => {
@@ -319,12 +311,9 @@ const addAgent = async () => {
 
 // 编辑智能体
 const handleEdit = (agent) => {
-  // 打开编辑基础信息模态框
-  selectedAgentId.value = agent.agent_id
-  editModalVisible.value = true
+  // 直接跳转到编辑页面
+  router.push(`/agent/edit/${agent.agent_id}`)
 }
-
-
 
 // 删除智能体
 const handleDelete = (agent) => {
@@ -374,13 +363,7 @@ const handleDuplicate = async (agent) => {
 // 点击卡片空白处
 const handleCardClick = (agent) => {
   // 跳转到编辑页面
-  router.push(`/agent/edit/${agent.agent_id}`)
-}
-
-// 查看智能体详情
-const handleView = (agent) => {
-  selectedAgentId.value = agent.agent_id
-  detailModalVisible.value = true
+  router.push(`/agent/chat?agent_id=${agent.agent_id}`)
 }
 
 // 开始聊天
@@ -392,13 +375,7 @@ const handleStartChat = (agent) => {
   router.push(`/agent/chat?agent_id=${agent.agent_id}`)
 }
 
-// 处理编辑成功
-const handleEditSuccess = () => {
-  // 关闭编辑模态框
-  editModalVisible.value = false
-  // 刷新智能体列表
-  fetchAgents()
-}
+// 编辑功能改为直接跳转到编辑页面，不再需要处理编辑成功回调
 
 // 组件挂载
 onMounted(() => {

@@ -4,6 +4,7 @@ from sqlalchemy.sql import func
 import uuid
 
 from models import Base
+from config.agent_config import AgentConfig
 
 class CustomAgent(Base):
     """自定义智能体模型"""
@@ -64,7 +65,7 @@ class CustomAgent(Base):
         
         return result
 
-    def to_chatbot_config(self) -> dict:
+    def to_chatbot_config(self) -> AgentConfig:
         """转换为ChatbotConfiguration兼容的配置格式"""
         from config.agent_config import AgentConfig, ModelConfig, KnowledgeConfig, McpConfig
         
@@ -113,7 +114,7 @@ class CustomAgent(Base):
 
         
         # 返回 AgentConfig 的字典格式
-        return agent_config.model_dump()
+        return agent_config
 
 class AgentInstance(Base):
     """智能体实例模型 - 用于追踪用户与智能体的交互状态"""

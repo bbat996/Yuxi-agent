@@ -4,6 +4,7 @@ from typing import Any, Dict, List
 from pathlib import Path
 import yaml
 from dataclasses import dataclass, field
+import asyncio
 
 from langchain_core.runnables import RunnableConfig
 from langgraph.graph import StateGraph, START, END
@@ -48,23 +49,23 @@ class ChatbotConfiguration(Configuration):
                 instance.agent_config = config
             else:
                 # 过滤掉 configurable 等非 AgentConfig 字段
-                agent_config_dict = {k: v for k, v in config.items()
-                                   if k not in ['configurable', 'recursion_limit', 'max_concurrency']}
+                agent_config_dict = {
+                    k: v for k, v in config.items() if k not in ["configurable", "recursion_limit", "max_concurrency"]
+                }
                 # Ensure nested configs are correct types
-                if 'llm_config' in agent_config_dict and isinstance(agent_config_dict['llm_config'], dict):
-                    agent_config_dict['llm_config'] = ModelConfig(**agent_config_dict['llm_config'])
-                if 'knowledge_config' in agent_config_dict and isinstance(agent_config_dict['knowledge_config'], dict):
-                    agent_config_dict['knowledge_config'] = KnowledgeConfig(**agent_config_dict['knowledge_config'])
-                if 'mcp_config' in agent_config_dict and isinstance(agent_config_dict['mcp_config'], dict):
-                    agent_config_dict['mcp_config'] = McpConfig(**agent_config_dict['mcp_config'])
+                if "llm_config" in agent_config_dict and isinstance(agent_config_dict["llm_config"], dict):
+                    agent_config_dict["llm_config"] = ModelConfig(**agent_config_dict["llm_config"])
+                if "knowledge_config" in agent_config_dict and isinstance(agent_config_dict["knowledge_config"], dict):
+                    agent_config_dict["knowledge_config"] = KnowledgeConfig(**agent_config_dict["knowledge_config"])
+                if "mcp_config" in agent_config_dict and isinstance(agent_config_dict["mcp_config"], dict):
+                    agent_config_dict["mcp_config"] = McpConfig(**agent_config_dict["mcp_config"])
                 instance.agent_config = AgentConfig(**agent_config_dict)
 
                 # 处理 configurable 中的字段，设置到 Configuration 基类
-                configurable = config.get('configurable', {})
+                configurable = config.get("configurable", {})
                 for key, value in configurable.items():
                     if hasattr(instance, key):
                         setattr(instance, key, value)
-
 
         return instance
 
@@ -96,16 +97,19 @@ class ChatbotConfiguration(Configuration):
     def __getattr__(self, name):
         """代理到 agent_config 的属性"""
         value = getattr(self.agent_config, name)
-        if name == 'llm_config':
+        if name == "llm_config":
             from config.agent_config import ModelConfig
+
             if isinstance(value, dict):
                 return ModelConfig(**value)
-        elif name == 'knowledge_config':
+        elif name == "knowledge_config":
             from config.agent_config import KnowledgeConfig
+
             if isinstance(value, dict):
                 return KnowledgeConfig(**value)
-        elif name == 'mcp_config':
+        elif name == "mcp_config":
             from config.agent_config import McpConfig
+
             if isinstance(value, dict):
                 return McpConfig(**value)
         return value
@@ -135,7 +139,6 @@ class ChatbotAgent(BaseAgent):
         """异步工厂方法，用于创建和初始化ChatbotAgent实例"""
         agent = cls(agent_id=agent_id, config=config, **kwargs, _skip_init=True)
         await agent._ainitialize_llm_and_tools()
-        logger.info(f"ChatbotAgent 异步初始化完成: {agent.name}")
         return agent
 
     @classmethod
@@ -154,9 +157,9 @@ class ChatbotAgent(BaseAgent):
 
         # 合并 YAML、外部 config、默认值
         if config is not None:
-            self.config_schema = ChatbotConfiguration.from_runnable_config(config, agent_name=self.agent_id)
+            self.config_schema = ChatbotConfiguration.from_runnable_config(config)
         else:
-            self.config_schema = ChatbotConfiguration.from_runnable_config(agent_name=self.agent_id)
+            self.config_schema = ChatbotConfiguration()
 
         # 从配置中获取名称和描述
         self.name = self.config_schema.name or "chatbot"
@@ -191,12 +194,19 @@ class ChatbotAgent(BaseAgent):
 
         # 加载模型
         logger.info(f"开始加载模型: {llm_config.get('provider')}/{llm_config.get('model')}")
-        self.model = load_chat_model(provider=llm_config.get("provider"), model=llm_config.get("model"), model_parameters=llm_parameters)
+        self.model = load_chat_model(
+            provider=llm_config.get("provider"), model=llm_config.get("model"), model_parameters=llm_parameters
+        )
         logger.info("模型加载成功")
 
         # 获取工具
         tools_config = self.config_schema.tools
         mcp_skills_config = self.config_schema.mcp_config.servers if self.config_schema.mcp_config.enabled else []
+
+        # 确保在 _aget_tools 之前，所有工具（包括知识库）已经被注册
+        # 这里可以加一个预加载或检查的步骤
+        get_all_tools()  # 确保知识库等工具已加载
+
         self.tools = await self._aget_tools(
             tools_config,
             mcp_skills_config,
@@ -213,15 +223,15 @@ class ChatbotAgent(BaseAgent):
 
     def _init_mcp_connections(self):
         """初始化MCP连接配置"""
-        from src.agents.mcp_client import get_mcp_client, load_mcp_connections_from_config
+        from src.agents.mcp_client import MCPClient
 
         mcp_config = self.config_schema.mcp_config
         if mcp_config.enabled and mcp_config.servers:
             # 将 servers 列表转换为配置格式
             mcp_skills_dict = {server: {} for server in mcp_config.servers}
-            connections = load_mcp_connections_from_config(mcp_skills_dict)
+            mcp_integration = MCPClient.get_instance()
+            connections = mcp_integration.load_connections_from_config(mcp_skills_dict)
             if connections:
-                mcp_integration = get_mcp_client()
                 mcp_integration.update_connections(connections)
                 logger.info(f"智能体 {self.name} 加载了 {len(connections)} 个MCP技能配置")
         else:
@@ -248,12 +258,14 @@ class ChatbotAgent(BaseAgent):
 
         # 加载模型
         logger.info(f"(同步) 开始加载模型: {llm_config.get('provider')}/{llm_config.get('model')}")
-        self.model = load_chat_model(provider=llm_config.get("provider"), model=llm_config.get("model"), model_parameters=llm_parameters)
+        self.model = load_chat_model(
+            provider=llm_config.get("provider"), model=llm_config.get("model"), model_parameters=llm_parameters
+        )
         logger.info("(同步) 模型加载成功")
 
         # 获取工具 (同步版本，跳过MCP)
         tools_config = self.config_schema.tools
-        self.tools = self._get_tools(tools_config, [])  # 传入空的mcp_skills
+        self.tools = asyncio.run(self._aget_tools(tools_config, []))  # 传入空的mcp_skills
 
         logger.info("=== (同步) 工具配置 ===")
         if self.tools:
@@ -266,7 +278,7 @@ class ChatbotAgent(BaseAgent):
 
     async def _aget_tools(self, tools: List[str], mcp_skills: List[str] = None) -> List:
         """
-        根据配置获取工具
+        异步获取所有工具，包括函数工具和MCP技能。
         Args:
             tools: 内置工具列表
             mcp_skills: MCP技能列表（list of str）
@@ -284,7 +296,9 @@ class ChatbotAgent(BaseAgent):
                     logger.debug(f"添加内置工具: {tool_name}")
 
         # 添加知识库检索工具（从 config_schema 获取）
-        knowledge_dbs = self.config_schema.knowledge_config.databases if self.config_schema.knowledge_config.enabled else []
+        knowledge_dbs = (
+            self.config_schema.knowledge_config.databases if self.config_schema.knowledge_config.enabled else []
+        )
         if knowledge_dbs:
             for db_id in knowledge_dbs:
                 tool_name = f"retrieve_{db_id[:8]}"
@@ -294,16 +308,17 @@ class ChatbotAgent(BaseAgent):
 
         # 添加MCP技能工具（支持list格式）
         if mcp_skills and isinstance(mcp_skills, list):
-            from src.agents.mcp_client import get_mcp_tools_for_agent
+            from src.agents.mcp_client import MCPClient
 
-            mcp_tools = await get_mcp_tools_for_agent(mcp_skills)
+            mcp_client = MCPClient.get_instance()
+            mcp_tools = await mcp_client.get_mcp_tools_for_agent(mcp_skills)
             if isinstance(mcp_tools, list):
                 result_tools.extend(mcp_tools)
                 logger.debug(f"添加MCP工具: {len(mcp_tools)} 个")
         return result_tools
 
     def _get_llm_config(self) -> Dict[str, Any]:
-        print('DEBUG: type of self.config_schema.llm_config:', type(self.config_schema.llm_config))
+        print("DEBUG: type of self.config_schema.llm_config:", type(self.config_schema.llm_config))
         provider = self.config_schema.llm_config.provider or "deepseek"
         model = self.config_schema.llm_config.model or "deepseek-chat"
         model_parameters = self.config_schema.llm_config.config or {}

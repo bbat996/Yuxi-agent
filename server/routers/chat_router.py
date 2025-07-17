@@ -24,9 +24,6 @@ from models.thread_model import Thread
 chat = APIRouter(prefix="/chat", tags=["chat"])
 
 
-
-
-
 @chat.get("/")
 async def chat_get(current_user: User = Depends(get_required_user)):
     """聊天服务健康检查（需要登录）"""
@@ -79,7 +76,12 @@ async def chat_agent(
     # 将meta和thread_id整合到config中
     def make_chunk(content=None, **kwargs):
 
-        return json.dumps({"request_id": meta.get("request_id"), "response": content, **kwargs}, ensure_ascii=False).encode("utf-8") + b"\n"
+        return (
+            json.dumps(
+                {"request_id": meta.get("request_id"), "response": content, **kwargs}, ensure_ascii=False
+            ).encode("utf-8")
+            + b"\n"
+        )
 
     async def stream_messages():
 
@@ -117,6 +119,16 @@ async def get_tools(current_user: User = Depends(get_admin_user)):
     return {"tools": list(get_all_tools().keys())}
 
 
+@chat.get("/agent/{agent_name}/config")
+async def get_agent_config(agent_name: str, current_user: User = Depends(get_required_user)):
+    """从YAML文件加载智能体配置（需要登录）"""
+    # 检查智能体是否存在
+    agent = await agent_manager.aget_agent_by_identifier(agent_name)
+
+    config_data = agent.config_schema.from_runnable_config(config={}, agent_name=agent_name)
+    return {"success": True, "config": config_data}
+
+
 @chat.post("/agent/{agent_name}/config")
 async def save_agent_config(agent_name: str, config: dict = Body(...), current_user: User = Depends(get_admin_user)):
     """保存智能体配置到YAML文件（需要管理员权限）"""
@@ -145,16 +157,6 @@ async def get_agent_history(agent_name: str, thread_id: str, current_user: User 
     return {"history": history}
 
 
-@chat.get("/agent/{agent_name}/config")
-async def get_agent_config(agent_name: str, current_user: User = Depends(get_required_user)):
-    """从YAML文件加载智能体配置（需要登录）"""
-    # 检查智能体是否存在
-    agent = await agent_manager.aget_agent_by_identifier(agent_name)
-
-    config_data = agent.config_schema.from_runnable_config(config={}, agent_name=agent_name)
-    return {"success": True, "config": config_data}
-
-
 # ==================== 线程管理 API ====================
 
 
@@ -176,7 +178,9 @@ class ThreadResponse(BaseModel):
 
 
 @chat.post("/thread", response_model=ThreadResponse)
-async def create_thread(thread: ThreadCreate, db: Session = Depends(get_db), current_user: User = Depends(get_required_user)):
+async def create_thread(
+    thread: ThreadCreate, db: Session = Depends(get_db), current_user: User = Depends(get_required_user)
+):
     """创建新对话线程"""
     thread_id = str(uuid.uuid4())
 
@@ -204,7 +208,9 @@ async def create_thread(thread: ThreadCreate, db: Session = Depends(get_db), cur
 
 
 @chat.get("/threads", response_model=list[ThreadResponse])
-async def list_threads(agent_id: str | None = None, db: Session = Depends(get_db), current_user: User = Depends(get_required_user)):
+async def list_threads(
+    agent_id: str | None = None, db: Session = Depends(get_db), current_user: User = Depends(get_required_user)
+):
     """获取用户的所有对话线程"""
     query = db.query(Thread).filter(Thread.user_id == current_user.id, Thread.status == 1)
 
@@ -255,7 +261,9 @@ async def update_thread(
     current_user: User = Depends(get_required_user),
 ):
     """更新对话线程信息"""
-    thread = db.query(Thread).filter(Thread.id == thread_id, Thread.user_id == current_user.id, Thread.status == 1).first()
+    thread = (
+        db.query(Thread).filter(Thread.id == thread_id, Thread.user_id == current_user.id, Thread.status == 1).first()
+    )
 
     if not thread:
         raise HTTPException(status_code=404, detail="对话线程不存在")

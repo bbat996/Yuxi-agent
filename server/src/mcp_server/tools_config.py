@@ -4,7 +4,7 @@ MCP工具配置文件
 """
 
 from typing import Dict, List, Any, Optional
-from .config_manager import get_mcp_config_manager
+from .mcp_config_manager import get_mcp_config_manager
 
 def get_tool_categories() -> Dict[str, Any]:
     """获取工具分类配置"""
