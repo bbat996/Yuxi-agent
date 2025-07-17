@@ -32,14 +32,20 @@
         <div v-for="(toolCall, index) in message.tool_calls || {}" :key="index" class="tool-call-container">
           <div v-if="toolCall" class="tool-call-display" :class="{ 'is-collapsed': !expandedToolCalls.has(toolCall.id) }">
             <div class="tool-header" @click="toggleToolCall(toolCall.id)">
-              <span v-if="!toolCall.tool_call_result">
-                <span><Loader size="16" class="tool-loader rotate" /></span> &nbsp;
-                <span>正在调用工具: </span>
-                <span class="tool-name">{{ toolCall.name || toolCall.function.name }}</span>
-              </span>
-              <span v-else>
-                <span><CircleCheckBig size="16" class="tool-loader" /></span> &nbsp; 工具 <span class="tool-name">{{ toolCall.name || toolCall.function.name }}</span> 执行完成
-              </span>
+              <div class="tool-header-left">
+                <span v-if="!toolCall.tool_call_result">
+                  <span><Loader size="16" class="tool-loader rotate" /></span> &nbsp;
+                  <span>正在调用工具: </span>
+                  <span class="tool-name">{{ toolCall.name || toolCall.function.name }}</span>
+                </span>
+                <span v-else>
+                  <span><CircleCheckBig size="16" class="tool-loader" /></span> &nbsp; 工具 <span class="tool-name">{{ toolCall.name || toolCall.function.name }}</span> 执行完成
+                </span>
+              </div>
+              <div class="tool-header-icon">
+                <ChevronDown v-if="expandedToolCalls.has(toolCall.id)" size="18" />
+                <ChevronRight v-else size="18" />
+              </div>
             </div>
             <div class="tool-content" v-show="expandedToolCalls.has(toolCall.id)">
               <div class="tool-params" v-if="toolCall.args || toolCall.function.arguments">
@@ -83,7 +89,7 @@
 import { computed, ref } from 'vue';
 import { CaretRightOutlined, ThunderboltOutlined, LoadingOutlined } from '@ant-design/icons-vue';
 import RefsComponent from '@/components/message/RefsComponent.vue'
-import { Loader, CircleCheckBig } from 'lucide-vue-next';
+import { Loader, CircleCheckBig, ChevronDown, ChevronRight } from 'lucide-vue-next';
 import { ToolResultRenderer } from '@/components/ToolCallingResult'
 
 
@@ -199,9 +205,9 @@ const toggleToolCall = (toolCallId) => {
     width: 100%;
     text-align: left;
     margin: 0;
-    padding: 0px;
-    background-color: transparent;
-    border-radius: 0;
+    padding: 12px;
+    background-color: #f8f9ff;
+    border-radius: 8px;
   }
 
   .message-text {
@@ -338,16 +344,31 @@ const toggleToolCall = (toolCallId) => {
       color: var(--gray-800);
       border-bottom: 1px solid var(--gray-200);
       display: flex;
+      justify-content: space-between;
       align-items: center;
       gap: 8px;
       cursor: pointer;
       user-select: none;
       position: relative;
       transition: all 0.2s ease;
-      align-items: center;
-
+      
       &:hover {
         background-color: var(--gray-150);
+      }
+      
+      .tool-header-left {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex: 1;
+      }
+      
+      .tool-header-icon {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--gray-600);
+        transition: all 0.2s ease;
       }
 
       .anticon {
@@ -491,7 +512,8 @@ const toggleToolCall = (toolCallId) => {
 
 <style lang="less">
 .message-md {
-  margin: 8px 0;
+  margin: 8px 8px;
+  background-color: transparent;
 }
 
 .message-md .md-editor-preview-wrapper {

@@ -142,6 +142,7 @@ onMounted(() => {
   border-radius: 0.8rem;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
   transition: all 0.3s ease;
+  background: linear-gradient(to right, rgba(var(--main-color-rgb), 0.03), rgba(var(--main-color-rgb), 0.08));
 
   &:focus-within {
     border-color: var(--main-500);

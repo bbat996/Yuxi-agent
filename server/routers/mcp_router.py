@@ -21,7 +21,7 @@ from src.mcp_server.tools_config import (
     get_server_config,
     get_server_tools
 )
-from server.src.mcp_server.mcp_config_manager import get_mcp_config_manager
+from src.mcp_server.mcp_config_manager import get_mcp_config_manager
 from src.utils.logging_config import logger
 
 mcp_router = APIRouter()

@@ -164,12 +164,17 @@
 
             <!-- 右侧对话区域 -->
             <div class="right-panel">
-              <div class="chat-header">
-                <h3>对话测试</h3>
-                <p>在这里测试智能体的对话能力</p>
-              </div>
               <div class="chat-content">
-                <SimpleAgentChat :agent-id="agentId" :config="{}" :state="{}" />
+                <SimpleAgentChat 
+                  :agent-id="form.name" 
+                  :config="chatConfig" 
+                  :state="chatState" 
+                  v-if="form.name"
+                />
+                <div v-else class="loading-placeholder">
+                  <a-spin size="large" />
+                  <p>加载智能体中...</p>
+                </div>
               </div>
             </div>
           </div>
@@ -286,10 +291,10 @@
 </template>
 
 <script setup>
-import { ref, onMounted, watch, computed, nextTick } from 'vue';
+import { ref, reactive, onMounted, watch, computed, nextTick } from 'vue';
 import TemplateModal from '@/components/prompt/TemplateModal.vue';
 import { useRoute, useRouter } from 'vue-router'
-import { message } from 'ant-design-vue'
+import { message, Spin } from 'ant-design-vue'
 import { DownOutlined, UpOutlined, SettingOutlined, SearchOutlined, EditOutlined, FileTextOutlined, BulbOutlined, PlusOutlined, DeleteOutlined, BookOutlined, ThunderboltOutlined } from '@ant-design/icons-vue'
 import SimpleAgentChat from '@/components/agent/SimpleAgentChat.vue'
 import ActionItem from '@/components/common/ActionItem.vue'
@@ -300,7 +305,7 @@ import KnowledgeSelector from '@/components/knowledge/KnowledgeSelector.vue'
 import { KnowledgeConfig } from '@/components/knowledge'
 import { PublishManagerComponent } from '@/components/publish'
 import { getAgent, updateAgent } from '@/apis/agent_api'
-import { knowledgeBaseApi } from '@/apis/admin_api'
+import { knowledgeBaseApi, systemConfigApi } from '@/apis/admin_api'
 import { mcpConfigApi } from '@/apis/mcp_api'
 import { publishAPI } from '@/apis/publish_api'
 import { useConfigStore } from '@/stores/config'
@@ -318,6 +323,13 @@ const agentId = ref(route.params.agent_id)
 const loading = ref(false)
 const saving = ref(false);
 const activeTab = ref('config');
+
+// 聊天配置和状态
+const chatConfig = ref({})
+const chatState = reactive({
+  debug_mode: false,
+  agentConfOpen: false
+})
 
 // MCP服务器列表
 const mcpServerList = ref([])
@@ -533,6 +545,8 @@ const loadAgentData = async () => {
       console.log('AgentEditView - Loaded agent data:', form.value);
       // 加载发布配置
       loadPublishConfig();
+      // 加载聊天配置
+      loadChatConfig();
     } else {
       message.error(response.message || '加载智能体数据失败');
     }
@@ -542,6 +556,36 @@ const loadAgentData = async () => {
   } finally {
     loading.value = false;
   }
+};
+
+// 加载聊天配置
+const loadChatConfig = async () => {
+  if (!agentId.value) return;
+  
+  // 基于当前表单数据构建聊天配置
+  chatConfig.value = {
+    model: form.value.llm_config?.model ? `${form.value.llm_config.provider}/${form.value.llm_config.model}` : '',
+    system_prompt: form.value.system_prompt || '',
+    ...form.value.llm_config?.config
+  };
+
+  try {
+    // 尝试从服务器加载保存的配置
+    const response = await systemConfigApi.getAgentConfig(agentId.value);
+    if (response.success && response.config) {
+      // 合并服务器配置
+      chatConfig.value = {
+        ...chatConfig.value,
+        ...response.config
+      };
+      console.log('AgentEditView - Loaded chat config from server:', chatConfig.value);
+    }
+  } catch (error) {
+    console.error('从服务器加载聊天配置出错:', error);
+    // 忽略错误，使用默认配置
+  }
+  
+  console.log('AgentEditView - Final chat config:', chatConfig.value);
 };
 
 const loadKnowledgeBases = async () => {
@@ -609,6 +653,7 @@ const openModelConfigModal = () => {
 const handleModelConfigSave = () => {
   form.value.llm_config.config = { ...tempModelConfig.value };
   showModelConfigModal.value = false;
+  message.success('模型配置已保存');
 };
 
 const handleModelConfigCancel = () => {
@@ -787,6 +832,15 @@ const onSave = async () => {
     saving.value = false;
   }
 };
+
+// 监听表单变化，实时更新聊天配置
+watch(
+  () => [form.value.llm_config, form.value.system_prompt],
+  () => {
+    loadChatConfig();
+  },
+  { deep: true }
+);
 </script>
 
 <style lang="less" scoped>
@@ -822,6 +876,7 @@ const onSave = async () => {
   display: flex;
   flex-direction: column;
   background: white;
+  height: calc(100vh - 68px); /* 减去header高度 */
 }
 
 .chat-header {
@@ -846,7 +901,10 @@ const onSave = async () => {
 .chat-content {
   flex: 1;
   min-height: 0;
-  overflow: hidden;
+  height: 100%;
+  overflow-y: auto; /* 改为可滚动 */
+  display: flex;
+  flex-direction: column;
 }
 
 .main-content {
@@ -1003,6 +1061,21 @@ const onSave = async () => {
   height: calc(100vh - 160px);
   overflow: hidden;
   background-color: #f5f5f5;
+}
+
+.loading-placeholder {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  height: 100%;
+  gap: 16px;
+  color: #8c8c8c;
+  
+  p {
+    margin: 0;
+    font-size: 14px;
+  }
 }
 
 /* 响应式设计 */

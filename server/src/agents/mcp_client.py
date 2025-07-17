@@ -6,7 +6,7 @@ import traceback
 import importlib
 import platform
 from src.utils import logger
-from server.src.mcp_server.mcp_config_manager import get_mcp_config_manager
+from src.mcp_server.mcp_config_manager import get_mcp_config_manager
 
 
 class InProcessMCPTool(BaseTool):

@@ -47,7 +47,8 @@
   --secondry-color: #4e616d;
   --error-color: #ba1a1a;
 
-  --bg-sider: var(--gray-200);
+  /* --bg-sider: var(--gray-200); */
+  --bg-sider: #F3F3F9;
   --color-text: var(--c-black);
 
   --min-width: 400px;
