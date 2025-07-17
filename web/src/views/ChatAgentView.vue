@@ -142,7 +142,7 @@ import {
   PlusCircleOutlined
 } from '@ant-design/icons-vue'
 import { message } from 'ant-design-vue'
-import AgentChatComponent from '@/components/agent/AgentChatComponent.vue'
+import AgentChatComponent from '@/components/chat/AgentChatComponent.vue'
 import ModelSelectorComponent from '@/components/model/ModelSelectorComponent.vue'
 import { useUserStore } from '@/stores/user'
 import { chatApi } from '@/apis/auth_api'
