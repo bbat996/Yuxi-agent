@@ -24,35 +24,65 @@ class ChatbotConfiguration(Configuration):
     """使用 AgentConfig 的智能体配置类"""
 
     def __init__(self, agent_config: AgentConfig = None):
-        self.agent_config = agent_config or AgentConfig()
+        from config.agent_config import AgentConfig as AC
+
+        if agent_config is None:
+            self.agent_config = AC()
+        elif isinstance(agent_config, dict):
+            self.agent_config = AC(**agent_config)
+        else:
+            self.agent_config = agent_config
+        # 调用父类初始化，但不传递参数，避免冲突
         super().__init__()
 
     @classmethod
     def from_runnable_config(cls, config: dict = None, agent_name: str = None) -> "ChatbotConfiguration":
         """从可运行配置创建配置实例"""
-        if config is None:
-            agent_config = AgentConfig()
-        else:
-            # 直接使用 AgentConfig 解析配置
-            agent_config = AgentConfig(**config)
-        
-        return cls(agent_config)
+        # 先创建实例
+        instance = cls()
+        from config.agent_config import ModelConfig, KnowledgeConfig, McpConfig, AgentConfig
+
+        if config is not None:
+            # 如果 config 已经是 AgentConfig 对象，直接使用
+            if isinstance(config, AgentConfig):
+                instance.agent_config = config
+            else:
+                # 过滤掉 configurable 等非 AgentConfig 字段
+                agent_config_dict = {k: v for k, v in config.items()
+                                   if k not in ['configurable', 'recursion_limit', 'max_concurrency']}
+                # Ensure nested configs are correct types
+                if 'model_config' in agent_config_dict and isinstance(agent_config_dict['model_config'], dict):
+                    agent_config_dict['model_config'] = ModelConfig(**agent_config_dict['model_config'])
+                if 'knowledge_config' in agent_config_dict and isinstance(agent_config_dict['knowledge_config'], dict):
+                    agent_config_dict['knowledge_config'] = KnowledgeConfig(**agent_config_dict['knowledge_config'])
+                if 'mcp_config' in agent_config_dict and isinstance(agent_config_dict['mcp_config'], dict):
+                    agent_config_dict['mcp_config'] = McpConfig(**agent_config_dict['mcp_config'])
+                instance.agent_config = AgentConfig(**agent_config_dict)
+
+                # 处理 configurable 中的字段，设置到 Configuration 基类
+                configurable = config.get('configurable', {})
+                for key, value in configurable.items():
+                    if hasattr(instance, key):
+                        setattr(instance, key, value)
+
+
+        return instance
 
     @classmethod
     def from_db_record(cls, db_record) -> "ChatbotConfiguration":
         """从数据库记录创建配置"""
         # 使用数据库模型的to_chatbot_config方法
-        if hasattr(db_record, 'to_chatbot_config'):
+        if hasattr(db_record, "to_chatbot_config"):
             config_data = db_record.to_chatbot_config()
             agent_config = AgentConfig(**config_data)
         else:
             # 创建默认配置
             agent_config = AgentConfig()
-            if hasattr(db_record, 'name') and db_record.name:
+            if hasattr(db_record, "name") and db_record.name:
                 agent_config.name = db_record.name
-            if hasattr(db_record, 'description') and db_record.description:
+            if hasattr(db_record, "description") and db_record.description:
                 agent_config.description = db_record.description
-            if hasattr(db_record, 'system_prompt') and db_record.system_prompt:
+            if hasattr(db_record, "system_prompt") and db_record.system_prompt:
                 agent_config.system_prompt = db_record.system_prompt
 
         return cls(agent_config)
@@ -63,13 +93,30 @@ class ChatbotConfiguration(Configuration):
 
     def __getattr__(self, name):
         """代理到 agent_config 的属性"""
-        return getattr(self.agent_config, name)
+        value = getattr(self.agent_config, name)
+        if name == 'model_config':
+            from config.agent_config import ModelConfig
+            if isinstance(value, dict):
+                return ModelConfig(**value)
+        elif name == 'knowledge_config':
+            from config.agent_config import KnowledgeConfig
+            if isinstance(value, dict):
+                return KnowledgeConfig(**value)
+        elif name == 'mcp_config':
+            from config.agent_config import McpConfig
+            if isinstance(value, dict):
+                return McpConfig(**value)
+        return value
 
     def __setattr__(self, name, value):
         """设置属性"""
-        if name == 'agent_config':
+        if name == "agent_config":
+            super().__setattr__(name, value)
+        elif name in ["thread_id", "user_id"]:
+            # 这些字段属于 Configuration 基类，设置到实例本身
             super().__setattr__(name, value)
         else:
+            # 其他字段代理到 agent_config
             setattr(self.agent_config, name, value)
 
 
@@ -94,29 +141,29 @@ class ChatbotAgent(BaseAgent):
         """从数据库记录创建ChatbotAgent实例（同步，可能不完全初始化）"""
         # 获取配置
         config = ChatbotConfiguration.from_db_record(db_record)
-        
+
         # 创建实例
-        agent_id = agent_id or getattr(db_record, 'agent_id', None)
+        agent_id = agent_id or getattr(db_record, "agent_id", None)
         # 注意：这里返回的实例可能没有完全初始化LLM和工具
         return cls(agent_id=agent_id, config=config.to_dict(), **kwargs)
 
     def __init__(self, agent_id: str = None, config: dict = None, _skip_init: bool = False, **kwargs):
         self.agent_id = agent_id or "chatbot"
-        
+
         # 合并 YAML、外部 config、默认值
         if config is not None:
             self.config_schema = ChatbotConfiguration.from_runnable_config(config, agent_name=self.agent_id)
         else:
             self.config_schema = ChatbotConfiguration.from_runnable_config(agent_name=self.agent_id)
-        
+
         # 从配置中获取名称和描述
         self.name = self.config_schema.name or "chatbot"
         self.description = (
-            kwargs.get("description") or 
-            self.config_schema.description or 
-            "基础的对话机器人，可以回答问题，默认不使用任何工具，可在配置中启用需要的工具。"
+            kwargs.get("description")
+            or self.config_schema.description
+            or "基础的对话机器人，可以回答问题，默认不使用任何工具，可在配置中启用需要的工具。"
         )
-        
+
         # 初始化MCP连接配置
         self._init_mcp_connections()
         self.requirements = ["TAVILY_API_KEY", "ZHIPUAI_API_KEY"]
@@ -131,7 +178,7 @@ class ChatbotAgent(BaseAgent):
 
         if not _skip_init:
             logger.warning("同步初始化 ChatbotAgent，MCP工具可能无法加载。请使用 ChatbotAgent.create() 异步初始化。")
-            self._initialize_llm_and_tools() # 同步版本，可能不完整
+            self._initialize_llm_and_tools()  # 同步版本，可能不完整
             logger.info(f"ChatbotAgent 同步初始化完成: {self.name}")
 
     async def _ainitialize_llm_and_tools(self):
@@ -142,11 +189,7 @@ class ChatbotAgent(BaseAgent):
 
         # 加载模型
         logger.info(f"开始加载模型: {model_config.get('provider')}/{model_config.get('model')}")
-        self.model = load_chat_model(
-            provider=model_config.get("provider"),
-            model=model_config.get("model"),
-            model_parameters=model_parameters
-        )
+        self.model = load_chat_model(provider=model_config.get("provider"), model=model_config.get("model"), model_parameters=model_parameters)
         logger.info("模型加载成功")
 
         # 获取工具
@@ -156,10 +199,10 @@ class ChatbotAgent(BaseAgent):
             tools_config,
             mcp_skills_config,
         )
-        
+
         logger.info("=== 工具配置 ===")
         if self.tools:
-            tool_names = [getattr(tool, 'name', str(tool)) for tool in self.tools]
+            tool_names = [getattr(tool, "name", str(tool)) for tool in self.tools]
             logger.info(f"可用工具: {', '.join(tool_names)}")
             self.llm_with_tools = self.model.bind_tools(self.tools)
         else:
@@ -169,6 +212,7 @@ class ChatbotAgent(BaseAgent):
     def _init_mcp_connections(self):
         """初始化MCP连接配置"""
         from src.agents.mcp_client import get_mcp_client, load_mcp_connections_from_config
+
         mcp_config = self.config_schema.mcp_config
         if mcp_config.enabled and mcp_config.servers:
             # 将 servers 列表转换为配置格式
@@ -202,20 +246,16 @@ class ChatbotAgent(BaseAgent):
 
         # 加载模型
         logger.info(f"(同步) 开始加载模型: {model_config.get('provider')}/{model_config.get('model')}")
-        self.model = load_chat_model(
-            provider=model_config.get("provider"),
-            model=model_config.get("model"),
-            model_parameters=model_parameters
-        )
+        self.model = load_chat_model(provider=model_config.get("provider"), model=model_config.get("model"), model_parameters=model_parameters)
         logger.info("(同步) 模型加载成功")
 
         # 获取工具 (同步版本，跳过MCP)
         tools_config = self.config_schema.tools
-        self.tools = self._get_tools(tools_config, []) # 传入空的mcp_skills
-        
+        self.tools = self._get_tools(tools_config, [])  # 传入空的mcp_skills
+
         logger.info("=== (同步) 工具配置 ===")
         if self.tools:
-            tool_names = [getattr(tool, 'name', str(tool)) for tool in self.tools]
+            tool_names = [getattr(tool, "name", str(tool)) for tool in self.tools]
             logger.info(f"可用工具: {', '.join(tool_names)}")
             self.llm_with_tools = self.model.bind_tools(self.tools)
         else:
@@ -253,6 +293,7 @@ class ChatbotAgent(BaseAgent):
         # 添加MCP技能工具（支持list格式）
         if mcp_skills and isinstance(mcp_skills, list):
             from src.agents.mcp_client import get_mcp_tools_for_agent
+
             mcp_tools = await get_mcp_tools_for_agent(mcp_skills)
             if isinstance(mcp_tools, list):
                 result_tools.extend(mcp_tools)
@@ -260,17 +301,15 @@ class ChatbotAgent(BaseAgent):
         return result_tools
 
     def _get_model_config(self) -> Dict[str, Any]:
-        """获取模型配置"""
-        model_config = {}
-        
-        # 使用 AgentConfig 的模型配置
+        print('DEBUG: type of self.config_schema.model_config:', type(self.config_schema.model_config))
         provider = self.config_schema.model_config.provider or "deepseek"
-        model_name = self.config_schema.model_config.model or "deepseek-chat"
-        
-        model_config["provider"] = provider
-        model_config["model"] = model_name
-        
-        return model_config
+        model = self.config_schema.model_config.model or "deepseek-chat"
+        model_parameters = self.config_schema.model_config.config or {}
+        return {
+            "provider": provider,
+            "model": model,
+            "config": model_parameters,
+        }
 
     async def llm_call(self, state: State, config: RunnableConfig = None) -> Dict[str, Any]:
         """调用LLM模型"""
@@ -278,7 +317,7 @@ class ChatbotAgent(BaseAgent):
         final_config = self.config_schema.to_dict()
         if config and "configurable" in config:
             final_config.update(config["configurable"])
-        
+
         # 构建系统提示词
         system_prompt = final_config.get("system_prompt", self.config_schema.system_prompt)
         system_prompt = f"{system_prompt} Now is {get_cur_time_with_utc()}"
@@ -288,23 +327,23 @@ class ChatbotAgent(BaseAgent):
         try:
             # 使用预先加载和绑定的模型与工具
             result = await self.llm_with_tools.ainvoke(messages)
-            
+
             # 格式化打印结果
             logger.info("=== 模型调用成功 ===")
             logger.info(f"返回类型: {type(result).__name__}")
-            
+
             # 检查是否有工具调用
-            if hasattr(result, 'tool_calls') and result.tool_calls:
+            if hasattr(result, "tool_calls") and result.tool_calls:
                 logger.info(f"工具调用数量: {len(result.tool_calls)}")
                 logger.info(f"工具调用: {result.tool_calls}")
             else:
                 logger.info("无工具调用")
-                if hasattr(result, 'content') and result.content:
+                if hasattr(result, "content") and result.content:
                     logger.info(f"回复内容: {result.content[:200]}{'...' if len(result.content) > 200 else ''}")
-            
+
             # 打印token使用情况
-            if hasattr(result, 'response_metadata') and result.response_metadata:
-                token_usage = result.response_metadata.get('token_usage', {})
+            if hasattr(result, "response_metadata") and result.response_metadata:
+                token_usage = result.response_metadata.get("token_usage", {})
                 if token_usage:
                     logger.info(f"Token使用: {token_usage}")
             return {"messages": [result]}

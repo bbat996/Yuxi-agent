@@ -14,18 +14,21 @@ model_parameters:  # 模型参数
 # 工具配置
 tools:
   - "web_search"
-  - "calculator"
 
-# MCP技能配置 - 列表格式
-mcp_skills:
-  - "time_tools"
-  - "system_tools"
-  
 # 知识库配置
-knowledge_databases:
-  - "kb_001"
-  - "kb_002"
-retrieval_params:
-  top_k: 5
-  similarity_threshold: 0.8
+knowledge_config:
+  enabled: true
+  databases:
+    - "kb_001"
+    - "kb_002"
+  retrieval_config:
+    top_k: 5
+    similarity_threshold: 0.8
+
+# MCP技能配置
+mcp_config:
+  enabled: false
+  servers:
+    - "time_tools"
+    - "system_tools"
 
