@@ -58,28 +58,31 @@
         <a-tab-pane key="model" tab="模型配置">
           <div class="tab-content">
             <a-descriptions :column="2" bordered>
+              <a-descriptions-item label="提供商">
+                {{ agent.llm_config?.provider || '未配置' }}
+              </a-descriptions-item>
               <a-descriptions-item label="模型">
-                {{ agent.model_config?.model || '未配置' }}
+                {{ agent.llm_config?.model || '未配置' }}
               </a-descriptions-item>
               <a-descriptions-item label="温度">
                 <div class="config-value">
-                  {{ agent.model_config?.temperature || 0.7 }}
+                  {{ agent.llm_config?.config?.temperature || 0.7 }}
                   <a-tag size="small" color="blue">
-                    {{ getTemperatureLabel(agent.model_config?.temperature || 0.7) }}
+                    {{ getTemperatureLabel(agent.llm_config?.config?.temperature || 0.7) }}
                   </a-tag>
                 </div>
               </a-descriptions-item>
               <a-descriptions-item label="最大回复长度">
-                {{ agent.model_config?.max_tokens || '未设置' }}
+                {{ agent.llm_config?.config?.max_tokens || '未设置' }}
               </a-descriptions-item>
               <a-descriptions-item label="Top P">
-                {{ agent.model_config?.top_p || 0.9 }}
+                {{ agent.llm_config?.config?.top_p || 0.9 }}
               </a-descriptions-item>
               <a-descriptions-item label="频率惩罚">
-                {{ agent.model_config?.frequency_penalty || 0 }}
+                {{ agent.llm_config?.config?.frequency_penalty || 0 }}
               </a-descriptions-item>
               <a-descriptions-item label="存在惩罚">
-                {{ agent.model_config?.presence_penalty || 0 }}
+                {{ agent.llm_config?.config?.presence_penalty || 0 }}
               </a-descriptions-item>
             </a-descriptions>
           </div>
@@ -88,25 +91,19 @@
         <!-- 工具配置 -->
         <a-tab-pane key="tools" tab="工具配置">
           <div class="tab-content">
-            <div class="tools-grid" v-if="agent.tools_config?.length">
+            <div class="tools-grid" v-if="agent.tools?.length">
               <div 
-                v-for="tool in agent.tools_config" 
-                :key="tool.id || tool.name"
+                v-for="tool in agent.tools" 
+                :key="tool"
                 class="tool-card"
               >
                 <div class="tool-header">
                   <div class="tool-icon">
-                    <component :is="getToolIcon(tool.type)" />
+                    <component :is="getToolIcon(tool)" />
                   </div>
                   <div class="tool-info">
-                    <h4 class="tool-name">{{ tool.name }}</h4>
-                    <span class="tool-type">{{ tool.type || '通用工具' }}</span>
+                    <h4 class="tool-name">{{ tool }}</h4>
                   </div>
-                </div>
-                <p class="tool-description">{{ tool.description || '暂无描述' }}</p>
-                <div class="tool-params" v-if="tool.parameters">
-                  <h5>参数配置:</h5>
-                  <pre class="params-json">{{ JSON.stringify(tool.parameters, null, 2) }}</pre>
                 </div>
               </div>
             </div>
@@ -117,8 +114,13 @@
         <!-- 知识库配置 -->
         <a-tab-pane key="knowledge" tab="知识库">
           <div class="tab-content">
-            <div class="knowledge-config" v-if="agent.knowledge_config?.databases?.length">
-              <div class="knowledge-list">
+            <div class="knowledge-config" v-if="agent.knowledge_config?.enabled">
+              <a-switch
+                :model-value="agent.knowledge_config.enabled"
+                disabled
+                class="mb-4"
+              />
+              <div class="knowledge-list" v-if="agent.knowledge_config.databases?.length">
                 <h4>关联知识库:</h4>
                 <div class="knowledge-grid">
                   <div 
@@ -138,45 +140,42 @@
                 <h4>检索配置:</h4>
                 <a-descriptions :column="2" size="small">
                   <a-descriptions-item label="检索数量">
-                    {{ agent.knowledge_config.retrieval_config?.top_k || 5 }}
+                    {{ agent.knowledge_config.retrieval_config?.top_k || 3 }}
                   </a-descriptions-item>
                   <a-descriptions-item label="相似度阈值">
-                    {{ agent.knowledge_config.retrieval_config?.similarity_threshold || 0.7 }}
+                    {{ agent.knowledge_config.retrieval_config?.similarity_threshold || 0.5 }}
                   </a-descriptions-item>
                 </a-descriptions>
               </div>
             </div>
-            <a-empty v-else description="未配置知识库" />
+            <a-empty v-else description="未启用知识库" />
           </div>
         </a-tab-pane>
 
         <!-- MCP技能 -->
         <a-tab-pane key="mcp" tab="MCP技能">
           <div class="tab-content">
-            <div class="mcp-skills" v-if="agent.mcp_config?.skills?.length">
-              <div 
-                v-for="skill in agent.mcp_config.skills" 
-                :key="skill.id"
-                class="skill-card"
-              >
-                <div class="skill-header">
-                  <ApiOutlined class="skill-icon" />
-                  <div class="skill-info">
-                    <h4 class="skill-name">{{ skill.name }}</h4>
-                    <span class="skill-type">{{ skill.type || 'MCP Skill' }}</span>
+            <div class="mcp-config" v-if="agent.mcp_config?.enabled">
+              <a-switch
+                :model-value="agent.mcp_config.enabled"
+                disabled
+                class="mb-4"
+              />
+              <div class="mcp-servers" v-if="agent.mcp_config.servers?.length">
+                <h4>MCP服务器:</h4>
+                <div class="server-grid">
+                  <div 
+                    v-for="server in agent.mcp_config.servers" 
+                    :key="server"
+                    class="server-item"
+                  >
+                    <ApiOutlined class="server-icon" />
+                    <span class="server-name">{{ server }}</span>
                   </div>
-                  <a-tag :color="skill.status === 'active' ? 'green' : 'orange'">
-                    {{ skill.status === 'active' ? '活跃' : '待激活' }}
-                  </a-tag>
-                </div>
-                <p class="skill-description">{{ skill.description || '暂无描述' }}</p>
-                <div class="skill-config" v-if="skill.config">
-                  <h5>配置信息:</h5>
-                  <pre class="config-json">{{ JSON.stringify(skill.config, null, 2) }}</pre>
                 </div>
               </div>
             </div>
-            <a-empty v-else description="未配置MCP技能" />
+            <a-empty v-else description="未启用MCP服务" />
           </div>
         </a-tab-pane>
 

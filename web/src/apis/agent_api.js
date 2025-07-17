@@ -42,12 +42,21 @@ export const getAgent = (agentId) => {
  * @param {Object} agentData - 智能体数据
  * @param {string} agentData.name - 智能体名称
  * @param {string} agentData.description - 智能体描述
- * @param {string} agentData.agent_type - 智能体类型
  * @param {string} agentData.system_prompt - 系统提示词
- * @param {Object} agentData.model_config - 模型配置
- * @param {Array} agentData.tools_config - 工具配置
+ * @param {Object} agentData.llm_config - 语言模型配置
+ * @param {string} agentData.llm_config.provider - 模型提供商
+ * @param {string} agentData.llm_config.model - 模型名称
+ * @param {Object} agentData.llm_config.config - 模型参数配置
  * @param {Object} agentData.knowledge_config - 知识库配置
- * @param {Object} agentData.mcp_config - MCP技能配置
+ * @param {boolean} agentData.knowledge_config.enabled - 是否启用知识库
+ * @param {Array} agentData.knowledge_config.databases - 知识库数据库列表
+ * @param {Object} agentData.knowledge_config.retrieval_config - 检索配置
+ * @param {number} agentData.knowledge_config.retrieval_config.top_k - 检索返回的文档数量
+ * @param {number} agentData.knowledge_config.retrieval_config.similarity_threshold - 相似度阈值
+ * @param {Object} agentData.mcp_config - MCP配置
+ * @param {boolean} agentData.mcp_config.enabled - 是否启用MCP服务
+ * @param {Array} agentData.mcp_config.servers - MCP服务器列表
+ * @param {Array} agentData.tools - 工具列表
  * @returns {Promise} API响应
  */
 export const createAgent = (agentData) => {
@@ -96,7 +105,11 @@ export const getAgentInstance = (agentId) => {
 /**
  * 创建智能体实例
  * @param {string} agentId - 智能体ID
- * @param {Object} config - 实例配置
+ * @param {Object} config - 实例配置覆盖
+ * @param {Object} config.llm_config - 语言模型配置覆盖
+ * @param {Object} config.knowledge_config - 知识库配置覆盖
+ * @param {Object} config.mcp_config - MCP配置覆盖
+ * @param {Array} config.tools - 工具列表覆盖
  * @returns {Promise} API响应
  */
 export const createAgentInstance = (agentId, config = {}) => {

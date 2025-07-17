@@ -18,10 +18,10 @@ class CustomAgent(Base):
     
     # 配置字段
     system_prompt = Column(Text, nullable=True)  # 系统提示词
-    llm_config = Column(JSON, nullable=True)  # 模型配置 {"provider": "zhipu", "model_name": "glm-4-plus", "parameters": {}}
-    tools_config = Column(JSON, nullable=True)  # 工具配置 {"builtin_tools": [], "mcp_skills": []}
-    knowledge_config = Column(JSON, nullable=True)  # 知识库配置 {"databases": [], "retrieval_params": {}}
-    
+    llm_config = Column(JSON, nullable=True)  # 模型配置 {"provider": "zhipu", "model": "glm-4-plus", "config": {}}
+    mcp_config = Column(JSON, nullable=True)  # 工具配置 
+    knowledge_config = Column(JSON, nullable=True)  # 知识库配置 {"enabled": false, "databases": [], "retrieval_config": {}}
+    tools = Column(JSON, nullable=True)  # 工具配置 
     # 元数据
     is_active = Column(Boolean, default=True)  # 是否激活
     is_public = Column(Boolean, default=False)  # 是否公开（其他用户可见）
@@ -57,7 +57,8 @@ class CustomAgent(Base):
             result.update({
                 "system_prompt": self.system_prompt,
                 "llm_config": self.llm_config or {},
-                "tools_config": self.tools_config or {},
+                "tools": self.tools or {},
+                "mcp_config": self.mcp_config or {},
                 "knowledge_config": self.knowledge_config or {}
             })
         
@@ -72,7 +73,7 @@ class CustomAgent(Base):
         
         # 基础信息
         agent_config.name = self.name
-        agent_config.description = self.description
+        agent_config.description = self.description or ""
         agent_config.system_prompt = self.system_prompt or ""
         
         # 模型配置
@@ -80,133 +81,39 @@ class CustomAgent(Base):
             llm_config = ModelConfig()
             if "provider" in self.llm_config:
                 llm_config.provider = self.llm_config["provider"]
-            if "model_name" in self.llm_config:
-                llm_config.model = self.llm_config["model_name"]
-            if "parameters" in self.llm_config:
-                llm_config.config = self.llm_config["parameters"]
+            if "model" in self.llm_config:
+                llm_config.model = self.llm_config["model"]
+            if "config" in self.llm_config:
+                llm_config.config = self.llm_config["config"]
             agent_config.llm_config = llm_config
         
+        # MCP工具配置
+        if self.mcp_config:
+            mcp_config = McpConfig()
+            if "enabled" in self.mcp_config:
+                mcp_config.enabled = self.mcp_config["enabled"]
+            if "servers" in self.mcp_config:
+                mcp_config.servers = self.mcp_config["servers"]
+            agent_config.mcp_config = mcp_config
+        
         # 工具配置
-        if self.tools_config:
-            if "builtin_tools" in self.tools_config:
-                agent_config.tools = self.tools_config["builtin_tools"]
-            if "mcp_skills" in self.tools_config:
-                mcp_config = McpConfig()
-                mcp_skills = self.tools_config["mcp_skills"]
-                if isinstance(mcp_skills, list):
-                    mcp_config.servers = mcp_skills
-                    mcp_config.enabled = len(mcp_skills) > 0
-                elif isinstance(mcp_skills, dict):
-                    mcp_config.servers = list(mcp_skills.keys())
-                    mcp_config.enabled = len(mcp_skills) > 0
-                agent_config.mcp_config = mcp_config
+        if self.tools:
+            agent_config.tools = self.tools
         
         # 知识库配置
         if self.knowledge_config:
             knowledge_config = KnowledgeConfig()
+            if "enabled" in self.knowledge_config:
+                knowledge_config.enabled = self.knowledge_config["enabled"]
             if "databases" in self.knowledge_config:
                 knowledge_config.databases = self.knowledge_config["databases"]
-                knowledge_config.enabled = len(self.knowledge_config["databases"]) > 0
-            if "retrieval_params" in self.knowledge_config:
-                knowledge_config.retrieval_config = self.knowledge_config["retrieval_params"]
+            if "retrieval_config" in self.knowledge_config:
+                knowledge_config.retrieval_config = self.knowledge_config["retrieval_config"]
             agent_config.knowledge_config = knowledge_config
+
         
         # 返回 AgentConfig 的字典格式
         return agent_config.model_dump()
-
-class PromptTemplate(Base):
-    """提示词模板模型"""
-    __tablename__ = 'prompt_templates'
-
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    template_id = Column(String, nullable=False, unique=True, index=True, default=lambda: str(uuid.uuid4()))  # 模板ID
-    name = Column(String, nullable=False, index=True)  # 模板名称
-    content = Column(Text, nullable=False)  # 模板内容
-    category = Column(String, nullable=True, index=True)  # 分类 (customer_service, assistant, creative等)
-    description = Column(Text, nullable=True)  # 描述
-    
-    # 模板元数据
-    variables = Column(JSON, nullable=True)  # 变量定义 [{"name": "user_name", "type": "string", "description": "用户名称"}]
-    is_system = Column(Boolean, default=False)  # 是否为系统预置模板
-    is_active = Column(Boolean, default=True)  # 是否激活
-    usage_count = Column(Integer, default=0)  # 使用次数
-    
-    # 创建信息
-    created_by = Column(String, nullable=True, index=True)  # 创建者（系统模板为空）
-    created_at = Column(DateTime, default=func.now())  # 创建时间
-    updated_at = Column(DateTime, default=func.now(), onupdate=func.now())  # 更新时间
-    
-    def to_dict(self):
-        """转换为字典格式"""
-        return {
-            "id": self.id,
-            "template_id": self.template_id,
-            "name": self.name,
-            "content": self.content,
-            "category": self.category,
-            "description": self.description,
-            "variables": self.variables or [],
-            "is_system": self.is_system,
-            "is_active": self.is_active,
-            "usage_count": self.usage_count,
-            "created_by": self.created_by,
-            "created_at": self.created_at.isoformat() if self.created_at else None,
-            "updated_at": self.updated_at.isoformat() if self.updated_at else None
-        }
-
-class MCPSkill(Base):
-    """MCP技能模型"""
-    __tablename__ = 'mcp_skills'
-
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    skill_id = Column(String, nullable=False, unique=True, index=True, default=lambda: str(uuid.uuid4()))  # 技能ID
-    name = Column(String, nullable=False, index=True)  # 技能名称
-    description = Column(Text, nullable=True)  # 技能描述
-    
-    # MCP配置
-    mcp_server = Column(String, nullable=False)  # MCP服务器地址或标识
-    mcp_config = Column(JSON, nullable=False)  # MCP连接配置
-    tool_schema = Column(JSON, nullable=True)  # 工具Schema定义
-    parameters = Column(JSON, nullable=True)  # 默认参数配置
-    
-    # 技能元数据
-    category = Column(String, nullable=True, index=True)  # 分类 (communication, data_processing, automation等)
-    version = Column(String, nullable=True)  # 版本号
-    is_active = Column(Boolean, default=True)  # 是否激活
-    is_verified = Column(Boolean, default=False)  # 是否已验证
-    
-    # 使用统计
-    usage_count = Column(Integer, default=0)  # 使用次数
-    success_rate = Column(Float, nullable=True)  # 成功率
-    avg_response_time = Column(Float, nullable=True)  # 平均响应时间(毫秒)
-    
-    # 创建信息
-    created_by = Column(String, nullable=True, index=True)  # 创建者
-    created_at = Column(DateTime, default=func.now())  # 创建时间
-    updated_at = Column(DateTime, default=func.now(), onupdate=func.now())  # 更新时间
-    
-    def to_dict(self):
-        """转换为字典格式"""
-        return {
-            "id": self.id,
-            "skill_id": self.skill_id,
-            "name": self.name,
-            "description": self.description,
-            "mcp_server": self.mcp_server,
-            "mcp_config": self.mcp_config,
-            "tool_schema": self.tool_schema,
-            "parameters": self.parameters or {},
-            "category": self.category,
-            "version": self.version,
-            "is_active": self.is_active,
-            "is_verified": self.is_verified,
-            "usage_count": self.usage_count,
-            "success_rate": self.success_rate,
-            "avg_response_time": self.avg_response_time,
-            "created_by": self.created_by,
-            "created_at": self.created_at.isoformat() if self.created_at else None,
-            "updated_at": self.updated_at.isoformat() if self.updated_at else None
-        }
 
 class AgentInstance(Base):
     """智能体实例模型 - 用于追踪用户与智能体的交互状态"""
@@ -256,39 +163,3 @@ class AgentInstance(Base):
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "updated_at": self.updated_at.isoformat() if self.updated_at else None
         }
-
-class AgentShare(Base):
-    """智能体分享模型 - 用于智能体的分享和权限管理"""
-    __tablename__ = 'agent_shares'
-
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    share_id = Column(String, nullable=False, unique=True, index=True, default=lambda: str(uuid.uuid4()))  # 分享ID
-    
-    # 关联
-    agent_id = Column(String, ForeignKey('custom_agents.agent_id'), nullable=False, index=True)  # 智能体ID
-    shared_by = Column(String, nullable=False, index=True)  # 分享者用户ID
-    shared_to = Column(String, nullable=True, index=True)  # 被分享者用户ID（为空表示公开分享）
-    
-    # 分享设置
-    permission = Column(String, default='read')  # 权限 (read, write, admin)
-    is_active = Column(Boolean, default=True)  # 是否激活
-    expires_at = Column(DateTime, nullable=True)  # 过期时间
-    
-    # 时间戳
-    created_at = Column(DateTime, default=func.now())  # 创建时间
-    updated_at = Column(DateTime, default=func.now(), onupdate=func.now())  # 更新时间
-    
-    def to_dict(self):
-        """转换为字典格式"""
-        return {
-            "id": self.id,
-            "share_id": self.share_id,
-            "agent_id": self.agent_id,
-            "shared_by": self.shared_by,
-            "shared_to": self.shared_to,
-            "permission": self.permission,
-            "is_active": self.is_active,
-            "expires_at": self.expires_at.isoformat() if self.expires_at else None,
-            "created_at": self.created_at.isoformat() if self.created_at else None,
-            "updated_at": self.updated_at.isoformat() if self.updated_at else None
-        } 

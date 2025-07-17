@@ -12,127 +12,60 @@ from models.agent_models import CustomAgent, AgentInstance
 from models.user_model import User
 from utils.auth_middleware import get_required_user
 from src.utils import logger
-from config.agent_config import AgentConfig, ModelConfig, KnowledgeConfig, McpConfig
+from config.agent_config import AgentConfig, ModelConfig, KnowledgeConfig, McpConfig, RetrievalConfig
 
 # 创建路由器
 agent_router = APIRouter(prefix="/agents", tags=["agents"])
 db_manager = DBManager()
 
+# 模型配置
+class ModelConfigRequest(BaseModel):
+    provider: str = Field(default="", description="模型提供商")
+    model: str = Field(default="", description="模型名称")
+    config: Dict[str, Any] = Field(default={"temperature": 0.7, "max_tokens": 2048}, description="模型参数配置")
+
+# 知识库检索配置
+class RetrievalConfigRequest(BaseModel):
+    top_k: int = Field(default=3, description="检索返回的文档数量")
+    similarity_threshold: float = Field(default=0.5, description="相似度阈值")
+
+# 知识库配置
+class KnowledgeConfigRequest(BaseModel):
+    enabled: bool = Field(default=False, description="是否启用知识库")
+    databases: List[str] = Field(default_factory=list, description="知识库数据库列表")
+    retrieval_config: RetrievalConfigRequest = Field(default_factory=RetrievalConfigRequest, description="检索配置")
+
+# MCP配置
+class McpConfigRequest(BaseModel):
+    enabled: bool = Field(default=False, description="是否启用MCP服务")
+    servers: List[str] = Field(default_factory=list, description="MCP服务器列表")
 
 class AgentCreateRequest(BaseModel):
     name: str = Field(..., min_length=1, max_length=100, description="智能体名称")
     description: Optional[str] = Field(None, max_length=500, description="智能体描述")
-    agent_type: str = Field(default="chatbot", description="智能体类型")
-    avatar: Optional[str] = Field(None, description="头像URL")
     system_prompt: Optional[str] = Field(None, description="系统提示词")
-
-    # 分开的模型配置
-    provider: Optional[str] = Field(default="zhipu", description="模型提供商")
-    model_name: Optional[str] = Field(default="glm-4-plus", description="模型名称")
-    model_parameters: Optional[Dict[str, Any]] = Field(default_factory=dict, description="模型参数")
-
-    # 工具配置
-    tools: Optional[List[str]] = Field(default_factory=list, description="内置工具列表")
-    mcp_skills: Optional[List[str]] = Field(default_factory=list, description="MCP技能列表")
-
-    # 知识库配置
-    knowledge_databases: Optional[List[str]] = Field(default_factory=list, description="知识库ID列表")
-    retrieval_params: Optional[Dict[str, Any]] = Field(default_factory=dict, description="检索参数")
-
-    tags: Optional[List[str]] = Field(default_factory=list, description="标签列表")
-    is_public: bool = Field(default=False, description="是否公开")
-
-    model_config = {
-        "json_schema_extra": {
-            "example": {
-                "name": "客服助手",
-                "description": "专业的客服智能体",
-                "agent_type": "chatbot",
-                "avatar": "https://example.com/avatar.png",
-                "system_prompt": "你是一个专业的客服助手...",
-                "provider": "zhipu",
-                "model_name": "glm-4-plus",
-                "model_parameters": {"temperature": 0.7},
-                "tools": ["web_search", "calculator"],
-                "mcp_skills": {"file_manager": {"enabled": True}},
-                "knowledge_databases": ["kb_1", "kb_2"],
-                "retrieval_params": {"top_k": 5},
-                "tags": ["客服", "售后"],
-                "is_public": False,
-            }
-        }
-    }
-
+    llm_config: ModelConfigRequest = Field(default_factory=ModelConfigRequest, description="语言模型配置")
+    knowledge_config: KnowledgeConfigRequest = Field(default_factory=KnowledgeConfigRequest, description="知识库配置")
+    mcp_config: McpConfigRequest = Field(default_factory=McpConfigRequest, description="MCP配置")
+    tools: List[str] = Field(default_factory=list, description="工具列表")
+    
 
 class AgentUpdateRequest(BaseModel):
     name: Optional[str] = Field(None, min_length=1, max_length=100, description="智能体名称")
     description: Optional[str] = Field(None, max_length=500, description="智能体描述")
-    agent_type: Optional[str] = Field(None, description="智能体类型")
-    avatar: Optional[str] = Field(None, description="头像URL")
     system_prompt: Optional[str] = Field(None, description="系统提示词")
-
-    # 分开的模型配置
-    provider: Optional[str] = Field(None, description="模型提供商")
-    model_name: Optional[str] = Field(None, description="模型名称")
-    model_parameters: Optional[Dict[str, Any]] = Field(None, description="模型参数")
-
-    # 工具配置
-    tools: Optional[List[str]] = Field(None, description="内置工具列表")
-    mcp_skills: Optional[List[str]] = Field(None, description="MCP技能列表")
-
-    # 知识库配置
-    knowledge_databases: Optional[List[str]] = Field(None, description="知识库ID列表")
-    retrieval_params: Optional[Dict[str, Any]] = Field(None, description="检索参数")
-
-    tags: Optional[List[str]] = Field(None, description="标签列表")
-    is_public: Optional[bool] = Field(None, description="是否公开")
-
-    model_config = {
-        "json_schema_extra": {
-            "example": {
-                "name": "更新后的客服助手",
-                "description": "更新后的专业客服智能体",
-                "agent_type": "chatbot",
-                "avatar": "https://example.com/new_avatar.png",
-                "system_prompt": "你是一个更专业的客服助手...",
-                "provider": "zhipu",
-                "model_name": "glm-4-plus",
-                "model_parameters": {"temperature": 0.8},
-                "tools": ["web_search", "calculator", "file_reader"],
-                "mcp_skills": ["file_manager", "calendar"],
-                "knowledge_databases": ["kb_1", "kb_2", "kb_3"],
-                "retrieval_params": {"top_k": 10},
-                "tags": ["客服", "售后", "技术支持"],
-                "is_public": True,
-            }
-        }
-    }
+    llm_config: Optional[ModelConfigRequest] = Field(None, description="语言模型配置")
+    knowledge_config: Optional[KnowledgeConfigRequest] = Field(None, description="知识库配置")
+    mcp_config: Optional[McpConfigRequest] = Field(None, description="MCP配置")
+    tools: Optional[List[str]] = Field(None, description="工具列表")
 
 
 class AgentConfigOverride(BaseModel):
     """运行时配置覆盖"""
-
-    provider: Optional[str] = Field(None, description="模型提供商")
-    model_name: Optional[str] = Field(None, description="模型名称")
-    model_parameters: Optional[Dict[str, Any]] = Field(None, description="模型参数")
-    tools: Optional[List[str]] = Field(None, description="内置工具列表")
-    mcp_skills: Optional[List[str]] = Field(None, description="MCP技能列表")
-    knowledge_databases: Optional[List[str]] = Field(None, description="知识库ID列表")
-    retrieval_params: Optional[Dict[str, Any]] = Field(None, description="检索参数")
-
-    model_config = {
-        "json_schema_extra": {
-            "example": {
-                "provider": "openai",
-                "model_name": "gpt-4",
-                "model_parameters": {"temperature": 0.7},
-                "tools": ["web_search"],
-                "mcp_skills": ["file_manager"],
-                "knowledge_databases": ["kb_1"],
-                "retrieval_params": {"top_k": 3},
-            }
-        }
-    }
+    llm_config: Optional[ModelConfigRequest] = Field(None, description="语言模型配置")
+    knowledge_config: Optional[KnowledgeConfigRequest] = Field(None, description="知识库配置")
+    mcp_config: Optional[McpConfigRequest] = Field(None, description="MCP配置")
+    tools: Optional[List[str]] = Field(None, description="工具列表")
 
 
 def _build_llm_config(provider: str = None, model_name: str = None, model_parameters: Dict[str, Any] = None) -> Dict[str, Any]:
@@ -147,14 +80,7 @@ def _build_llm_config(provider: str = None, model_name: str = None, model_parame
     return config
 
 
-def _build_tools_config(tools: List[str] = None, mcp_skills: List[str] = None) -> Dict[str, Any]:
-    """构建工具配置字典"""
-    config = {}
-    if tools is not None:
-        config["builtin_tools"] = tools
-    if mcp_skills is not None:
-        config["mcp_skills"] = mcp_skills
-    return config
+# Function removed as we now directly set the tools and mcp_config fields
 
 
 def _build_knowledge_config(knowledge_databases: List[str] = None, retrieval_params: Dict[str, Any] = None) -> Dict[str, Any]:
@@ -275,25 +201,21 @@ async def create_agent(request: AgentCreateRequest, current_user: User = Depends
             raise HTTPException(status_code=400, detail="智能体名称已存在")
 
         # 构建配置字典
-        llm_config = _build_llm_config(provider=request.provider, model_name=request.model_name, model_parameters=request.model_parameters)
+        llm_config = _build_llm_config(provider=request.llm_config.provider, model_name=request.llm_config.model, model_parameters=request.llm_config.config)
 
-        tools_config = _build_tools_config(tools=request.tools, mcp_skills=request.mcp_skills)
-
-        knowledge_config = _build_knowledge_config(knowledge_databases=request.knowledge_databases, retrieval_params=request.retrieval_params)
+        knowledge_config = _build_knowledge_config(knowledge_databases=request.knowledge_config.databases, retrieval_params=request.knowledge_config.retrieval_config.model_dump())
 
         # 创建智能体
         agent = CustomAgent(
             agent_id=str(uuid.uuid4()),
             name=request.name,
             description=request.description,
-            agent_type=request.agent_type,
-            avatar=request.avatar,
+            agent_type="chatbot",  # Default type
             system_prompt=request.system_prompt,
             llm_config=llm_config,
-            tools_config=tools_config,
+            tools=request.tools,
+            mcp_config={"enabled": bool(request.mcp_config.servers), "servers": request.mcp_config.servers} if request.mcp_config else None,
             knowledge_config=knowledge_config,
-            tags=request.tags,
-            is_public=request.is_public,
             created_by=current_user.id,
         )
 
@@ -343,69 +265,47 @@ async def update_agent(agent_id: str, request: AgentUpdateRequest, background_ta
         if agent.created_by != current_user.id:
             raise HTTPException(status_code=403, detail="无权限修改此智能体")
 
-        # 直接更新基础字段
-        update_data = request.model_dump(exclude_unset=True)
+        # 记录更新请求
+        logger.info(f"更新智能体 {agent_id}")
         
-        logger.info(f"更新智能体 {agent_id}，接收到的数据: {update_data}")
-        
-        # 更新基础信息
-        if "name" in update_data:
-            agent.name = update_data["name"]
-        if "description" in update_data:
-            agent.description = update_data["description"]
-        if "system_prompt" in update_data:
-            agent.system_prompt = update_data["system_prompt"]
-        if "avatar" in update_data:
-            agent.avatar = update_data["avatar"]
-        if "agent_type" in update_data:
-            agent.agent_type = update_data["agent_type"]
-        if "tags" in update_data:
-            agent.tags = update_data["tags"]
-        if "is_public" in update_data:
-            agent.is_public = update_data["is_public"]
+        # 更新基础字段
+        if request.name is not None:
+            agent.name = request.name
+        if request.description is not None:
+            agent.description = request.description
+        if request.system_prompt is not None:
+            agent.system_prompt = request.system_prompt
 
         # 更新模型配置
-        if any(key in update_data for key in ["provider", "model_name", "model_parameters"]):
-            if not agent.llm_config:
-                agent.llm_config = {}
-            if "provider" in update_data:
-                agent.llm_config["provider"] = update_data["provider"]
-            if "model_name" in update_data:
-                agent.llm_config["model_name"] = update_data["model_name"]
-            if "model_parameters" in update_data:
-                agent.llm_config["parameters"] = update_data["model_parameters"]
-            # 清理旧字段，避免字段重复
-            if "model" in agent.llm_config:
-                del agent.llm_config["model"]
-            if "config" in agent.llm_config:
-                del agent.llm_config["config"]
+        if request.llm_config is not None:
+            agent.llm_config = {
+                "provider": request.llm_config.provider,
+                "model": request.llm_config.model,
+                "config": request.llm_config.config
+            }
 
         # 更新工具配置
-        if any(key in update_data for key in ["tools", "mcp_skills"]):
-            if not agent.tools_config:
-                agent.tools_config = {}
-            if "tools" in update_data:
-                agent.tools_config["builtin_tools"] = update_data["tools"]
-            if "mcp_skills" in update_data:
-                agent.tools_config["mcp_skills"] = update_data["mcp_skills"]
+        if request.tools is not None:
+            agent.tools = request.tools
+        
+        # 更新MCP配置
+        if request.mcp_config is not None:
+            agent.mcp_config = {
+                "enabled": request.mcp_config.enabled,
+                "servers": request.mcp_config.servers
+            }
 
         # 更新知识库配置
-        if any(key in update_data for key in ["knowledge_databases", "retrieval_params"]):
-            if not agent.knowledge_config:
-                agent.knowledge_config = {}
-            if "knowledge_databases" in update_data:
-                agent.knowledge_config["databases"] = update_data["knowledge_databases"]
-            if "retrieval_params" in update_data:
-                agent.knowledge_config["retrieval_params"] = update_data["retrieval_params"]
-            # 清理旧字段，避免字段重复
-            if "enabled" in agent.knowledge_config:
-                del agent.knowledge_config["enabled"]
-            if "retrieval_config" in agent.knowledge_config:
-                del agent.knowledge_config["retrieval_config"]
+        if request.knowledge_config is not None:
+            agent.knowledge_config = {
+                "enabled": request.knowledge_config.enabled,
+                "databases": request.knowledge_config.databases,
+                "retrieval_config": request.knowledge_config.retrieval_config.model_dump()
+            }
 
         agent.updated_at = datetime.utcnow()
-
-        logger.info(f"更新后的智能体配置: llm_config={agent.llm_config}, tools_config={agent.tools_config}, knowledge_config={agent.knowledge_config}")
+        
+        logger.info(f"更新后的智能体配置: llm_config={agent.llm_config}, tools={agent.tools}, mcp_config={agent.mcp_config}, knowledge_config={agent.knowledge_config}")
 
         # 保存到数据库
         session.commit()
@@ -413,14 +313,26 @@ async def update_agent(agent_id: str, request: AgentUpdateRequest, background_ta
 
         # 创建AgentConfig用于保存YAML文件
         try:
+            # 从ORM模型转换为配置模型，确保字段一致性
             agent_config = AgentConfig(
                 name=agent.name,
                 description=agent.description or "",
                 system_prompt=agent.system_prompt or "",
-                llm_config=ModelConfig(**(agent.llm_config or {})),
-                knowledge_config=KnowledgeConfig(**(agent.knowledge_config or {})),
-                mcp_config=McpConfig(servers=agent.tools_config.get("mcp_skills", []) if agent.tools_config else []),
-                tools=agent.tools_config.get("builtin_tools", []) if agent.tools_config else []
+                llm_config=ModelConfig(
+                    provider=agent.llm_config.get("provider", "") if agent.llm_config else "",
+                    model=agent.llm_config.get("model", "") if agent.llm_config else "",
+                    config=agent.llm_config.get("config", {}) if agent.llm_config else {}
+                ),
+                knowledge_config=KnowledgeConfig(
+                    enabled=agent.knowledge_config.get("enabled", False) if agent.knowledge_config else False,
+                    databases=agent.knowledge_config.get("databases", []) if agent.knowledge_config else [],
+                    retrieval_config=RetrievalConfig(**(agent.knowledge_config.get("retrieval_config", {})) if agent.knowledge_config else {})
+                ),
+                mcp_config=McpConfig(
+                    enabled=agent.mcp_config.get("enabled", False) if agent.mcp_config else False,
+                    servers=agent.mcp_config.get("servers", []) if agent.mcp_config else []
+                ),
+                tools=agent.tools or []
             )
             background_tasks.add_task(agent_config.save_to_yaml)
         except Exception as e:
@@ -514,12 +426,11 @@ async def duplicate_agent(
             name=new_name,
             description=original_agent.description,
             agent_type=original_agent.agent_type,
-            avatar=original_agent.avatar,
             system_prompt=original_agent.system_prompt,
             llm_config=original_agent.llm_config,
-            tools_config=original_agent.tools_config,
+            tools=original_agent.tools,
+            mcp_config=original_agent.mcp_config,
             knowledge_config=original_agent.knowledge_config,
-            tags=original_agent.tags,
             is_public=False,  # 复制的智能体默认为私有
             created_by=current_user.id,
         )
@@ -668,109 +579,6 @@ async def get_agent_config(agent_id: str, current_user: User = Depends(get_requi
         }
 
 
-@agent_router.get("/{agent_id}/yaml", summary="获取智能体YAML配置")
-async def get_agent_yaml(agent_id: str, current_user: User = Depends(get_required_user)):
-    """获取智能体的YAML格式配置"""
-    with db_manager.get_session_context() as session:
-        # 查询智能体
-        agent = session.query(CustomAgent).filter(and_(CustomAgent.agent_id == agent_id, CustomAgent.deleted_at.is_(None))).first()
-
-        if not agent:
-            raise HTTPException(status_code=404, detail="智能体不存在")
-
-        # 权限检查：只能查看自己的或公开的智能体
-        if agent.created_by != current_user.id and not agent.is_public:
-            raise HTTPException(status_code=403, detail="无权限访问此智能体")
-
-        # 构建YAML配置
-        yaml_content = []
-        yaml_content.append(f'name: "{agent.name}"')
-        yaml_content.append(f'description: "{agent.description or ""}"')
-        yaml_content.append(f'system_prompt: "{agent.system_prompt or ""}"')
-        yaml_content.append('')
-        yaml_content.append('# 模型配置')
-        
-        # 模型配置
-        provider = agent.llm_config.get("provider", "") if agent.llm_config else ""
-        model_name = agent.llm_config.get("model_name", "") if agent.llm_config else "" # 修正字段名
-        model_parameters = agent.llm_config.get("parameters", {}) if agent.llm_config else {} # 修正字段名
-        
-        yaml_content.append('llm_config:')
-        yaml_content.append(f'  provider: "{provider}"')
-        yaml_content.append(f'  model: "{model_name}"')
-        yaml_content.append('  config:')
-        for key, value in model_parameters.items():
-            if isinstance(value, str):
-                yaml_content.append(f'    {key}: "{value}"')
-            else:
-                yaml_content.append(f'    {key}: {value}')
-        
-        yaml_content.append('')
-        yaml_content.append('# 工具配置')
-        
-        # 工具配置
-        tools = agent.tools_config.get("builtin_tools", []) if agent.tools_config else []
-        if tools:
-            yaml_content.append('tools:')
-            for tool in tools:
-                yaml_content.append(f'  - "{tool}"')
-        else:
-            yaml_content.append('tools: []')
-        
-        yaml_content.append('')
-        yaml_content.append('# MCP配置')
-        
-        # MCP技能配置
-        mcp_skills = agent.tools_config.get("mcp_skills", []) if agent.tools_config else []
-        if mcp_skills:
-            yaml_content.append('mcp_config:')
-            yaml_content.append('  enabled: true')
-            yaml_content.append('  servers:')
-            if isinstance(mcp_skills, list):
-                for server_name in mcp_skills:
-                    yaml_content.append(f'    - "{server_name}"')
-            elif isinstance(mcp_skills, dict):
-                for server_name in mcp_skills.keys():
-                    yaml_content.append(f'    - "{server_name}"')
-        else:
-            yaml_content.append('mcp_config:')
-            yaml_content.append('  enabled: false')
-            yaml_content.append('  servers: []')
-        
-        yaml_content.append('')
-        yaml_content.append('# 知识库配置')
-        
-        # 知识库配置
-        knowledge_databases = agent.knowledge_config.get("databases", []) if agent.knowledge_config else []
-        retrieval_params = agent.knowledge_config.get("retrieval_params", {}) if agent.knowledge_config else {} # 修正字段名
-        
-        yaml_content.append('knowledge_config:')
-        if knowledge_databases:
-            yaml_content.append('  enabled: true')
-            yaml_content.append('  databases:')
-            for db in knowledge_databases:
-                yaml_content.append(f'    - "{db}"')
-        else:
-            yaml_content.append('  enabled: false')
-            yaml_content.append('  databases: []')
-        
-        yaml_content.append('  retrieval_config:')
-        for key, value in retrieval_params.items():
-            if isinstance(value, str):
-                yaml_content.append(f'    {key}: "{value}"')
-            else:
-                yaml_content.append(f'    {key}: {value}')
-
-        return {
-            "success": True,
-            "data": {
-                "agent_id": agent.agent_id,
-                "name": agent.name,
-                "yaml_content": '\n'.join(yaml_content),
-            },
-        }
-
-
 @agent_router.get("/{agent_id}/stats", summary="获取智能体统计信息")
 async def get_agent_stats(agent_id: str, current_user: User = Depends(get_required_user)):
     """获取智能体的统计信息（如实例数量、创建时间、最后更新时间）"""
@@ -826,7 +634,7 @@ async def get_agent_publish_config(agent_id: str, current_user: User = Depends(g
                 "mode": "chat",
                 "allowed_domains": "",
                 "theme_color": "1890ff",
-                "position": "bottom-right",
+                "position": "bottom-right", 
                 "welcome_message": "您好！有什么可以帮助您的吗？",
                 "button_text": "联系客服",
                 "window_title": "智能客服"

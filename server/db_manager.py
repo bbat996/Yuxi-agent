@@ -9,7 +9,7 @@ from models import Base
 from models.user_model import User
 from models.thread_model import Thread
 from models.kb_models import KnowledgeDatabase, KnowledgeFile, KnowledgeNode
-from models.agent_models import CustomAgent, MCPSkill, AgentInstance, AgentShare
+from models.agent_models import CustomAgent, AgentInstance
 from src.utils import logger
 
 

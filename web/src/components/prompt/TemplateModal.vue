@@ -55,8 +55,15 @@ const handleCancel = () => {
 };
 
 const handleSelect = (item) => {
+  console.log('Template selected:', item.prompt); // Add logging for debugging
+  
+  // 先发出选择事件，更新form.system_prompt值
   emit('select', item.prompt);
-  emit('update:modelValue', false);
+  
+  // 设置延迟以确保数据更新后再关闭模态框
+  setTimeout(() => {
+    emit('update:modelValue', false);
+  }, 100);
 };
 
 const filteredTemplates = computed(() => {

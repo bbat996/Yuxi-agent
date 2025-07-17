@@ -118,9 +118,25 @@
           
           <a-row :gutter="16">
             <a-col :span="12">
+              <a-form-item label="提供商" name="provider">
+                <a-select 
+                  :model-value="formData.llm_config.provider"
+                  @update:model-value="val => formData.llm_config.provider = val"
+                  placeholder="选择提供商"
+                  show-search
+                  @change="handleProviderChange"
+                >
+                  <a-select-option value="openai">OpenAI</a-select-option>
+                  <a-select-option value="zhipu">智谱</a-select-option>
+                  <a-select-option value="custom">自定义</a-select-option>
+                </a-select>
+              </a-form-item>
+            </a-col>
+            <a-col :span="12">
               <a-form-item label="模型" name="model">
                 <a-select 
-                  v-model:value="formData.model_config.model" 
+                  :model-value="formData.llm_config.model"
+                  @update:model-value="val => formData.llm_config.model = val"
                   placeholder="选择模型"
                   show-search
                   @change="handleModelChange"
@@ -132,10 +148,14 @@
                 </a-select>
               </a-form-item>
             </a-col>
+          </a-row>
+
+          <a-row :gutter="16">
             <a-col :span="12">
               <a-form-item label="温度" name="temperature">
                 <a-slider
-                  v-model:value="formData.model_config.temperature"
+                  :model-value="formData.llm_config.config.temperature"
+                  @update:model-value="val => formData.llm_config.config.temperature = val"
                   :min="0"
                   :max="2"
                   :step="0.1"
@@ -143,13 +163,11 @@
                 />
               </a-form-item>
             </a-col>
-          </a-row>
-
-          <a-row :gutter="16">
             <a-col :span="12">
               <a-form-item label="最大回复长度">
                 <a-input-number
-                  v-model:value="formData.model_config.max_tokens"
+                  :model-value="formData.llm_config.config.max_tokens"
+                  @update:model-value="val => formData.llm_config.config.max_tokens = val"
                   :min="1"
                   :max="4000"
                   placeholder="最大回复长度"
@@ -157,12 +175,28 @@
                 />
               </a-form-item>
             </a-col>
+          </a-row>
+
+          <a-row :gutter="16">
             <a-col :span="12">
               <a-form-item label="Top P">
                 <a-slider
-                  v-model:value="formData.model_config.top_p"
+                  :model-value="formData.llm_config.config.top_p"
+                  @update:model-value="val => formData.llm_config.config.top_p = val"
                   :min="0"
                   :max="1"
+                  :step="0.1"
+                  :tooltip-formatter="(val) => `${val}`"
+                />
+              </a-form-item>
+            </a-col>
+            <a-col :span="12">
+              <a-form-item label="频率惩罚">
+                <a-slider
+                  :model-value="formData.llm_config.config.frequency_penalty"
+                  @update:model-value="val => formData.llm_config.config.frequency_penalty = val"
+                  :min="-2"
+                  :max="2"
                   :step="0.1"
                   :tooltip-formatter="(val) => `${val}`"
                 />
@@ -183,13 +217,12 @@
           
           <div class="tools-list">
             <div 
-              v-for="(tool, index) in formData.tools_config" 
+              v-for="(tool, index) in formData.tools" 
               :key="index"
               class="tool-item"
             >
               <div class="tool-info">
-                <span class="tool-name">{{ tool.name }}</span>
-                <span class="tool-description">{{ tool.description }}</span>
+                <span class="tool-name">{{ tool }}</span>
               </div>
               <a-button 
                 type="text" 
@@ -201,7 +234,7 @@
               </a-button>
             </div>
             
-            <a-empty v-if="formData.tools_config.length === 0" :image="false" description="暂未配置工具">
+            <a-empty v-if="formData.tools.length === 0" :image="false" description="暂未配置工具">
               <a-button type="dashed" @click="showToolSelector = true">
                 <template #icon><PlusOutlined /></template>
                 添加工具
@@ -214,48 +247,93 @@
         <div class="form-section">
           <h4 class="section-title">知识库配置</h4>
           
-          <a-form-item label="知识库">
-            <a-select
-              v-model:value="formData.knowledge_config.databases"
-              mode="multiple"
-              placeholder="选择要关联的知识库"
-              :loading="knowledgeLoading"
-              @focus="loadKnowledgeBases"
-            >
-              <a-select-option 
-                v-for="kb in knowledgeBases" 
-                :key="kb.id" 
-                :value="kb.id"
-              >
-                {{ kb.name }}
-              </a-select-option>
-            </a-select>
+          <a-form-item label="启用知识库">
+            <a-switch 
+              :model-value="formData.knowledge_config.enabled"
+              @update:model-value="val => formData.knowledge_config.enabled = val"
+            />
           </a-form-item>
 
-          <a-row :gutter="16" v-if="formData.knowledge_config.databases.length > 0">
-            <a-col :span="12">
-              <a-form-item label="检索数量">
-                <a-input-number
-                  v-model:value="formData.knowledge_config.retrieval_config.top_k"
-                  :min="1"
-                  :max="20"
-                  placeholder="检索数量"
-                  style="width: 100%"
-                />
-              </a-form-item>
-            </a-col>
-            <a-col :span="12">
-              <a-form-item label="相似度阈值">
-                <a-slider
-                  v-model:value="formData.knowledge_config.retrieval_config.similarity_threshold"
-                  :min="0"
-                  :max="1"
-                  :step="0.1"
-                  :tooltip-formatter="(val) => `${val}`"
-                />
-              </a-form-item>
-            </a-col>
-          </a-row>
+          <template v-if="formData.knowledge_config.enabled">
+            <a-form-item label="知识库">
+              <a-select
+                :model-value="formData.knowledge_config.databases"
+                @update:model-value="val => formData.knowledge_config.databases = val"
+                mode="multiple"
+                placeholder="选择要关联的知识库"
+                :loading="knowledgeLoading"
+                @focus="loadKnowledgeBases"
+              >
+                <a-select-option 
+                  v-for="kb in knowledgeBases" 
+                  :key="kb.id" 
+                  :value="kb.id"
+                >
+                  {{ kb.name }}
+                </a-select-option>
+              </a-select>
+            </a-form-item>
+
+            <a-row :gutter="16" v-if="formData.knowledge_config.databases.length > 0">
+              <a-col :span="12">
+                <a-form-item label="检索数量">
+                  <a-input-number
+                    :model-value="formData.knowledge_config.retrieval_config.top_k"
+                    @update:model-value="val => formData.knowledge_config.retrieval_config.top_k = val"
+                    :min="1"
+                    :max="20"
+                    placeholder="检索数量"
+                    style="width: 100%"
+                  />
+                </a-form-item>
+              </a-col>
+              <a-col :span="12">
+                <a-form-item label="相似度阈值">
+                  <a-slider
+                    :model-value="formData.knowledge_config.retrieval_config.similarity_threshold"
+                    @update:model-value="val => formData.knowledge_config.retrieval_config.similarity_threshold = val"
+                    :min="0"
+                    :max="1"
+                    :step="0.1"
+                    :tooltip-formatter="(val) => `${val}`"
+                  />
+                </a-form-item>
+              </a-col>
+            </a-row>
+          </template>
+        </div>
+
+        <!-- MCP配置 -->
+        <div class="form-section">
+          <h4 class="section-title">MCP配置</h4>
+          
+          <a-form-item label="启用MCP服务">
+            <a-switch 
+              :model-value="formData.mcp_config.enabled"
+              @update:model-value="val => formData.mcp_config.enabled = val"
+            />
+          </a-form-item>
+
+          <template v-if="formData.mcp_config.enabled">
+            <a-form-item label="MCP服务器">
+              <a-select
+                :model-value="formData.mcp_config.servers"
+                @update:model-value="val => formData.mcp_config.servers = val"
+                mode="multiple"
+                placeholder="选择要使用的MCP服务器"
+                :loading="mcpLoading"
+                @focus="loadMcpServers"
+              >
+                <a-select-option 
+                  v-for="server in mcpServers" 
+                  :key="server.id" 
+                  :value="server.id"
+                >
+                  {{ server.name }}
+                </a-select-option>
+              </a-select>
+            </a-form-item>
+          </template>
         </div>
       </template>
     </a-form>
@@ -374,51 +452,88 @@ const loading = ref(false)
 const modalVisible = ref(false)
 const formRef = ref()
 
-// 表单数据
-const formData = reactive({
+const defaultFormData = {
   name: '',
   description: '',
   agent_type: 'custom',
   system_prompt: '',
-  model_config: {
+  llm_config: {
+    provider: 'openai',
     model: 'gpt-3.5-turbo',
-    temperature: 0.7,
-    max_tokens: 2000,
-    top_p: 0.9
+    config: {
+      temperature: 0.7,
+      max_tokens: 2000,
+      top_p: 0.9,
+      frequency_penalty: 0,
+      presence_penalty: 0
+    }
   },
-  tools_config: [],
+  tools: [],
   knowledge_config: {
+    enabled: false,
     databases: [],
     retrieval_config: {
-      top_k: 5,
-      similarity_threshold: 0.7
+      top_k: 3,
+      similarity_threshold: 0.5
     }
   },
   mcp_config: {
-    skills: []
+    enabled: false,
+    servers: []
   },
   avatar: null // 用于存储头像的URL
-})
+}
+
+// 表单数据
+const formData = ref({ ...defaultFormData })
+
+// 如果是编辑模式，使用传入的agent数据初始化表单
+if (props.mode === 'edit' && props.agent) {
+  formData.value = {
+    ...defaultFormData,
+    ...props.agent,
+    llm_config: {
+      provider: props.agent.llm_config?.provider || defaultFormData.llm_config.provider,
+      model: props.agent.llm_config?.model || defaultFormData.llm_config.model,
+      config: {
+        temperature: props.agent.llm_config?.config?.temperature || defaultFormData.llm_config.config.temperature,
+        max_tokens: props.agent.llm_config?.config?.max_tokens || defaultFormData.llm_config.config.max_tokens,
+        top_p: props.agent.llm_config?.config?.top_p || defaultFormData.llm_config.config.top_p,
+        frequency_penalty: props.agent.llm_config?.config?.frequency_penalty || defaultFormData.llm_config.config.frequency_penalty,
+        presence_penalty: props.agent.llm_config?.config?.presence_penalty || defaultFormData.llm_config.config.presence_penalty
+      }
+    },
+    knowledge_config: {
+      enabled: props.agent.knowledge_config?.enabled || defaultFormData.knowledge_config.enabled,
+      databases: props.agent.knowledge_config?.databases || defaultFormData.knowledge_config.databases,
+      retrieval_config: {
+        top_k: props.agent.knowledge_config?.retrieval_config?.top_k || defaultFormData.knowledge_config.retrieval_config.top_k,
+        similarity_threshold: props.agent.knowledge_config?.retrieval_config?.similarity_threshold || defaultFormData.knowledge_config.retrieval_config.similarity_threshold
+      }
+    },
+    mcp_config: {
+      enabled: props.agent.mcp_config?.enabled || defaultFormData.mcp_config.enabled,
+      servers: props.agent.mcp_config?.servers || defaultFormData.mcp_config.servers
+    }
+  }
+}
 
 // 表单验证规则
-const formRules = computed(() => {
-  const baseRules = {
-    name: [
-      { required: true, message: '请输入智能体名称', trigger: 'blur' },
-      { min: 2, max: 50, message: '名称长度在2-50字符之间', trigger: 'blur' }
-    ]
-  }
-  
-  // 仅在创建模式下添加系统提示词验证
-  if (props.mode === 'create') {
-    baseRules.system_prompt = [
-      { required: true, message: '请输入系统提示词', trigger: 'blur' },
-      { min: 10, message: '提示词至少需要10个字符', trigger: 'blur' }
-    ]
-  }
-  
-  return baseRules
-})
+const formRules = {
+  name: [
+    { required: true, message: '请输入智能体名称', trigger: 'blur' },
+    { min: 2, max: 50, message: '名称长度应在2-50个字符之间', trigger: 'blur' }
+  ],
+  description: [
+    { max: 200, message: '描述不能超过200个字符', trigger: 'blur' }
+  ],
+  'llm_config.provider': [
+    { required: true, message: '请选择模型提供商', trigger: 'change' }
+  ],
+  'llm_config.model': [
+    { required: true, message: '请选择模型', trigger: 'change' }
+  ]
+}
 
 // 其他数据
 const testMessage = ref('')
@@ -435,6 +550,9 @@ const availableTools = ref([])
 
 const knowledgeLoading = ref(false)
 const knowledgeBases = ref([])
+
+const mcpLoading = ref(false)
+const mcpServers = ref([])
 
 // 头像上传相关
 const avatarFileList = ref([])
@@ -508,14 +626,19 @@ const resetForm = () => {
       description: '',
       agent_type: 'custom',
       system_prompt: '',
-      model_config: {
+      llm_config: {
+        provider: 'openai',
         model: 'gpt-3.5-turbo',
-        temperature: 0.7,
-        max_tokens: 2000,
-        top_p: 0.9
+        config: {
+          temperature: 0.7,
+          max_tokens: 2000,
+          top_p: 0.9,
+          frequency_penalty: 0
+        }
       },
-      tools_config: [],
+      tools: [],
       knowledge_config: {
+        enabled: false,
         databases: [],
         retrieval_config: {
           top_k: 5,
@@ -523,7 +646,8 @@ const resetForm = () => {
         }
       },
       mcp_config: {
-        skills: []
+        enabled: false,
+        servers: []
       },
       avatar: null
     })
@@ -540,19 +664,31 @@ const getTemperatureLabel = (val) => {
   return '发散'
 }
 
+// 提供商变化处理
+const handleProviderChange = (provider) => {
+  // 根据提供商调整模型列表
+  if (provider === 'openai') {
+    formData.value.llm_config.model = 'gpt-3.5-turbo'
+  } else if (provider === 'zhipu') {
+    formData.value.llm_config.model = 'claude-3'
+  } else if (provider === 'custom') {
+    formData.value.llm_config.model = 'local-llm'
+  }
+}
+
 // 模型变化处理
 const handleModelChange = (model) => {
   // 根据模型调整默认参数
   if (model === 'gpt-4') {
-    formData.model_config.max_tokens = 3000
+    formData.value.llm_config.config.max_tokens = 3000
   } else if (model === 'gpt-3.5-turbo') {
-    formData.model_config.max_tokens = 2000
+    formData.value.llm_config.config.max_tokens = 2000
   }
 }
 
 // 移除工具
 const removeTool = (index) => {
-  formData.tools_config.splice(index, 1)
+  formData.value.tools.splice(index, 1)
 }
 
 // 插入变量
@@ -564,8 +700,8 @@ const insertVariable = () => {
   if (textarea) {
     const start = textarea.selectionStart
     const end = textarea.selectionEnd
-    const text = formData.system_prompt
-    formData.system_prompt = text.substring(0, start) + variable + text.substring(end)
+    const text = formData.value.system_prompt
+    formData.value.system_prompt = text.substring(0, start) + variable + text.substring(end)
   }
 }
 
@@ -575,15 +711,15 @@ const loadKnowledgeBases = async () => {
   
   try {
     knowledgeLoading.value = true
-    // 调用知识库API获取列表
+    // 调用API获取知识库列表
     // const response = await knowledgeAPI.getKnowledgeBases()
     // knowledgeBases.value = response.data || []
     
     // 模拟数据
     knowledgeBases.value = [
-      { id: '1', name: '技术文档' },
-      { id: '2', name: '产品手册' },
-      { id: '3', name: '常见问题' }
+      { id: 'kb_1', name: '知识库1' },
+      { id: 'kb_2', name: '知识库2' },
+      { id: 'kb_3', name: '知识库3' }
     ]
   } catch (error) {
     console.error('加载知识库失败:', error)
@@ -592,11 +728,34 @@ const loadKnowledgeBases = async () => {
   }
 }
 
+// 加载MCP服务器列表
+const loadMcpServers = async () => {
+  if (mcpServers.value.length > 0) return
+  
+  try {
+    mcpLoading.value = true
+    // 调用MCP API获取列表
+    // const response = await mcpAPI.getMcpServers()
+    // mcpServers.value = response.data || []
+    
+    // 模拟数据
+    mcpServers.value = [
+      { id: '1', name: 'MCP-1' },
+      { id: '2', name: 'MCP-2' },
+      { id: '3', name: 'MCP-3' }
+    ]
+  } catch (error) {
+    console.error('加载MCP服务器失败:', error)
+  } finally {
+    mcpLoading.value = false
+  }
+}
+
 // 选择模板
 const selectTemplate = () => {
   const template = promptTemplates.value.find(t => t.id === selectedTemplate.value)
   if (template) {
-    formData.system_prompt = template.content
+    formData.value.system_prompt = template.content
   }
   showTemplateSelector.value = false
 }
@@ -604,7 +763,7 @@ const selectTemplate = () => {
 // 选择工具
 const selectTools = () => {
   const tools = availableTools.value.filter(tool => selectedTools.value.includes(tool.id))
-  formData.tools_config = [...formData.tools_config, ...tools]
+  formData.value.tools = [...formData.value.tools, ...tools]
   selectedTools.value = []
   showToolSelector.value = false
 }
@@ -618,7 +777,7 @@ const handleTest = async () => {
 
   try {
     testing.value = true
-    const response = await agentAPI.testAgent(formData, testMessage.value)
+    const response = await agentAPI.testAgent(formData.value, testMessage.value)
     
     testResult.value = {
       success: response.success,
@@ -638,33 +797,37 @@ const handleTest = async () => {
 // 提交表单
 const handleSubmit = async () => {
   try {
-    await formRef.value.validateFields()
+    await formRef.value.validate()
     loading.value = true
 
-    let response
-    if (props.mode === 'edit') {
-      // 编辑模式，只提交基础字段
-      const editData = {
-        name: formData.name,
-        description: formData.description,
-        agent_type: formData.agent_type,
-        avatar: formData.avatar
+    // 构建提交数据
+    const submitData = {
+      ...formData.value,
+      // 如果没有启用知识库或MCP，清空相关配置
+      knowledge_config: formData.value.knowledge_config.enabled ? formData.value.knowledge_config : {
+        enabled: false,
+        databases: [],
+        retrieval_config: defaultFormData.knowledge_config.retrieval_config
+      },
+      mcp_config: formData.value.mcp_config.enabled ? formData.value.mcp_config : {
+        enabled: false,
+        servers: []
       }
-      response = await agentAPI.updateAgent(props.agent.agent_id, editData)
-    } else {
-      // 创建模式，提交所有字段
-      response = await agentAPI.createAgent(formData)
     }
 
-    if (response.success) {
-      message.success(props.mode === 'edit' ? '智能体更新成功' : '智能体创建成功')
-      emit('success')
-      modalVisible.value = false
+    if (props.mode === 'edit') {
+      await agentAPI.updateAgent(props.agent.id, submitData)
+      message.success('智能体更新成功')
     } else {
-      message.error(response.message || '操作失败')
+      await agentAPI.createAgent(submitData)
+      message.success('智能体创建成功')
     }
+
+    emit('success')
+    emit('update:visible', false)
   } catch (error) {
-    console.error('表单验证失败:', error)
+    console.error('提交表单失败:', error)
+    message.error('操作失败: ' + (error.message || '未知错误'))
   } finally {
     loading.value = false
   }
@@ -692,7 +855,7 @@ const beforeAvatarUpload = (file) => {
   const reader = new FileReader()
   reader.onload = (e) => {
     avatarPreview.value = e.target.result
-    formData.avatar = e.target.result // 将base64数据保存到formData
+    formData.value.avatar = e.target.result // 将base64数据保存到formData
   }
   reader.readAsDataURL(file)
   

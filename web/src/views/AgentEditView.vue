@@ -59,7 +59,7 @@
                                   </div>
                                 </div>
                               </template>
-                              <a-textarea v-model:value="form.system_prompt"
+                              <a-textarea v-model="form.system_prompt"
                                 :maxlength="30720" :auto-size="{ minRows: 4, maxRows: 8 }"
                                 placeholder="请输入系统提示词，定义智能体的行为和能力" />
                               <div class="prompt-info">{{ (form.system_prompt || '').length }} / 30720</div>
@@ -67,8 +67,8 @@
                             <div class="model-config-section">
                               <div class="model-selector-wrapper">
                                 <span class="config-label">选择模型:</span>
-                                <ModelSelectorComponent :model_name="form.model_config.model"
-                                  :model_provider="form.model_config.provider" @select-model="handleModelSelect"
+                                <ModelSelectorComponent :model_name="form.llm_config.model"
+                                  :model_provider="form.llm_config.provider" @select-model="handleModelSelect"
                                   class="model-selector-comp" />
                                 <a-button type="link" size="small" @click="openModelConfigModal" class="config-btn">
                                   <SettingOutlined />
@@ -223,8 +223,8 @@
             <a-col :span="12">
               <a-form-item label="当前模型">
                 <div class="current-model-info">
-                  <span class="model-name">{{ form.model_config.model }}</span>
-                  <span class="model-provider">({{ form.model_config.provider }})</span>
+                  <span class="model-name">{{ form.llm_config.model }}</span>
+                  <span class="model-provider">({{ form.llm_config.provider }})</span>
                 </div>
               </a-form-item>
             </a-col>
@@ -286,7 +286,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, watch, computed } from 'vue';
+import { ref, onMounted, watch, computed, nextTick } from 'vue';
 import TemplateModal from '@/components/prompt/TemplateModal.vue';
 import { useRoute, useRouter } from 'vue-router'
 import { message } from 'ant-design-vue'
@@ -301,7 +301,6 @@ import { KnowledgeConfig } from '@/components/knowledge'
 import { PublishManagerComponent } from '@/components/publish'
 import { getAgent, updateAgent } from '@/apis/agent_api'
 import { knowledgeBaseApi } from '@/apis/admin_api'
-import { templateAPI } from '@/apis/template_api'
 import { mcpConfigApi } from '@/apis/mcp_api'
 import { publishAPI } from '@/apis/publish_api'
 import { useConfigStore } from '@/stores/config'
@@ -327,13 +326,10 @@ const mcpSearchKeyword = ref('')
 const showMCPSkillModal = ref(false)
 const selectedMCPKeys = ref([])
 const knowledgeSearchKeyword = ref('')
-const knowledgeLoading = ref(false)
 
 // 知识库列表
 const knowledgeList = ref([])
-const selectedKnowledgeKeys = ref([])
 const showKnowledgeModal = ref(false)
-const currentEditingKnowledge = ref(null)
 
 // 模型配置弹窗
 const showModelConfigModal = ref(false);
@@ -372,7 +368,7 @@ const mcpColumns = [
 ]
 
 // 过滤后的知识库列表
-const filteredKnowledgeList = computed(() => {
+computed(() => {
   if (!knowledgeSearchKeyword.value) {
     return knowledgeList.value
   }
@@ -382,29 +378,6 @@ const filteredKnowledgeList = computed(() => {
     (item.description && item.description.toLowerCase().includes(keyword))
   )
 })
-const knowledgeColumns = [
-  {
-    title: '名称',
-    dataIndex: 'name',
-    key: 'name',
-  },
-  {
-    title: '描述',
-    dataIndex: 'description',
-    key: 'description',
-    ellipsis: true,
-  },
-  {
-    title: '嵌入模型',
-    dataIndex: 'embed_model',
-    key: 'embed_model',
-  },
-  {
-    title: '操作',
-    key: 'action',
-    width: 80,
-  }
-]
 
 // 表单数据
 const form = ref({
@@ -412,7 +385,7 @@ const form = ref({
   description: '',
   system_prompt: '',
   avatar: null,
-  model_config: {
+  llm_config: {
     provider: '',
     model: '',
     config: {}
@@ -429,6 +402,7 @@ const form = ref({
     enabled: false,
     servers: []
   },
+  tools: [],
   publish_config: {
     channels: [],
     api_settings: {
@@ -486,9 +460,6 @@ const handleEditInfoSave = (updatedAgent) => {
   showEditInfoModal.value = false
 };
 
-const handleEditInfoCancel = () => {
-  showEditInfoModal.value = false
-};
 
 const showTemplateModal = ref(false);
 
@@ -497,8 +468,19 @@ const openTemplateModal = () => {
 };
 
 const handleTemplateSelect = (prompt) => {
-  form.value.system_prompt = prompt;
-  showTemplateModal.value = false;
+  console.log('Template received in AgentEditView:', prompt);
+  
+  // 强制创建一个新的响应式对象，确保Vue能够检测到变化
+  const formCopy = {...form.value};
+  formCopy.system_prompt = prompt;
+  form.value = formCopy;
+  
+  // 确保视图更新
+  nextTick(() => {
+    console.log('Updated system_prompt:', form.value.system_prompt);
+    // 暂时关闭模态框（现在由TemplateModal中的延迟来处理）
+    // showTemplateModal.value = false;
+  });
 };
 
 const handleKnowledgeConfigSave = (config) => {
@@ -547,52 +529,8 @@ const loadAgentData = async () => {
     const response = await getAgent(agentId.value);
     if (response.success) {
       const agentData = response.data;
-      form.value = {
-        name: agentData.name,
-        description: agentData.description,
-        system_prompt: agentData.system_prompt || '',
-        avatar: agentData.avatar || null,
-        model_config: {
-          provider: agentData.model_config?.provider || '',
-          model: agentData.model_config?.model_name || '',
-          config: agentData.model_config?.parameters || {}
-        },
-        knowledge_config: {
-          enabled: agentData.knowledge_config?.databases?.length > 0,
-          databases: agentData.knowledge_config?.databases || [],
-          retrieval_config: {
-            top_k: agentData.knowledge_config?.retrieval_params?.top_k || 3,
-            similarity_threshold: agentData.knowledge_config?.retrieval_params?.similarity_threshold || 0.5
-          }
-        },
-        mcp_config: {
-          enabled: agentData.tools_config?.mcp_skills?.length > 0,
-          servers: agentData.tools_config?.mcp_skills || []
-        },
-        publish_config: agentData.publish_config || {
-          channels: [],
-          api_settings: {
-            enabled: false,
-            api_key: '',
-            rate_limit: 60,
-            ip_whitelist_mode: 'none',
-            ip_whitelist: '',
-            origin_mode: 'none',
-            origin_whitelist: ''
-          },
-          embed_settings: {
-            enabled: false,
-            mode: 'chat',
-            allowed_domains: '',
-            theme_color: '1890ff',
-            position: 'bottom-right',
-            welcome_message: '您好！有什么可以帮助您的吗？',
-            button_text: '联系客服',
-            window_title: '智能客服'
-          }
-        }
-      };
-      
+      form.value = agentData;
+      console.log('AgentEditView - Loaded agent data:', form.value);
       // 加载发布配置
       loadPublishConfig();
     } else {
@@ -659,19 +597,18 @@ const removeMCPServer = (serverName) => {
 };
 
 const handleModelSelect = (modelInfo) => {
-  form.value.model_config.provider = modelInfo.provider;
-  form.value.model_config.model = modelInfo.name;
+  form.value.llm_config.provider = modelInfo.provider;
+  form.value.llm_config.model = modelInfo.name;
 };
 
 const openModelConfigModal = () => {
-  tempModelConfig.value = { ...form.value.model_config.config };
+  tempModelConfig.value = { ...form.value.llm_config.config };
   showModelConfigModal.value = true;
 };
 
 const handleModelConfigSave = () => {
-  form.value.model_config.config = { ...tempModelConfig.value };
+  form.value.llm_config.config = { ...tempModelConfig.value };
   showModelConfigModal.value = false;
-  message.success('模型配置已保存');
 };
 
 const handleModelConfigCancel = () => {
@@ -748,7 +685,6 @@ const handleMCPSkillSelect = () => {
   form.value.mcp_config.servers = [...selectedMCPKeys.value];
   form.value.mcp_config.enabled = selectedMCPKeys.value.length > 0;
   showMCPSkillModal.value = false;
-  message.success('MCP服务器选择已保存');
 };
 
 const handleMCPSkillCancel = () => {
@@ -815,12 +751,21 @@ const onSave = async () => {
       name: form.value.name,
       description: form.value.description,
       system_prompt: form.value.system_prompt,
-      provider: form.value.model_config.provider,
-      model_name: form.value.model_config.model,
-      model_parameters: form.value.model_config.config,
-      knowledge_databases: form.value.knowledge_config.enabled ? form.value.knowledge_config.databases : [],
-      retrieval_params: form.value.knowledge_config.retrieval_config,
-      mcp_skills: form.value.mcp_config.enabled ? form.value.mcp_config.servers : [],
+      avatar: form.value.avatar,
+      llm_config: {
+        provider: form.value.llm_config.provider,
+        model: form.value.llm_config.model,
+        config: form.value.llm_config.config
+      },
+      knowledge_config: {
+        enabled: form.value.knowledge_config.enabled,
+        databases: form.value.knowledge_config.enabled ? form.value.knowledge_config.databases : [],
+        retrieval_config: form.value.knowledge_config.retrieval_config
+      },
+      mcp_config: {
+        enabled: form.value.mcp_config.enabled,
+        servers: form.value.mcp_config.enabled ? form.value.mcp_config.servers : [],
+      },
       tools: [],
       publish_config: form.value.publish_config
     };
