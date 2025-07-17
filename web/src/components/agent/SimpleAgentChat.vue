@@ -104,6 +104,7 @@
 <script setup>
 import { ref, reactive, onMounted, watch, nextTick, computed, onUnmounted, toRaw } from 'vue'
 import { message } from 'ant-design-vue'
+import { ShareAltOutlined, LoadingOutlined } from '@ant-design/icons-vue'
 import MessageInputComponent from '@/components/message/MessageInputComponent.vue'
 import AgentMessageComponent from '@/components/agent/AgentMessageComponent.vue'
 import RefsComponent from '@/components/message/RefsComponent.vue'

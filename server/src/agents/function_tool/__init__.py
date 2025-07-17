@@ -3,8 +3,8 @@ from typing import Annotated
 
 from langchain_core.tools import tool
 from langchain_tavily import TavilySearch
-
-from src import config, graph_base
+from config import config
+from src import graph_base
 
 
 @tool
@@ -17,11 +17,11 @@ _TOOLS_REGISTRY = {
     "QueryKnowledgeGraph": query_knowledge_graph,
 }
 
-if config.app_config.enable_web_search:
+if config.enable_web_search:
     # 从配置中获取tavily参数
     tavily_kwargs = {"max_results": 10}
     # 检查并设置base_url
-    tavily_kwargs["base_url"] = config.app_config.tavily_base_url
+    tavily_kwargs["base_url"] = config.tavily_base_url
     # 检查并设置api_key
-    os.environ["TAVILY_API_KEY"] = config.app_config.tavily_api_key
+    os.environ["TAVILY_API_KEY"] = config.tavily_api_key
     _TOOLS_REGISTRY["WebSearchWithTavily"] = TavilySearch(**tavily_kwargs)

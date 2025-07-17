@@ -1,7 +1,11 @@
 <template>
   <div class="action-item">
     <div class="action-item-info">
+      <component :is="icon" class="action-item-icon" v-if="icon" />
       <span class="action-item-name">{{ name }}</span>
+    </div>
+    <div class="action-item-extra">
+      <slot name="extra"></slot>
     </div>
     <div class="action-item-actions">
       <a-button v-if="showConfigure" type="link" size="small" @click="$emit('configure')">
@@ -25,6 +29,11 @@ defineProps({
   showConfigure: {
     type: Boolean,
     default: true
+  },
+  icon: {
+    type: Object,
+    required: false,
+    default: null
   }
 })
 
@@ -33,8 +42,9 @@ defineEmits(['configure', 'remove'])
 
 <style lang="less" scoped>
 .action-item {
-  display: flex;
-  justify-content: space-between;
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  gap: 8px;
   align-items: center;
   padding: 8px 12px;
   background-color: #f5f5f5;
@@ -43,6 +53,7 @@ defineEmits(['configure', 'remove'])
   .action-item-info {
     display: flex;
     align-items: center;
+    gap: 8px;
     
     .action-item-name {
       font-weight: 500;

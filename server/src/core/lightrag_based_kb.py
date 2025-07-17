@@ -13,7 +13,7 @@ from lightrag.llm.openai import openai_complete_if_cache, openai_embed
 from lightrag.utils import EmbeddingFunc, setup_logger
 from lightrag.kg.shared_storage import initialize_pipeline_status
 
-from src import config
+from config import config
 from src.utils import logger, hashstr, get_docker_safe_url
 from src.plugins import ocr
 
