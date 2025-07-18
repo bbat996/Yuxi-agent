@@ -149,7 +149,7 @@ console.log(route)
 // 下面是导航菜单部分，添加智能体项
 const mainList = [
   {
-    name: 'AI团队',
+    name: 'AI群聊',
     path: '/ai_team',
     icon: MessageSquareMore,
     activeIcon: MessageSquareMore
@@ -160,13 +160,13 @@ const mainList = [
     icon: Bot,
     activeIcon: Bot
   },
-  {
-    name: '智能体管理',
-    path: '/agent/management',
-    icon: Settings,
-    activeIcon: Settings,
-    hidden: !configStore.config.enable_agent_management
-  },
+  // {
+  //   name: '智能体',
+  //   path: '/agent/management',
+  //   icon: Settings,
+  //   activeIcon: Settings,
+  //   hidden: !configStore.config.enable_agent_management
+  // },
   {
     name: '知识库',
     path: '/database',

@@ -9,6 +9,8 @@
     </HeaderComponent>
     <div class="setting-container layout-container">
       <div class="sider">
+        <a-button type="text" :class="{ activesec: state.section === 'profile' }"
+          @click="state.section = 'profile'" :icon="h(UserOutlined)"> 个人信息 </a-button>
         <a-button type="text" v-if="userStore.isSuperAdmin" :class="{ activesec: state.section === 'base' }"
           @click="state.section = 'base'" :icon="h(SettingOutlined)"> 基本设置 </a-button>
         <a-button type="text" v-if="userStore.isSuperAdmin" :class="{ activesec: state.section === 'model' }"
@@ -17,6 +19,12 @@
           @click="state.section = 'mcp-config'" :icon="h(SettingOutlined)"> MCP </a-button>
         <a-button type="text" :class="{ activesec: state.section === 'user' }" @click="state.section = 'user'"
           :icon="h(UserOutlined)" v-if="userStore.isAdmin"> 用户管理 </a-button>
+        <a-button type="text" :class="{ activesec: state.section === 'group-chat' }"
+          @click="state.section = 'group-chat'" :icon="h(TeamOutlined)"> 群聊管理 </a-button>
+      </div>
+      <!-- 个人信息页面 -->
+      <div class="setting" v-if="state.section === 'profile'">
+        <ProfileManagement :key="'profile'" />
       </div>
       <div class="setting" v-if="state.section === 'base' && userStore.isSuperAdmin">
         <h3>检索配置</h3>
@@ -108,6 +116,9 @@ import MCPConfigManagement from '@/components/mcp_skill/MCPConfigManagement.vue'
 import { systemConfigApi } from '@/apis/admin_api'
 import ModelSelectorComponent from '@/components/model/ModelSelectorComponent.vue';
 
+// 添加 ProfileManagement 组件的导入
+import ProfileManagement from '@/components/user/ProfileManagement.vue';
+
 const configStore = useConfigStore()
 const userStore = useUserStore()
 const items = computed(() => configStore.config._config_items)
@@ -160,7 +171,7 @@ const handleChatModelSelect = ({ provider, name }) => {
 }
 
 onMounted(() => {
-  state.section = userStore.isSuperAdmin ? 'base' : (userStore.isAdmin ? 'user' : 'mcp-config')
+  state.section = userStore.isSuperAdmin ? 'base' : (userStore.isAdmin ? 'user' : 'profile')
 })
 
 const sendRestart = () => {

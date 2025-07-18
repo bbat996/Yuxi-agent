@@ -52,6 +52,12 @@ const router = createRouter({
       ]
     },
     {
+      path: '/group-chat',
+      name: 'GroupChat',
+      component: () => import('@/views/GroupChatView.vue'),
+      meta: { keepAlive: true, requiresAuth: true }
+    },
+    {
       path: '/agent/:agent_id',
       name: 'AgentSinglePage',
       component: () => import('@/views/AgentSingleView.vue'),

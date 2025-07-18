@@ -198,10 +198,10 @@
                 <div style="margin-bottom: 8px">
                   <span>{{ param.label }}：</span>
                   <a-input v-if="param.type === 'text'" v-model:value="serverForm.type_params[param.key]"
-                    :placeholder="param.help + (param.example ? '，如：' + param.example : '')" style="width: 80%" />
+                    :placeholder="param.help + (param.example ? '，如：' + param.example : '')" style="width: 100%" />
                   <a-textarea v-else-if="param.type === 'json'" v-model:value="serverForm.type_params[param.key]"
                     :placeholder="param.help + (param.example ? '，如：' + param.example : '')"
-                    :auto-size="{ minRows: 3, maxRows: 8 }" style="width: 80%" />
+                    :auto-size="{ minRows: 3, maxRows: 8 }" style="width: 100%" />
                 </div>
               </template>
             </a-form-item>

@@ -285,3 +285,43 @@ export const threadApi = {
 };
 
 // 其他需要用户认证的API可以继续添加到这里
+
+// 个人信息管理API
+export const profileApi = {
+  /**
+   * 获取个人信息
+   * @returns {Promise} - 个人信息
+   */
+  getProfile: () => apiGet('/api/auth/profile', {}, true),
+
+  /**
+   * 更新个人信息
+   * @param {Object} profileData - 个人信息数据
+   * @param {string} profileData.display_name - 显示名称
+   * @param {string} profileData.email - 邮箱
+   * @param {string} profileData.avatar - 头像
+   * @returns {Promise} - 更新结果
+   */
+  updateProfile: (profileData) => apiPut('/api/auth/profile', profileData, {}, true),
+
+  /**
+   * 修改密码
+   * @param {Object} passwordData - 密码数据
+   * @param {string} passwordData.current_password - 当前密码
+   * @param {string} passwordData.new_password - 新密码
+   * @returns {Promise} - 修改结果
+   */
+  changePassword: (passwordData) => apiPost('/api/auth/change-password', passwordData, {}, true),
+
+  /**
+   * 获取个人统计信息
+   * @returns {Promise} - 统计信息
+   */
+  getStats: () => apiGet('/api/auth/profile/stats', {}, true),
+
+  /**
+   * 获取个人文件存储信息
+   * @returns {Promise} - 存储信息
+   */
+  getFileStorage: () => apiGet('/api/auth/profile/file-storage', {}, true)
+}
