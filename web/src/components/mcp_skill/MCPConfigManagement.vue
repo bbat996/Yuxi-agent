@@ -4,20 +4,33 @@
     <!-- MCP功能列表 -->
     <div class="mcp-functions-section">
       <div class="section-header">
-        <h4>MCP功能列表</h4>
-        <div class="stats-info">
+        <div class="section-header-left">
+          <h4>MCP功能列表</h4>
+          <span>总计: {{ totalServersCount }} 个服务器</span>
+          <span>功能函数: {{ totalFunctionsCount }} 个</span>
+          <div class="category-tags-bar">
+            <a-checkable-tag :checked="selectedCategories.length === 0"
+              @click="selectedCategories.splice(0, selectedCategories.length)">全部分类</a-checkable-tag>
+            <a-checkable-tag v-for="cat in categoryOptions" :key="cat.value"
+              :checked="selectedCategories.includes(cat.value)" @click="() => {
+                if (selectedCategories.includes(cat.value)) {
+                  selectedCategories.splice(selectedCategories.indexOf(cat.value), 1)
+                } else {
+                  selectedCategories.push(cat.value)
+                }
+              }">{{ cat.label }}</a-checkable-tag>
+          </div>
+        </div>
+        <div class="section-header-right">
           <a-space>
-            <span>总计: {{ totalServersCount }} 个服务器</span>
-            <span>功能函数: {{ totalFunctionsCount }} 个</span>
+            <a-input-search v-model:value="searchKeyword" placeholder="搜索MCP名称或描述" style="width: 200px"
+              @search="handleSearch" @change="handleSearch" />
+            <a-button type="primary" @click="showAddServerModal" :icon="h(PlusOutlined)">
+              添加外部MCP
+            </a-button>
           </a-space>
         </div>
-        <a-space>
-          <a-input-search v-model:value="searchKeyword" placeholder="搜索MCP名称或描述" style="width: 200px"
-            @search="handleSearch" @change="handleSearch" />
-          <a-button type="primary" @click="showAddServerModal" :icon="h(PlusOutlined)">
-            添加外部MCP
-          </a-button>
-        </a-space>
+
       </div>
 
       <a-spin :spinning="loading.functions">
@@ -31,6 +44,9 @@
                 <div class="server-type">
                   <a-tag :color="record.is_external ? 'orange' : 'blue'" size="small">
                     {{ record.is_external ? '外部' : '内置' }}
+                  </a-tag>
+                  <a-tag v-if="record.category" color="geekblue" size="small" style="margin-left: 4px">
+                    {{categoryOptions.find(c => c.value === record.category)?.label || record.category}}
                   </a-tag>
                 </div>
               </div>
@@ -107,6 +123,9 @@
             <a-tag :color="currentServer.is_external ? 'orange' : 'blue'">
               {{ currentServer.is_external ? '外部' : '内置' }}
             </a-tag>
+            <a-tag v-if="currentServer.category" color="geekblue">
+              {{categoryOptions.find(c => c.value === currentServer.category)?.label || currentServer.category}}
+            </a-tag>
           </div>
         </div>
 
@@ -151,31 +170,56 @@
 
     <!-- 添加/编辑服务器模态框 -->
     <a-modal v-model:open="serverFormVisible" :title="serverFormMode === 'add' ? '添加外部MCP服务器' : '编辑MCP服务器'"
-      width="600px" @ok="handleServerFormSubmit" @cancel="handleServerFormCancel" :confirmLoading="loading.submit">
+      width="700px" @ok="handleServerFormSubmit" @cancel="handleServerFormCancel" :confirmLoading="loading.submit">
       <a-form ref="serverFormRef" :model="serverForm" :rules="serverFormRules" layout="vertical">
-        <a-form-item label="服务器名称" name="serverKey">
-          <a-input v-model:value="serverForm.serverKey" placeholder="请输入服务器名称" :disabled="serverFormMode === 'edit'" />
-        </a-form-item>
-        <a-form-item label="模块路径" name="module_path">
-          <a-input v-model:value="serverForm.module_path" placeholder="请输入模块路径" />
-        </a-form-item>
-        <a-form-item label="类名" name="class_name">
-          <a-input v-model:value="serverForm.class_name" placeholder="请输入类名" />
-        </a-form-item>
-        <a-form-item label="配置路径" name="config_path">
-          <a-input v-model:value="serverForm.config_path" placeholder="请输入配置路径" />
-        </a-form-item>
-        <a-form-item label="启用状态" name="enabled">
-          <a-switch v-model:checked="serverForm.enabled" />
-        </a-form-item>
+        <a-row :gutter="24">
+          <a-col :xs="24" :sm="24" :md="12">
+            <a-form-item label="服务器名称" name="serverKey" extra="唯一标识，必填">
+              <a-input v-model:value="serverForm.serverKey" placeholder="请输入服务器名称"
+                :disabled="serverFormMode === 'edit'" />
+            </a-form-item>
+            <a-form-item label="分类" name="category" extra="请选择该服务所属的功能分类">
+              <a-select v-model:value="serverForm.category" :options="categoryOptions" placeholder="请选择分类" />
+            </a-form-item>
+            <a-form-item label="描述" name="description" extra="简要说明该服务用途">
+              <a-textarea v-model:value="serverForm.description" placeholder="请输入描述" auto-size />
+            </a-form-item>
+
+            <a-form-item label="启用状态" name="enabled">
+              <a-switch v-model:checked="serverForm.enabled" />
+            </a-form-item>
+          </a-col>
+          <a-col :xs="24" :sm="24" :md="12">
+            <a-form-item label="服务类型" name="type" extra="不同类型需填写不同参数">
+              <a-select v-model:value="serverForm.type" :options="typeOptions" placeholder="请选择服务类型" />
+            </a-form-item>
+            <a-form-item label="类型参数" v-if="currentTypeParams.length">
+              <template v-for="param in currentTypeParams" :key="param.key">
+                <div style="margin-bottom: 8px">
+                  <span>{{ param.label }}：</span>
+                  <a-input v-if="param.type === 'text'" v-model:value="serverForm.type_params[param.key]"
+                    :placeholder="param.help + (param.example ? '，如：' + param.example : '')" style="width: 80%" />
+                  <a-textarea v-else-if="param.type === 'json'" v-model:value="serverForm.type_params[param.key]"
+                    :placeholder="param.help + (param.example ? '，如：' + param.example : '')"
+                    :auto-size="{ minRows: 3, maxRows: 8 }" style="width: 80%" />
+                </div>
+              </template>
+            </a-form-item>
+
+            <a-form-item label="超时时间(秒)" name="timeout" extra="服务调用超时时间，1-600秒">
+              <a-input-number v-model:value="serverForm.timeout" :min="1" :max="600" style="width: 100%" />
+            </a-form-item>
+          </a-col>
+        </a-row>
       </a-form>
     </a-modal>
   </div>
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted, h } from 'vue'
+import { ref, reactive, computed, onMounted, h, watch } from 'vue'
 import { message, Modal } from 'ant-design-vue'
+import { Tag } from 'ant-design-vue'
 import {
   EyeOutlined,
   EditOutlined,
@@ -183,6 +227,30 @@ import {
   PlusOutlined
 } from '@ant-design/icons-vue'
 import { mcpConfigApi } from '@/apis/mcp_api'
+
+// 分类和类型选项
+const categoryOptions = ref([])
+const typeOptions = [
+  { label: 'stdio', value: 'stdio' },
+  { label: 'sse', value: 'sse' },
+  { label: 'streamablehttp', value: 'streamablehttp' }
+]
+
+// 类型参数模板
+const typeParamsTemplate = {
+  stdio: [
+    { key: 'command', label: '命令', type: 'text', required: true, help: '要执行的命令，如 python', example: 'python' },
+    { key: 'args', label: '参数', type: 'json', required: true, help: '命令行参数，JSON数组', example: '["-m", "mymodule"]' }
+  ],
+  sse: [
+    { key: 'endpoint', label: 'SSE Endpoint', type: 'text', required: true, help: 'SSE服务的endpoint地址', example: 'http://localhost:8000/stream' },
+    { key: 'headers', label: 'Headers', type: 'json', required: false, help: '请求头，JSON对象', example: '{"Authorization": "Bearer xxx", "Content-Type": "application/json"}' }
+  ],
+  streamablehttp: [
+    { key: 'url', label: 'HTTP URL', type: 'text', required: true, help: 'HTTP服务的URL地址', example: 'http://localhost:8000/stream' },
+    { key: 'headers', label: 'Headers', type: 'json', required: false, help: '请求头，JSON对象', example: '{"Authorization": "Bearer xxx", "Content-Type": "application/json"}' }
+  ]
+}
 
 // 状态管理
 const loading = reactive({
@@ -197,6 +265,7 @@ const currentToggleServer = ref('')
 // 数据状态
 const servers = ref({})
 const searchKeyword = ref('')
+const selectedCategories = ref([])
 
 // 模态框状态
 const serverDetailVisible = ref(false)
@@ -208,10 +277,12 @@ const serverFormMode = ref('add') // 'add' | 'edit'
 const serverFormRef = ref()
 const serverForm = reactive({
   serverKey: '',
-  module_path: '',
-  class_name: '',
-  config_path: '',
-  enabled: true
+  enabled: true,
+  category: '',
+  type: 'stdio',
+  timeout: 30,
+  type_params: {},
+  description: ''
 })
 
 const serverFormRules = {
@@ -219,12 +290,37 @@ const serverFormRules = {
     { required: true, message: '请输入服务器名称' },
     { min: 1, max: 100, message: '服务器名称长度为1-100个字符' }
   ],
-  module_path: [
-    { required: true, message: '请输入模块路径' }
+  category: [
+    { required: true, message: '请选择分类' }
   ],
-  class_name: [
-    { required: true, message: '请输入类名' }
+  type: [
+    { required: true, message: '请选择服务类型' }
+  ],
+  timeout: [
+    { required: true, type: 'number', message: '请输入超时时间' }
   ]
+}
+
+// 拉取分类
+const fetchCategories = async () => {
+  try {
+    const res = await mcpConfigApi.getCategories()
+    if (res.success) {
+      categoryOptions.value = res.data.map(c => ({ label: c.name, value: c.key }))
+    }
+  } catch (e) {
+    message.error('获取分类失败')
+  }
+}
+
+// 类型参数动态渲染
+const currentTypeParams = computed(() => {
+  return typeParamsTemplate[serverForm.type] || []
+})
+
+// 类型参数表单辅助
+const handleTypeParamChange = (key, value) => {
+  serverForm.type_params[key] = value
 }
 
 // 表格列定义
@@ -280,27 +376,20 @@ const totalFunctionsCount = computed(() => {
 })
 
 const filteredServers = computed(() => {
-  // 将对象转换为数组，包含服务器名称
   let filtered = Object.entries(servers.value).map(([key, server]) => ({
     ...server,
-    serverKey: key // 添加服务器键名
+    serverKey: key
   }))
-
-  // 按服务器类型过滤（新数据结构中没有类型字段，暂时跳过）
-  // if (selectedServerType.value) {
-  //   filtered = filtered.filter(server => {
-  //     const serverType = server.type || server.server_type || 'external'
-  //     return serverType === selectedServerType.value
-  //   })
-  // }
-
+  // 分类多选筛选
+  if (selectedCategories.value.length > 0) {
+    filtered = filtered.filter(server => selectedCategories.value.includes(server.category))
+  }
   // 按搜索关键词过滤
   if (searchKeyword.value) {
     const keyword = searchKeyword.value.toLowerCase()
     filtered = filtered.filter(server => {
       const name = server.serverKey || ''
       const tools = getServerTools(server)
-
       return name.toLowerCase().includes(keyword) ||
         tools.some(tool => {
           const toolName = getToolDisplayName(tool).toLowerCase()
@@ -309,7 +398,6 @@ const filteredServers = computed(() => {
         })
     })
   }
-
   return filtered
 })
 
@@ -366,19 +454,17 @@ const getToolDisplayName = (tool) => {
 const refreshServers = async () => {
   try {
     loading.functions = true
-    const response = await mcpConfigApi.getServers()
+    // 支持分类筛选 - 传递选中的分类数组
+    const categories = selectedCategories.value.length > 0 ? selectedCategories.value : undefined
+    const response = await mcpConfigApi.getServers(false, categories)
     if (response.success) {
-      // 新的数据结构：直接使用 response.data.servers
       servers.value = response.data.servers || {}
-
       if (isDevelopment.value) {
         console.log('获取到的服务器数据:', servers.value)
         console.log('服务器数量:', Object.keys(servers.value).length)
-
-        // 打印每个服务器的基本信息
         Object.entries(servers.value).forEach(([key, server]) => {
           console.log(`服务器 ${key}:`, {
-            name: key, // 使用 key 作为服务器名称
+            name: key,
             enabled: server.enabled,
             toolsCount: getServerTools(server).length
           })
@@ -415,14 +501,18 @@ const showAddServerModal = () => {
 const editServer = (server) => {
   serverFormMode.value = 'edit'
   resetServerForm()
-
-  // 填充表单数据
   serverForm.serverKey = server.serverKey
-  serverForm.module_path = server.module_path || ''
-  serverForm.class_name = server.class_name || ''
-  serverForm.config_path = server.config_path || ''
   serverForm.enabled = server.enabled !== false
-
+  serverForm.category = server.category || ''
+  serverForm.type = server.type || 'stdio'
+  serverForm.timeout = server.timeout || 30
+  serverForm.type_params = {}
+  for (const param of (typeParamsTemplate[serverForm.type] || [])) {
+    if (server.type_params && server.type_params[param.key]) {
+      serverForm.type_params[param.key] = param.type === 'json' ? JSON.stringify(server.type_params[param.key], null, 2) : server.type_params[param.key]
+    }
+  }
+  serverForm.description = server.description || ''
   serverFormVisible.value = true
 }
 
@@ -452,33 +542,61 @@ const deleteServer = (server) => {
 
 const resetServerForm = () => {
   serverForm.serverKey = ''
-  serverForm.module_path = ''
-  serverForm.class_name = ''
-  serverForm.config_path = ''
   serverForm.enabled = true
+  serverForm.category = ''
+  serverForm.type = 'stdio'
+  serverForm.timeout = 30
+  serverForm.type_params = {}
+  serverForm.description = ''
 }
 
 const handleServerFormSubmit = async () => {
   try {
     await serverFormRef.value.validate()
+    // 类型参数校验
+    for (const param of currentTypeParams.value) {
+      const val = serverForm.type_params[param.key]
+      if (param.required && (!val || (typeof val === 'string' && val.trim() === ''))) {
+        message.error(`${param.label} 为必填项`)
+        return
+      }
+      if (param.type === 'json' && val) {
+        try {
+          JSON.parse(val)
+        } catch {
+          message.error(`${param.label} 需为合法JSON`)
+          return
+        }
+      }
+    }
     loading.submit = true
-
+    // 只保留后端需要的字段
     const formData = {
       serverKey: serverForm.serverKey,
-      module_path: serverForm.module_path,
-      class_name: serverForm.class_name,
-      config_path: serverForm.config_path,
       enabled: serverForm.enabled,
+      category: serverForm.category,
+      type: serverForm.type,
+      timeout: serverForm.timeout,
+      type_params: {},
+      description: serverForm.description,
       is_external: serverFormMode.value === 'add'
     }
-
+    // 只提交当前类型的参数
+    for (const param of currentTypeParams.value) {
+      if (serverForm.type_params[param.key]) {
+        if (param.type === 'json') {
+          formData.type_params[param.key] = JSON.parse(serverForm.type_params[param.key])
+        } else {
+          formData.type_params[param.key] = serverForm.type_params[param.key]
+        }
+      }
+    }
     let response
     if (serverFormMode.value === 'add') {
       response = await mcpConfigApi.addExternalServer(formData)
     } else {
       response = await mcpConfigApi.updateServerConfig(serverForm.serverKey, formData)
     }
-
     if (response.success) {
       message.success(`服务器${serverFormMode.value === 'add' ? '添加' : '更新'}成功`)
       serverFormVisible.value = false
@@ -538,6 +656,11 @@ const handleSearch = () => {
 
 // 初始化
 onMounted(async () => {
+  await fetchCategories()
+  await refreshServers()
+})
+
+watch(selectedCategories, async () => {
   await refreshServers()
 })
 </script>
@@ -578,6 +701,14 @@ onMounted(async () => {
         font-weight: 600;
         color: #1e293b;
       }
+    }
+
+    .category-tags-bar {
+      margin-bottom: 16px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
     }
 
     .mcp-servers-table {

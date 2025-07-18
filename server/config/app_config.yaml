@@ -1,4 +1,4 @@
-config_path: C:\Users\admin\github\Yuxi-agent\server\config\base_config.yaml
+config_path: C:\Users\admin\github\Yuxi-agent\server\config\app_config.yaml
 custom_models: []
 embed_model: ollama/nomic-embed-text
 enable_agent_management: true

@@ -5,23 +5,11 @@ MCP工具管理路由
 
 import traceback
 from typing import List, Dict, Any, Optional
-from fastapi import APIRouter, Query, HTTPException, Depends, Body
+from fastapi import APIRouter, Query, HTTPException, Depends, Body, status
 from utils.auth_middleware import get_admin_user, get_required_user
 from models.user_model import User
 
-from src.mcp_server.tools_config import (
-    get_tool_categories,
-    get_tool_details,
-    get_tools_by_category,
-    get_all_tools,
-    get_tool_info,
-    search_tools,
-    get_servers,
-    get_enabled_servers,
-    get_server_config,
-    get_server_tools
-)
-from src.mcp_server.mcp_config_manager import get_mcp_config_manager
+from config.mcp_server_config import MCPConfigManager
 from src.utils.logging_config import logger
 
 mcp_router = APIRouter()
@@ -41,7 +29,7 @@ async def get_mcp_tool_categories(
         工具分类信息
     """
     try:
-        categories = get_tool_categories()
+        categories = MCPConfigManager.get_tool_categories()
         return {
             "success": True,
             "data": categories
@@ -70,16 +58,16 @@ async def get_mcp_tools_list(
     """
     try:
         if category:
-            tools = get_tools_by_category(category)
+            tools = MCPConfigManager.get_tools_by_category(category)
         elif server:
-            tools = get_server_tools(server)
+            tools = MCPConfigManager.get_server_tools(server)
         else:
-            tools = get_all_tools()
+            tools = MCPConfigManager.get_all_tools()
         
         # 获取工具的详细信息
         tools_info = []
         for tool_name in tools:
-            tool_info = get_tool_info(tool_name)
+            tool_info = MCPConfigManager.get_tool_info(tool_name)
             if tool_info:
                 tools_info.append({
                     "name": tool_name,
@@ -116,12 +104,12 @@ async def search_mcp_tools(
         匹配的工具列表
     """
     try:
-        matching_tools = search_tools(keyword)
+        matching_tools = MCPConfigManager.search_tools(keyword)
         
         # 获取工具的详细信息
         tools_info = []
         for tool_name in matching_tools:
-            tool_info = get_tool_info(tool_name)
+            tool_info = MCPConfigManager.get_tool_info(tool_name)
             if tool_info:
                 tools_info.append({
                     "name": tool_name,
@@ -157,7 +145,7 @@ async def get_mcp_tool_detail(
         工具详细信息
     """
     try:
-        tool_info = get_tool_info(tool_name)
+        tool_info = MCPConfigManager.get_tool_info(tool_name)
         if not tool_info:
             raise HTTPException(status_code=404, detail=f"找不到工具 '{tool_name}'")
         
@@ -187,7 +175,7 @@ async def get_mcp_tools_overview(
         工具概览信息
     """
     try:
-        config_manager = get_mcp_config_manager()
+        config_manager = MCPConfigManager()
         summary = config_manager.get_config_summary()
         
         return {
@@ -215,7 +203,7 @@ async def get_mcp_tools_by_category(
         该分类下的工具列表
     """
     try:
-        categories = get_tool_categories()
+        categories = MCPConfigManager.get_tool_categories()
         if category_name not in categories:
             raise HTTPException(status_code=404, detail=f"找不到分类 '{category_name}'")
         
@@ -225,7 +213,7 @@ async def get_mcp_tools_by_category(
         # 获取工具的详细信息
         tools_info = []
         for tool_name in tools:
-            tool_info = get_tool_info(tool_name)
+            tool_info = MCPConfigManager.get_tool_info(tool_name)
             if tool_info:
                 tools_info.append({
                     "name": tool_name,
@@ -269,9 +257,9 @@ async def get_random_mcp_tools(
         import random
         
         if category:
-            tools = get_tools_by_category(category)
+            tools = MCPConfigManager.get_tools_by_category(category)
         else:
-            tools = get_all_tools()
+            tools = MCPConfigManager.get_all_tools()
         
         if not tools:
             raise HTTPException(status_code=404, detail="没有可用的工具")
@@ -282,7 +270,7 @@ async def get_random_mcp_tools(
         # 获取工具的详细信息
         tools_info = []
         for tool_name in selected_tools:
-            tool_info = get_tool_info(tool_name)
+            tool_info = MCPConfigManager.get_tool_info(tool_name)
             if tool_info:
                 tools_info.append({
                     "name": tool_name,
@@ -321,7 +309,7 @@ async def get_mcp_config_summary(
         MCP配置摘要
     """
     try:
-        config_manager = get_mcp_config_manager()
+        config_manager = MCPConfigManager()
         summary = config_manager.get_config_summary()
         
         return {
@@ -337,34 +325,37 @@ async def get_mcp_config_summary(
 @mcp_router.get("/mcp/config/servers")
 async def get_mcp_servers(
     enabled_only: bool = Query(False, description="是否只返回已启用的服务器"),
+    category: Optional[str] = Query(None, description="按分类筛选"),
     current_user: User = Depends(get_admin_user)
 ):
     """
     获取MCP服务器列表
-    
     Args:
         enabled_only: 是否只返回已启用的服务器
-        
+        category: 分类key，可选
     Returns:
         MCP服务器列表
     """
     try:
         if enabled_only:
-            server_names = get_enabled_servers()
+            server_names = MCPConfigManager.get_enabled_servers()
             servers = {}
             for server_name in server_names:
-                server_config = get_server_config(server_name)
+                server_config = MCPConfigManager.get_server_config(server_name)
                 if server_config:
                     servers[server_name] = server_config
         else:
-            servers = get_servers()
-        
+            servers = MCPConfigManager.get_servers()
+        # 分类过滤
+        if category:
+            servers = {k: v for k, v in servers.items() if v.get("category") == category}
         return {
             "success": True,
             "data": {
                 "servers": servers,
                 "total": len(servers),
-                "enabled_only": enabled_only
+                "enabled_only": enabled_only,
+                "category": category
             }
         }
     except Exception as e:
@@ -388,16 +379,16 @@ async def get_mcp_server_detail(
         服务器详细信息
     """
     try:
-        server_config = get_server_config(server_name)
+        server_config = MCPConfigManager.get_server_config(server_name)
         
         if not server_config:
             raise HTTPException(status_code=404, detail=f"找不到服务器 '{server_name}'")
         
         # 获取服务器的工具信息
-        tools = get_server_tools(server_name)
+        tools = MCPConfigManager.get_server_tools(server_name)
         tools_info = []
         for tool_name in tools:
-            tool_info = get_tool_info(tool_name)
+            tool_info = MCPConfigManager.get_tool_info(tool_name)
             if tool_info:
                 tools_info.append(tool_info)
         
@@ -429,7 +420,7 @@ async def reload_mcp_configuration(
         重新加载结果
     """
     try:
-        config_manager = get_mcp_config_manager()
+        config_manager = MCPConfigManager()
         config_manager.reload_config()
         
         # 验证配置
@@ -460,7 +451,7 @@ async def validate_mcp_configuration(
         配置验证结果
     """
     try:
-        config_manager = get_mcp_config_manager()
+        config_manager = MCPConfigManager()
         errors = config_manager.validate_config()
         
         return {
@@ -475,6 +466,109 @@ async def validate_mcp_configuration(
         logger.error(f"验证MCP配置失败: {e}")
         logger.error(f"Traceback: {traceback.format_exc()}")
         raise HTTPException(status_code=500, detail=f"验证MCP配置失败: {str(e)}")
+
+
+@mcp_router.post("/mcp/config/servers/external", status_code=status.HTTP_201_CREATED)
+async def add_external_server(
+    server: Dict[str, Any] = Body(..., description="服务器配置"),
+    current_user: User = Depends(get_admin_user)
+):
+    """
+    新增外部MCP服务器
+    """
+    try:
+        server_key = server.get("serverKey")
+        if not server_key:
+            raise HTTPException(status_code=400, detail="缺少服务器名称 serverKey")
+        # 校验分类key
+        category = server.get("category")
+        if category:
+            all_categories = [c["key"] for c in MCPConfigManager.get_all_categories()]
+            if category not in all_categories:
+                raise HTTPException(status_code=400, detail=f"分类 {category} 不存在")
+        # 构建server数据
+        server_data = {
+            "enabled": server.get("enabled", True),
+            "module_path": server.get("module_path"),
+            "class_name": server.get("class_name"),
+            "config_path": server.get("config_path", ""),
+            "type": server.get("type", "stdio"),
+            "timeout": server.get("timeout", 30),
+            "category": server.get("category"),
+            "type_params": server.get("type_params", {}),
+            "description": server.get("description", ""),
+            "is_external": True,
+            "tools": server.get("tools", []),
+        }
+        config_manager = MCPConfigManager()
+        config_manager.add_server(server_key, server_data)
+        return {"success": True, "message": "服务器添加成功"}
+    except Exception as e:
+        logger.error(f"添加服务器失败: {e}")
+        logger.error(f"Traceback: {traceback.format_exc()}")
+        raise HTTPException(status_code=500, detail=f"添加服务器失败: {str(e)}")
+
+@mcp_router.post("/mcp/config/servers/{server_name}/update")
+async def update_server_config(
+    server_name: str,
+    server: Dict[str, Any] = Body(..., description="服务器配置"),
+    current_user: User = Depends(get_admin_user)
+):
+    """
+    编辑MCP服务器
+    """
+    try:
+        # 校验分类key
+        category = server.get("category")
+        if category:
+            all_categories = [c["key"] for c in MCPConfigManager.get_all_categories()]
+            if category not in all_categories:
+                raise HTTPException(status_code=400, detail=f"分类 {category} 不存在")
+        config_manager = MCPConfigManager()
+        config_manager.update_server(server_name, server)
+        return {"success": True, "message": "服务器更新成功"}
+    except Exception as e:
+        logger.error(f"更新服务器失败: {e}")
+        logger.error(f"Traceback: {traceback.format_exc()}")
+        raise HTTPException(status_code=500, detail=f"更新服务器失败: {str(e)}")
+
+@mcp_router.post("/mcp/config/servers/{server_name}/delete")
+async def delete_server(
+    server_name: str,
+    current_user: User = Depends(get_admin_user)
+):
+    """
+    删除MCP服务器
+    """
+    try:
+        config_manager = MCPConfigManager()
+        config_manager.delete_server(server_name)
+        return {"success": True, "message": "服务器删除成功"}
+    except Exception as e:
+        logger.error(f"删除服务器失败: {e}")
+        logger.error(f"Traceback: {traceback.format_exc()}")
+        raise HTTPException(status_code=500, detail=f"删除服务器失败: {str(e)}")
+
+@mcp_router.post("/mcp/config/servers/{server_name}/toggle")
+async def toggle_server_status(
+    server_name: str,
+    body: Dict[str, Any] = Body(...),
+    current_user: User = Depends(get_admin_user)
+):
+    """
+    启用/禁用MCP服务器
+    """
+    try:
+        enabled = body.get("enabled")
+        if enabled is None:
+            raise HTTPException(status_code=400, detail="缺少enabled字段")
+        config_manager = MCPConfigManager()
+        config_manager.toggle_server(server_name, enabled)
+        return {"success": True, "message": f"服务器{'启用' if enabled else '禁用'}成功"}
+    except Exception as e:
+        logger.error(f"切换服务器状态失败: {e}")
+        logger.error(f"Traceback: {traceback.format_exc()}")
+        raise HTTPException(status_code=500, detail=f"切换服务器状态失败: {str(e)}")
 
 
 # =============================================================================
@@ -492,7 +586,7 @@ async def get_skill_categories(
         技能分类信息
     """
     try:
-        categories = get_tool_categories()
+        categories = MCPConfigManager.get_tool_categories()
         
         # 转换为技能分类格式
         skill_categories = []
@@ -536,18 +630,18 @@ async def get_skills_list(
     try:
         if category:
             # 按分类获取工具
-            tools = get_tools_by_category(category)
+            tools = MCPConfigManager.get_tools_by_category(category)
         elif server:
             # 按服务器获取工具
-            tools = get_server_tools(server)
+            tools = MCPConfigManager.get_server_tools(server)
         else:
             # 获取所有工具
-            tools = get_all_tools()
+            tools = MCPConfigManager.get_all_tools()
         
         # 获取工具的详细信息
         skills_info = []
         for tool_name in tools:
-            tool_info = get_tool_info(tool_name)
+            tool_info = MCPConfigManager.get_tool_info(tool_name)
             if tool_info:
                 skills_info.append({
                     "skill_id": f"skill_{tool_name}",
@@ -593,12 +687,12 @@ async def search_skills(
         匹配的技能列表
     """
     try:
-        matching_tools = search_tools(keyword)
+        matching_tools = MCPConfigManager.search_tools(keyword)
         
         # 获取工具的详细信息
         skills_info = []
         for tool_name in matching_tools:
-            tool_info = get_tool_info(tool_name)
+            tool_info = MCPConfigManager.get_tool_info(tool_name)
             if tool_info:
                 skills_info.append({
                     "skill_id": f"skill_{tool_name}",
@@ -648,7 +742,7 @@ async def get_skill_detail(
             raise HTTPException(status_code=400, detail="无效的技能ID格式")
         
         tool_name = skill_id[6:]  # 移除"skill_"前缀
-        tool_info = get_tool_info(tool_name)
+        tool_info = MCPConfigManager.get_tool_info(tool_name)
         
         if not tool_info:
             raise HTTPException(status_code=404, detail=f"找不到技能 '{skill_id}'")
@@ -699,7 +793,7 @@ async def test_skill(
             raise HTTPException(status_code=400, detail="无效的技能ID格式")
         
         tool_name = skill_id[6:]  # 移除"skill_"前缀
-        tool_info = get_tool_info(tool_name)
+        tool_info = MCPConfigManager.get_tool_info(tool_name)
         
         if not tool_info:
             raise HTTPException(status_code=404, detail=f"找不到技能 '{skill_id}'")
@@ -742,7 +836,7 @@ async def get_skills_stats(
         技能统计信息
     """
     try:
-        config_manager = get_mcp_config_manager()
+        config_manager = MCPConfigManager()
         categories = config_manager.get_tool_categories()
         all_tools = config_manager.get_all_tools()
         
@@ -774,3 +868,20 @@ async def get_skills_stats(
         logger.error(f"获取技能统计失败: {e}")
         logger.error(f"Traceback: {traceback.format_exc()}")
         raise HTTPException(status_code=500, detail=f"获取技能统计失败: {str(e)}") 
+
+@mcp_router.get("/mcp/categories")
+async def get_mcp_categories(
+    current_user: User = Depends(get_admin_user)
+):
+    """
+    获取所有MCP分类
+    Returns:
+        分类列表
+    """
+    try:
+        categories = MCPConfigManager.get_all_categories()
+        return {"success": True, "data": categories}
+    except Exception as e:
+        logger.error(f"获取MCP分类失败: {e}")
+        logger.error(f"Traceback: {traceback.format_exc()}")
+        raise HTTPException(status_code=500, detail=f"获取MCP分类失败: {str(e)}") 

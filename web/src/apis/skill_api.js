@@ -36,15 +36,6 @@ export const skillApi = {
   },
 
   /**
-   * 搜索技能
-   * @param {string} keyword - 搜索关键词
-   * @returns {Promise} - 匹配的技能列表
-   */
-  searchSkills: async (keyword) => {
-    return apiGet(`/api/skills/search?keyword=${encodeURIComponent(keyword)}`, {}, true)
-  },
-
-  /**
    * 获取指定技能的详细信息
    * @param {string} skillId - 技能ID（格式：skill_工具名）
    * @returns {Promise} - 技能详细信息

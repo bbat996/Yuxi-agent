@@ -1,0 +1,23 @@
+# MCP分类配置文件
+# 可随时扩展，供MCP服务录入和前端选择
+
+categories:
+  - key: "math"
+    name: "数学工具"
+    description: "数学相关的计算和转换功能"
+  - key: "time"
+    name: "时间日期"
+    description: "时间和日期处理相关功能"
+  - key: "network"
+    name: "网络工具"
+    description: "网络请求、IP、URL等相关功能"
+  - key: "file"
+    name: "文件操作"
+    description: "文件和目录的读写、管理功能"
+  - key: "text"
+    name: "文本处理"
+    description: "文本内容的搜索、替换、格式化等"
+  - key: "system"
+    name: "系统信息"
+    description: "系统、进程、内存、CPU等信息获取"
+  # 可继续添加自定义分类 

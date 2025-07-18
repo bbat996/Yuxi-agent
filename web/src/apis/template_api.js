@@ -4,7 +4,6 @@
  */
 import { apiRequest, apiGet, apiPost, apiPut, apiDelete } from './base'
 import { skillApi } from './skill_api'
-import { skillsApi } from './mcp_api'
 
 // =============================================================================
 // 提示词模板相关API（只保留查询接口）

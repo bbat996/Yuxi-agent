@@ -12,7 +12,7 @@
           <BugOutlined />
         </template>
       </a-float-button> -->
-      <a-drawer
+      <!-- <a-drawer
         v-model:open="layoutSettings.showDebug"
         title="调试面板"
         width="800"
@@ -20,7 +20,7 @@
         placement="right"
       >
         <DebugComponent />
-      </a-drawer>
+      </a-drawer> -->
     </div>
     <div class="header" :class="{ 'top-bar': layoutSettings.useTopBar }">
       <div class="logo circle">
@@ -149,6 +149,12 @@ console.log(route)
 // 下面是导航菜单部分，添加智能体项
 const mainList = [
   {
+    name: 'AI团队',
+    path: '/ai_team',
+    icon: MessageSquareMore,
+    activeIcon: MessageSquareMore
+  },
+  {
     name: '智能体',
     path: '/agent',
     icon: Bot,
@@ -244,10 +250,10 @@ div.header,
   flex: 0 0 80px;
   justify-content: flex-start;
   align-items: center;
-  background-color: #121212;
+  background-color: #ffffff;
   height: 100%;
   width: 80px;
-  border-right: 1px solid #2a2a2a;
+  border-right: 1px solid #e8e8e8;
 
   .logo {
     width: 50px;
@@ -268,7 +274,7 @@ div.header,
       text-decoration: none;
       font-size: 24px;
       font-weight: bold;
-      color: #ffffff;
+      color: #333333;
     }
   }
 
@@ -283,7 +289,7 @@ div.header,
     border: 1px solid transparent;
     border-radius: 8px;
     background-color: transparent;
-    color: #f0f0f0;
+    color: #666666;
     font-size: 20px;
     transition: all 0.1s ease-in-out;
     margin: 0;
@@ -298,10 +304,10 @@ div.header,
 
     &.active {
       font-weight: bold;
-      color: white;
-      background-color: rgba(255, 255, 255, 0.15);
-      border: 1px solid #4299e1;
-      box-shadow: 0 0 8px rgba(66, 153, 225, 0.5);
+      color: #1890ff;
+      background-color: rgba(24, 144, 255, 0.1);
+      border: 1px solid #1890ff;
+      box-shadow: 0 0 8px rgba(24, 144, 255, 0.2);
 
       &:hover {
         transform: none;
@@ -315,7 +321,7 @@ div.header,
 
     &:hover {
       backdrop-filter: blur(10px);
-      background-color: rgba(255, 255, 255, 0.15);
+      background-color: rgba(24, 144, 255, 0.05);
       transform: translateY(-2px);
     }
 
@@ -401,8 +407,8 @@ div.header,
   width: 100%;
   height: 50px;
   border-right: none;
-  border-bottom: 1px solid #2a2a2a;
-  background-color: #121212;
+  border-bottom: 1px solid #e8e8e8;
+  background-color: #ffffff;
   padding: 0 20px;
   gap: 24px;
 
@@ -431,7 +437,7 @@ div.header,
       font-size: 16px;
       font-weight: 600;
       letter-spacing: 0.5px;
-      color: #ffffff;
+      color: #333333;
       white-space: nowrap;
     }
   }

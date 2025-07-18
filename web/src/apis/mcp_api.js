@@ -85,34 +85,62 @@ export const mcpToolsApi = {
 // MCP配置管理API
 export const mcpConfigApi = {
   /**
-   * 获取MCP配置摘要信息
-   * @returns {Promise} - MCP配置摘要
-   */
-  getConfigSummary: async () => {
-    checkAdminPermission()
-    return apiGet('/api/mcp/config/summary', {}, true)
-  },
-
-  /**
    * 获取MCP服务器列表
    * @param {boolean} enabledOnly - 是否只返回已启用的服务器，可选
+   * @param {string[]|string} categories - 分类key数组或单个分类key，可多选
    * @returns {Promise} - MCP服务器列表
    */
-  getServers: async (enabledOnly = false) => {
+  getServers: async (enabledOnly = false, categories = []) => {
     checkAdminPermission()
-    const params = enabledOnly ? '?enabled_only=true' : ''
-    return apiGet(`/api/mcp/config/servers${params}`, {}, true)
+    const params = new URLSearchParams()
+    if (enabledOnly) params.append('enabled_only', 'true')
+    
+    // 如果是多个分类，并行请求后合并结果
+    if (Array.isArray(categories) && categories.length > 0) {
+      const requests = categories.map(cat => {
+        const catParams = new URLSearchParams(params)
+        catParams.append('category', cat)
+        return apiGet(`/api/mcp/config/servers?${catParams.toString()}`, {}, true)
+      })
+      
+      const responses = await Promise.all(requests)
+      const merged = {}
+      
+      responses.forEach(res => {
+        if (res.success && res.data && res.data.servers) {
+          Object.assign(merged, res.data.servers)
+        }
+      })
+      
+      return { 
+        success: true, 
+        data: { 
+          servers: merged,
+          total: Object.keys(merged).length,
+          enabled_only: enabledOnly,
+          category: categories
+        } 
+      }
+    }
+    // 单个分类或无分类筛选
+    else if (typeof categories === 'string' && categories) {
+      params.append('category', categories)
+    }
+    
+    const queryString = params.toString()
+    const url = queryString ? `/api/mcp/config/servers?${queryString}` : '/api/mcp/config/servers'
+    return apiGet(url, {}, true)
   },
 
   /**
-   * 获取指定MCP服务器的详细信息
-   * @param {string} serverName - 服务器名称
-   * @returns {Promise} - 服务器详细信息
+   * 获取所有MCP分类
+   * @returns {Promise} - 分类列表
    */
-  getServerDetail: async (serverName) => {
+  getCategories: async () => {
     checkAdminPermission()
-    return apiGet(`/api/mcp/config/servers/${encodeURIComponent(serverName)}`, {}, true)
+    return apiGet('/api/mcp/categories', {}, true)
   },
+
 
   /**
    * 切换MCP服务器启用状态
@@ -157,77 +185,9 @@ export const mcpConfigApi = {
   }
 }
 
-// 技能管理API
-export const skillsApi = {
-  /**
-   * 获取技能分类列表
-   * @returns {Promise} - 技能分类信息
-   */
-  getCategories: async () => {
-    checkUserPermission()
-    return apiGet('/api/skills/categories', {}, true)
-  },
-
-  /**
-   * 获取技能列表
-   * @param {string} category - 技能分类，可选
-   * @param {string} server - 服务器名称，可选
-   * @returns {Promise} - 技能列表
-   */
-  getSkillsList: async (category = null, server = null) => {
-    checkUserPermission()
-    const params = new URLSearchParams()
-    if (category) params.append('category', category)
-    if (server) params.append('server', server)
-    const queryString = params.toString()
-    const url = queryString ? `/api/skills/list?${queryString}` : '/api/skills/list'
-    return apiGet(url, {}, true)
-  },
-
-  /**
-   * 搜索技能
-   * @param {string} keyword - 搜索关键词
-   * @returns {Promise} - 匹配的技能列表
-   */
-  searchSkills: async (keyword) => {
-    checkUserPermission()
-    return apiGet(`/api/skills/search?keyword=${encodeURIComponent(keyword)}`, {}, true)
-  },
-
-  /**
-   * 获取指定技能的详细信息
-   * @param {string} skillId - 技能ID（格式：skill_工具名）
-   * @returns {Promise} - 技能详细信息
-   */
-  getSkillDetail: async (skillId) => {
-    checkUserPermission()
-    return apiGet(`/api/skills/${encodeURIComponent(skillId)}`, {}, true)
-  },
-
-  /**
-   * 测试技能功能
-   * @param {string} skillId - 技能ID
-   * @param {Object} testParams - 测试参数
-   * @returns {Promise} - 测试结果
-   */
-  testSkill: async (skillId, testParams) => {
-    checkUserPermission()
-    return apiPost(`/api/skills/${encodeURIComponent(skillId)}/test`, testParams, {}, true)
-  },
-
-  /**
-   * 获取技能统计信息
-   * @returns {Promise} - 技能统计信息
-   */
-  getSkillsStats: async () => {
-    checkUserPermission()
-    return apiGet('/api/skills/stats', {}, true)
-  }
-}
 
 // 导出所有API
 export default {
   tools: mcpToolsApi,
   config: mcpConfigApi,
-  skills: skillsApi
-} 
+}

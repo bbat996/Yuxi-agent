@@ -24,7 +24,7 @@
     <div class="login-form-section">
       <div class="login-container">
         <div class="login-logo">
-          <img :src="configStore.siteLogo" :alt="configStore.siteName" class="logo-img" />
+          <img src="/public/avatar.png" :alt="configStore.siteName" class="logo-img" />
           <h1>{{ configStore.siteName }}</h1>
         </div>
 

@@ -6,7 +6,7 @@ from pydantic import BaseModel, Field
 from pydantic_settings import BaseSettings
 
 # 配置文件路径常量
-CONFIG_PATH = Path(__file__).parent / "base_config.yaml"
+CONFIG_PATH = Path(__file__).parent / "app_config.yaml"
 MODELS_PATH = Path(__file__).parent / "model_provider.yaml"
 MODELS_PRIVATE_PATH = Path(__file__).parent / "model_provider.private.yml"
 STORAGE_PATH = Path(__file__).parent.parent / "storage"
