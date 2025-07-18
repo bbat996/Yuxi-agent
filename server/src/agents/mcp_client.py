@@ -6,7 +6,7 @@ import traceback
 import importlib
 import platform
 from src.utils import logger
-from src.mcp_server.mcp_config_manager import get_mcp_config_manager
+from config.mcp_server_config import MCPConfigManager
 
 
 class InProcessMCPTool(BaseTool):
@@ -41,7 +41,7 @@ class MCPClient:
             return
             
         # 从配置文件加载连接配置
-        config_manager = get_mcp_config_manager()
+        config_manager = MCPConfigManager.get_instance()
         self.connections = config_manager.get_server_connections()
         logger.info(f"初始化MCP客户端，可用连接: {list(self.connections.keys())}")
         
@@ -77,7 +77,7 @@ class MCPClient:
     
     def reload_from_config(self):
         """从配置文件重新加载连接配置"""
-        config_manager = get_mcp_config_manager()
+        config_manager = MCPConfigManager.get_instance()
         self.connections = config_manager.get_server_connections()
         if not self.use_in_process:
             self.client = MultiServerMCPClient(self.connections)
@@ -87,7 +87,7 @@ class MCPClient:
     def load_connections_from_config(self, mcp_config: dict) -> dict:
         """从配置文件加载MCP连接配置，只返回请求的服务器连接"""
         # 使用新的配置管理器
-        config_manager = get_mcp_config_manager()
+        config_manager = MCPConfigManager.get_instance()
         all_connections = config_manager.get_server_connections()
         
         # 如果mcp_config为空或不是字典，返回所有连接
@@ -112,7 +112,7 @@ class MCPClient:
         if not self.use_in_process:
             return
         
-        config_manager = get_mcp_config_manager()
+        config_manager = MCPConfigManager.get_instance()
         
         # 只加载当前连接中指定的服务器，而不是所有启用的服务器
         for server_name in self.connections.keys():

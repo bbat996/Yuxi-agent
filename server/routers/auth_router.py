@@ -344,3 +344,166 @@ async def delete_user(
     db.commit()
 
     return {"success": True, "message": "用户已删除"}
+
+
+# ===== 个人信息管理相关API =====
+
+class ProfileUpdate(BaseModel):
+    display_name: str | None = None
+    email: str | None = None
+    avatar: str | None = None
+
+class PasswordChange(BaseModel):
+    current_password: str
+    new_password: str
+
+@auth.get("/profile", summary="获取个人信息")
+async def get_profile(current_user: User = Depends(get_current_user)):
+    """获取当前用户的个人信息"""
+    return {
+        "success": True,
+        "data": {
+            "id": current_user.id,
+            "username": current_user.username,
+            "display_name": current_user.display_name,
+            "email": current_user.email,
+            "avatar": current_user.avatar,
+            "role": current_user.role,
+            "created_at": current_user.created_at.isoformat() if current_user.created_at else None,
+            "last_login": current_user.last_login.isoformat() if current_user.last_login else None,
+            "updated_at": current_user.updated_at.isoformat() if current_user.updated_at else None
+        }
+    }
+
+@auth.put("/profile", summary="更新个人信息")
+async def update_profile(
+    profile_data: ProfileUpdate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+    request: Request = None
+):
+    """更新当前用户的个人信息"""
+    try:
+        # 更新字段
+        if profile_data.display_name is not None:
+            current_user.display_name = profile_data.display_name
+        if profile_data.email is not None:
+            current_user.email = profile_data.email
+        if profile_data.avatar is not None:
+            current_user.avatar = profile_data.avatar
+        
+        # 更新时间戳
+        current_user.updated_at = datetime.now()
+        
+        db.commit()
+        
+        # 记录操作日志
+        log_operation(
+            db,
+            current_user.id,
+            "profile_update",
+            f"更新个人信息: {profile_data.model_dump_json()}",
+            request
+        )
+        
+        return {
+            "success": True,
+            "message": "个人信息更新成功",
+            "data": {
+                "id": current_user.id,
+                "username": current_user.username,
+                "display_name": current_user.display_name,
+                "email": current_user.email,
+                "avatar": current_user.avatar,
+                "role": current_user.role,
+                "updated_at": current_user.updated_at.isoformat()
+            }
+        }
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"更新个人信息失败: {str(e)}")
+
+@auth.post("/change-password", summary="修改密码")
+async def change_password(
+    password_data: PasswordChange,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+    request: Request = None
+):
+    """修改当前用户密码"""
+    try:
+        # 验证当前密码
+        if not AuthUtils.verify_password(password_data.current_password, current_user.password_hash):
+            raise HTTPException(status_code=400, detail="当前密码不正确")
+        
+        # 更新密码
+        current_user.password_hash = AuthUtils.hash_password(password_data.new_password)
+        current_user.updated_at = datetime.now()
+        
+        db.commit()
+        
+        # 记录操作日志
+        log_operation(
+            db,
+            current_user.id,
+            "password_change",
+            "修改密码",
+            request
+        )
+        
+        return {"success": True, "message": "密码修改成功"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"修改密码失败: {str(e)}")
+
+@auth.get("/profile/stats", summary="获取个人统计信息")
+async def get_profile_stats(current_user: User = Depends(get_current_user)):
+    """获取当前用户的统计信息"""
+    return {
+        "success": True,
+        "data": {
+            "total_messages": current_user.total_messages or 0,
+            "total_tokens": current_user.total_tokens or 0,
+            "total_chats": current_user.total_chats or 0,
+            "file_storage_used": current_user.file_storage_used or 0,
+            "file_storage_used_mb": current_user.get_storage_used_mb(),
+            "account_age_days": (datetime.now() - current_user.created_at).days if current_user.created_at else 0
+        }
+    }
+
+@auth.get("/profile/file-storage", summary="获取个人文件存储信息")
+async def get_file_storage_info(current_user: User = Depends(get_current_user)):
+    """获取当前用户的文件存储信息"""
+    import os
+    from config.app_config import config
+    
+    # 构建用户文件存储路径
+    user_storage_path = os.path.join(config.storage_dir, "users", str(current_user.id))
+    
+    # 计算实际使用的存储空间
+    actual_used = 0
+    if os.path.exists(user_storage_path):
+        for root, dirs, files in os.walk(user_storage_path):
+            actual_used += sum(os.path.getsize(os.path.join(root, file)) for file in files)
+    
+    # 更新数据库中的存储使用量（如果有差异）
+    if abs(actual_used - (current_user.file_storage_used or 0)) > 1024:  # 差异超过1KB才更新
+        from db_manager import db_manager
+        with db_manager.get_session_context() as db:
+            db_user = db.query(User).filter(User.id == current_user.id).first()
+            if db_user:
+                db_user.file_storage_used = actual_used
+                db.commit()
+    
+    return {
+        "success": True,
+        "data": {
+            "storage_path": user_storage_path,
+            "used_bytes": actual_used,
+            "used_mb": round(actual_used / (1024 * 1024), 2),
+            "limit_mb": 1024,  # 默认限制1GB，可以配置
+            "usage_percentage": round((actual_used / (1024 * 1024 * 1024)) * 100, 2)  # 基于1GB限制的百分比
+        }
+    }

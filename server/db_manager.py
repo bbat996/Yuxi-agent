@@ -10,6 +10,8 @@ from models.user_model import User
 from models.thread_model import Thread
 from models.kb_models import KnowledgeDatabase, KnowledgeFile, KnowledgeNode
 from models.agent_models import CustomAgent, AgentInstance
+from models.site_config_model import SiteConfig
+from models.group_chat_model import GroupChat, GroupChatMember, GroupChatMessage, GroupChatFile
 from src.utils import logger
 
 
