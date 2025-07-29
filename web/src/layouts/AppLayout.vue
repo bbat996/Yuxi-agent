@@ -168,6 +168,12 @@ const mainList = [
   //   hidden: !configStore.config.enable_agent_management
   // },
   {
+    name: 'MCP平台',
+    path: '/mcp',
+    icon: Waypoints,
+    activeIcon: Waypoints
+  },
+  {
     name: '知识库',
     path: '/database',
     icon: LibraryBig,

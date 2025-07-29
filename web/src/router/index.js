@@ -97,7 +97,7 @@ const router = createRouter({
     },
     {
       path: '/setting',
-      name: 'setting',
+      name: 'SettingPage',
       component: AppLayout,
       children: [
         {
@@ -108,7 +108,25 @@ const router = createRouter({
         }
       ]
     },
-
+    {
+      path: '/mcp',
+      name: 'MCPPage',
+      component: AppLayout,
+      children: [
+        {
+          path: '',
+          name: 'MCPHome',
+          component: () => import('@/views/MCPHomeView.vue'),
+          meta: { keepAlive: true, requiresAuth: true, requiresAdmin: true }
+        },
+        {
+          path: 'servers/:server_name',
+          name: 'MCPServerDetail',
+          component: () => import('@/views/MCPServerDetailView.vue'),
+          meta: { keepAlive: false, requiresAuth: true, requiresAdmin: true }
+        }
+      ]
+    },
     {
       path: '/:pathMatch(.*)*',
       name: 'NotFound',
