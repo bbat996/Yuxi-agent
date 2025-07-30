@@ -382,6 +382,62 @@ async def toggle_mcp_server(
 
 
 # =============================================================================
+# MCP日志相关接口
+# =============================================================================
+
+@mcp_router.get("/mcp/servers/{server_name}/logs")
+async def get_server_logs(
+    server_name: str,
+    log_type: Optional[str] = Query(None, description="日志类型，例如: info, error, warning, debug"),
+    limit: int = Query(100, description="返回的日志条数限制"),
+    skip: int = Query(0, description="跳过的日志条数"),
+    start_time: Optional[str] = Query(None, description="开始时间，格式：YYYY-MM-DD HH:MM:SS"),
+    end_time: Optional[str] = Query(None, description="结束时间，格式：YYYY-MM-DD HH:MM:SS"),
+    current_user: User = Depends(get_admin_user)
+):
+    """获取指定MCP服务器的日志"""
+    logs = mcp_service.get_server_logs(
+        server_name=server_name,
+        log_type=log_type,
+        limit=limit,
+        skip=skip,
+        start_time=start_time,
+        end_time=end_time
+    )
+    
+    return {
+        "success": True,
+        "data": {
+            "logs": logs,
+            "total": len(logs),
+            "server_name": server_name,
+            "log_type": log_type,
+            "available_log_types": ["info", "error", "warning", "debug"]
+        }
+    }
+
+@mcp_router.delete("/mcp/servers/{server_name}/logs")
+async def clear_server_logs(
+    server_name: str,
+    log_type: Optional[str] = Query(None, description="日志类型，例如: info, error, warning, debug"),
+    current_user: User = Depends(get_admin_user)
+):
+    """清除指定MCP服务器的日志"""
+    result = mcp_service.clear_server_logs(
+        server_name=server_name,
+        log_type=log_type
+    )
+    
+    return {
+        "success": True,
+        "data": {
+            "server_name": server_name,
+            "log_type": log_type,
+            "cleared_count": result.get("cleared_count", 0)
+        }
+    }
+
+# =============================================================================
 # 技能管理相关接口（基于配置文件）
 # =============================================================================
 

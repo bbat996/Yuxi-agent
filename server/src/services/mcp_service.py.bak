@@ -291,262 +291,202 @@ class MCPService:
         重新加载MCP配置
         
         Returns:
-            配置摘要
-        """
-        MCPConfigManager.reload_config()
-        return MCPConfigManager.get_instance().get_config_summary()
-    
-    def validate_configuration(self) -> Dict[str, Any]:
-        """
-        验证MCP配置
         
-        Returns:
-            验证结果
-        """
-        errors = MCPConfigManager.get_instance().validate_config()
-        
-        return {
-            "valid": len(errors) == 0,
-            "errors": errors,
-            "config_path": str(MCPConfigManager.get_instance().config_path)
-        }
-    
-    def get_tool_categories(self) -> List[Dict[str, Any]]:
-        """
-        获取工具分类列表
-        
-        Returns:
-            分类列表
-        """
-        return MCPConfigManager.get_instance().get_tool_categories()
-    
-    def get_tools(self, category: Optional[str] = None, server_name: Optional[str] = None) -> List[Dict[str, Any]]:
-        """
-        获取工具列表
-        
-        Args:
-            category: 分类名称
-            server_name: 服务器名称
+        def delete_server(self, server_name: str) -> bool:
+            """
+            删除服务器
             
-        Returns:
-            工具列表
-        """
-        return MCPConfigManager.get_instance().get_tools(category, server_name)
-    
-    def search_tools(self, keyword: str) -> List[Dict[str, Any]]:
-        """
-        搜索工具
+            Args:
+                server_name: 服务器名称
+                
+            Returns:
+                是否删除成功
+            """
+            self.config_manager.delete_server(server_name)
+            return True
         
-        Args:
-            keyword: 搜索关键词
+        def toggle_server_status(self, server_name: str, enabled: bool) -> MCPServer:
+            """
+            切换服务器状态
             
-        Returns:
-            匹配的工具列表
-        """
-        return MCPConfigManager.get_instance().search_tools(keyword)
-    
-    def get_tool(self, tool_name: str) -> Optional[Dict[str, Any]]:
-        """
-        获取工具详情
+            Args:
+                server_name: 服务器名称
+                enabled: 是否启用
+                
+            Returns:
+                更新后的服务器
+            """
+            self.config_manager.toggle_server(server_name, enabled)
+            return self.get_server_by_name(server_name)
         
-        Args:
-            tool_name: 工具名称
+        def invoke_tool(self, request: MCPToolRequest) -> MCPToolResponse:
+            """
+            调用MCP工具
             
-        Returns:
-            工具详情
-        """
-        return MCPConfigManager.get_instance().get_tool(tool_name)
-    
-    def get_skills(self, category: Optional[str] = None, server_name: Optional[str] = None) -> List[Dict[str, Any]]:
-        """
-        获取技能列表
+            Args:
+                request: 工具调用请求
+                
+            Returns:
+                调用响应
+            """
+            # 这里需要实际实现调用逻辑，可能涉及到与其他服务的交互
+            # 目前只返回一个模拟结果
+            return MCPToolResponse(
+                success=True,
+                result={"message": f"调用工具 {request.tool_name} 成功", "parameters": request.parameters},
+                error=None
+            )
         
-        Args:
-            category: 分类名称
-            server_name: 服务器名称
+        def reload_configuration(self) -> Dict[str, Any]:
+            """
+            重新加载MCP配置
             
-        Returns:
-            技能列表
-        """
-        return MCPConfigManager.get_instance().get_skills(category, server_name)
-    
-    def search_skills(self, keyword: str) -> List[Dict[str, Any]]:
-        """
-        搜索技能
+            Returns:
+                配置摘要
+            """
+            MCPConfigManager.reload_config()
+            return MCPConfigManager.get_instance().get_config_summary()
         
-        Args:
-            keyword: 搜索关键词
+        def validate_configuration(self) -> Dict[str, Any]:
+            """
+            验证MCP配置
             
-        Returns:
-            匹配的技能列表
-        """
-        return MCPConfigManager.get_instance().search_skills(keyword)
-    
-    def get_skill(self, skill_id: str) -> Optional[Dict[str, Any]]:
-        """
-        获取技能详情
-        
-        Args:
-            skill_id: 技能ID
+            Returns:
+                验证结果
+            """
+            errors = MCPConfigManager.get_instance().validate_config()
             
-        Returns:
-            技能详情
-        """
-        return MCPConfigManager.get_instance().get_skill(skill_id)
-    
-    def test_skill(self, skill_id: str, test_params: Dict[str, Any]) -> Dict[str, Any]:
-        """
-        测试技能
-        
-        Args:
-            skill_id: 技能ID
-            test_params: 测试参数
-            
-        Returns:
-            测试结果
-        """
-        # 这里实现技能测试逻辑
-        # 目前仅返回一个模拟结果
-        return {
-            "success": True,
-            "result": {
-                "message": f"技能 {skill_id} 测试成功",
-                "parameters": test_params
+            return {
+                "valid": len(errors) == 0,
+                "errors": errors,
+                "config_path": str(MCPConfigManager.get_instance().config_path)
             }
-        }
-    
-    def get_mcp_categories(self) -> List[Dict[str, Any]]:
-        """
-        获取所有MCP分类
         
-        Returns:
-            分类列表
-        """
-        return MCPConfigManager.get_instance().get_categories()
-    
-    def get_server_logs(self, server_name: str, log_type: Optional[str] = None, 
-                      limit: int = 100, skip: int = 0,
-                      start_time: Optional[str] = None, end_time: Optional[str] = None) -> List[Dict[str, Any]]:
-        """
-        获取MCP服务器日志
-        
-        Args:
-            server_name: 服务器名称
-            log_type: 日志类型 (info, error, warning, debug)
-            limit: 返回的日志条数限制
-            skip: 跳过的日志条数
-            start_time: 开始时间，格式：YYYY-MM-DD HH:MM:SS
-            end_time: 结束时间，格式：YYYY-MM-DD HH:MM:SS
+        def get_server_logs(self, server_name: str, log_type: Optional[str] = None, 
+                          limit: int = 100, skip: int = 0,
+                          start_time: Optional[str] = None, end_time: Optional[str] = None) -> List[Dict[str, Any]]:
+            """
+            获取MCP服务器日志
             
-        Returns:
-            日志列表
-        """
-        # 获取服务器配置以验证服务器是否存在
-        server = self.get_server_by_name(server_name)
-        if not server:
-            return []
-        
-        # 这里实现日志检索逻辑
-        # 在实际应用中，日志可能存储在文件、数据库或通过API从远程服务器获取
-        # 这里使用模拟数据进行演示
-        
-        # 模拟日志数据 - 在实际项目中替换为真实日志读取逻辑
-        mock_logs = self._generate_mock_logs(server_name, 500)
-        
-        # 根据日志类型过滤
-        if log_type:
-            mock_logs = [log for log in mock_logs if log.get("level") == log_type]
-        
-        # 根据时间过滤
-        if start_time:
-            mock_logs = [log for log in mock_logs if log.get("timestamp") >= start_time]
-        if end_time:
-            mock_logs = [log for log in mock_logs if log.get("timestamp") <= end_time]
-        
-        # 排序 - 默认按时间逆序排序
-        mock_logs = sorted(mock_logs, key=lambda x: x.get("timestamp"), reverse=True)
-        
-        # 应用分页
-        return mock_logs[skip:skip+limit]
-    
-    def clear_server_logs(self, server_name: str, log_type: Optional[str] = None) -> Dict[str, Any]:
-        """
-        清除MCP服务器日志
-        
-        Args:
-            server_name: 服务器名称
-            log_type: 日志类型，如果为None则清除所有类型的日志
+            Args:
+                server_name: 服务器名称
+                log_type: 日志类型 (info, error, warning, debug)
+                limit: 返回的日志条数限制
+                skip: 跳过的日志条数
+                start_time: 开始时间，格式：YYYY-MM-DD HH:MM:SS
+                end_time: 结束时间，格式：YYYY-MM-DD HH:MM:SS
+                
+            Returns:
+                日志列表
+            """
+            # 获取服务器配置以验证服务器是否存在
+            server = self.get_server_by_name(server_name)
+            if not server:
+                return []
             
-        Returns:
-            清除结果
-        """
-        # 获取服务器配置以验证服务器是否存在
-        server = self.get_server_by_name(server_name)
-        if not server:
-            return {"cleared_count": 0}
-        
-        # 这里实现日志清除逻辑
-        # 在实际应用中，可能需要删除文件、清除数据库表或调用远程API
-        
-        # 模拟清除过程
-        cleared_count = 50 if log_type else 200
-        return {"cleared_count": cleared_count}  # 模拟清除结果
-        
-    def _generate_mock_logs(self, server_name: str, count: int = 100) -> List[Dict[str, Any]]:
-        """
-        生成模拟日志数据（仅用于演示）
-        
-        Args:
-            server_name: 服务器名称
-            count: 日志条数
+            # 这里实现日志检索逻辑
+            # 在实际应用中，日志可能存储在文件、数据库或通过API从远程服务器获取
+            # 这里使用模拟数据进行演示
             
-        Returns:
-            模拟日志列表
-        """
-        log_levels = ["info", "warning", "error", "debug"]
-        log_messages = [
-            "服务启动成功",
-            "连接到远程资源",
-            "资源请求超时",
-            "授权失败",
-            "API调用成功",
-            "处理请求中",
-            "内存使用率达到警戒值",
-            "CPU负载过高",
-            "数据同步完成",
-            "配置更新成功",
-            "服务重启",
-            "服务停止",
-            "发生未知异常"
-        ]
+            # 模拟日志数据 - 在实际项目中替换为真实日志读取逻辑
+            mock_logs = self._generate_mock_logs(server_name, 500)
+            
+            # 根据日志类型过滤
+            if log_type:
+                mock_logs = [log for log in mock_logs if log.get("level") == log_type]
+            
+            # 根据时间过滤
+            if start_time:
+                mock_logs = [log for log in mock_logs if log.get("timestamp") >= start_time]
+            if end_time:
+                mock_logs = [log for log in mock_logs if log.get("timestamp") <= end_time]
+            
+            # 排序 - 默认按时间逆序排序
+            mock_logs = sorted(mock_logs, key=lambda x: x.get("timestamp"), reverse=True)
+            
+            # 应用分页
+            return mock_logs[skip:skip+limit]
         
-        logs = []
-        now = datetime.now()
+        def clear_server_logs(self, server_name: str, log_type: Optional[str] = None) -> Dict[str, Any]:
+            """
+            清除MCP服务器日志
+            
+            Args:
+                server_name: 服务器名称
+                log_type: 日志类型，如果为None则清除所有类型的日志
+                
+            Returns:
+                清除结果
+            """
+            # 获取服务器配置以验证服务器是否存在
+            server = self.get_server_by_name(server_name)
+            if not server:
+                return {"cleared_count": 0}
+            
+            # 这里实现日志清除逻辑
+            # 在实际应用中，可能需要删除文件、清除数据库表或调用远程API
+            
+            # 模拟清除过程
+            return {"cleared_count": 50}  # 模拟清除50条日志
         
-        for i in range(count):
-            # 生成随机时间，最近的日志在前面
-            log_time = now - timedelta(minutes=i*5)
-            timestamp = log_time.strftime("%Y-%m-%d %H:%M:%S")
+        def _generate_mock_logs(self, server_name: str, count: int = 100) -> List[Dict[str, Any]]:
+            """
+            生成模拟日志数据（仅用于演示）
             
-            level = random.choice(log_levels)
-            message = random.choice(log_messages)
+            Args:
+                server_name: 服务器名称
+                count: 日志条数
+                
+            Returns:
+                模拟日志列表
+            """
+            import random
+            from datetime import datetime, timedelta
             
-            # 为错误和警告添加更详细的信息
-            details = None
-            if level == "error":
-                details = f"错误代码: {random.randint(400, 599)}, 位置: {random.choice(['API服务', '配置管理', '资源处理', '连接池'])}"
-            elif level == "warning":
-                details = f"警告级别: {random.randint(1, 5)}, 建议操作: {random.choice(['重试', '检查配置', '增加超时时间', '减少并发请求'])}"
+            log_levels = ["info", "warning", "error", "debug"]
+            log_messages = [
+                "服务启动成功",
+                "连接到远程资源",
+                "资源请求超时",
+                "授权失败",
+                "API调用成功",
+                "处理请求中",
+                "内存使用率达到警戒值",
+                "CPU负载过高",
+                "数据同步完成",
+                "配置更新成功",
+                "服务重启",
+                "服务停止",
+                "发生未知异常"
+            ]
             
-            log_entry = {
-                "id": str(uuid.uuid4()),
-                "timestamp": timestamp,
-                "level": level,
-                "server": server_name,
-                "message": message,
-                "details": details
-            }
+            logs = []
+            now = datetime.now()
             
-            logs.append(log_entry)
-            
-        return logs
+            for i in range(count):
+                # 生成随机时间，最近的日志在前面
+                log_time = now - timedelta(minutes=i*5)
+                timestamp = log_time.strftime("%Y-%m-%d %H:%M:%S")
+                
+                level = random.choice(log_levels)
+                message = random.choice(log_messages)
+                
+                # 为错误和警告添加更详细的信息
+                details = None
+                if level == "error":
+                    details = f"错误代码: {random.randint(400, 599)}, 位置: {random.choice(['API服务', '配置管理', '资源处理', '连接池'])}"
+                elif level == "warning":
+                    details = f"警告级别: {random.randint(1, 5)}, 建议操作: {random.choice(['重试', '检查配置', '增加超时时间', '减少并发请求'])}"
+                
+                log_entry = {
+                    "id": str(uuid.uuid4()),
+                    "timestamp": timestamp,
+                    "level": level,
+                    "server": server_name,
+                    "message": message,
+                    "details": details
+                }
+                
+                logs.append(log_entry)
+                
+            return logs
